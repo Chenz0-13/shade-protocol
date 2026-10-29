@@ -1,85 +1,41 @@
-import { buildPoseidon } from "circomlibjs";
-import { groth16 } from "snarkjs";
-import { randomBytes, createCipheriv, createDecipheriv } from "crypto";
-import { ShieldedNote } from "./primitives.js";
+import { generatePrivacyKeys, publicIdentity, type PrivacyKeys, type PublicIdentity } from "./keys.js";
+import { noteCommitment, noteNullifier, ownerAddress, type NoteParts } from "./note.js";
+import { buildOutgoingNote, readNote, type OutgoingNote } from "../notes/outgoing.js";
+import type { NotePlaintext } from "./primitives.js";
 
+/** Facade over the note, stealth, and commitment operations. */
 export class CryptoEngine {
-  private poseidon: any;
-
-  async init(): Promise<void> {
-    this.poseidon = await buildPoseidon();
+  generateKeys(): PrivacyKeys {
+    return generatePrivacyKeys();
   }
 
-  generateStealthAddress(recipientPubKey: Uint8Array): {
-    stealthAddress: Uint8Array;
-    ephemeralKey: Uint8Array;
-  } {
-    const ephemeralKey = randomBytes(32);
-    const sharedSecret = this.poseidon([
-      BigInt("0x" + Buffer.from(ephemeralKey).toString("hex")),
-      BigInt("0x" + Buffer.from(recipientPubKey).toString("hex")),
-    ]);
-
-    const stealthAddress = new Uint8Array(
-      Buffer.from(sharedSecret.toString(16).padStart(64, "0"), "hex")
-    );
-
-    return { stealthAddress, ephemeralKey };
+  ownerAddress(spendingKey: bigint): bigint {
+    return ownerAddress(spendingKey);
   }
 
-  async buildNote(
-    amount: bigint,
-    recipientPubKey: Uint8Array,
-    secret: Uint8Array
-  ): Promise<ShieldedNote> {
-    const { stealthAddress } = this.generateStealthAddress(recipientPubKey);
-
-    const commitment = this.poseidon([
-      amount,
-      BigInt("0x" + Buffer.from(secret).toString("hex")),
-      BigInt("0x" + Buffer.from(recipientPubKey).toString("hex")),
-    ]);
-
-    const nullifier = this.poseidon([
-      BigInt("0x" + Buffer.from(secret).toString("hex")),
-      commitment,
-    ]);
-
-    const iv = randomBytes(12);
-    const key = Buffer.from(secret).slice(0, 32);
-    const cipher = createCipheriv("aes-256-gcm", key, iv);
-    const encryptedValue = Buffer.concat([
-      iv,
-      cipher.update(Buffer.from(amount.toString())),
-      cipher.final(),
-      cipher.getAuthTag(),
-    ]);
-
-    return {
-      commitment,
-      nullifier,
-      encryptedValue,
-      stealthAddress: Buffer.from(stealthAddress).toString("hex"),
-    };
+  commitment(parts: NoteParts): bigint {
+    return noteCommitment(parts);
   }
 
-  async verifyProof(
-    proof: object,
-    publicSignals: string[],
-    verificationKey: object
-  ): Promise<boolean> {
-    return groth16.verify(verificationKey, publicSignals, proof);
+  nullifier(spendingKey: bigint, rho: bigint): bigint {
+    return noteNullifier(spendingKey, rho);
   }
 
-  decryptNote(encryptedValue: Buffer, viewKey: Uint8Array): bigint {
-    const iv = encryptedValue.slice(0, 12);
-    const tag = encryptedValue.slice(-16);
-    const data = encryptedValue.slice(12, -16);
-    const key = Buffer.from(viewKey).slice(0, 32);
+  buildNote(params: {
+    value: bigint;
+    assetId: bigint;
+    recipient: PublicIdentity;
+    spendingKey?: bigint;
+    memo?: string;
+  }): OutgoingNote {
+    return buildOutgoingNote(params);
+  }
 
-    const decipher = createDecipheriv("aes-256-gcm", key, iv);
-    decipher.setAuthTag(tag);
-    const decrypted = Buffer.concat([decipher.update(data), decipher.final()]);
-    return BigInt(decrypted.toString());
+  readNote(keys: PrivacyKeys, note: Pick<OutgoingNote, "encryptedValue" | "commitment" | "stealthAddress">): NotePlaintext {
+    return readNote(keys, note);
+  }
+
+  identity(keys: PrivacyKeys): PublicIdentity {
+    return publicIdentity(keys);
   }
 }
