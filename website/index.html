@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080a">
+<meta name="referrer" content="no-referrer">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23E6FF7A'/%3E%3Cstop offset='1' stop-color='%237FA61A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='url(%23g)'/%3E%3C/svg%3E">
+<title>Shade Protocol: private by default, verifiable by design</title>
+<meta name="description" content="Shade Protocol is an open-source shielded execution layer for private transfers and dark-pool trading, with zero-knowledge proofs and selective disclosure. Devnet/testnet only, unaudited.">
+<style>
+  /* Self-hosted fonts (no third-party requests). Inter + Oswald + JetBrains Mono, SIL Open Font License. */
+  @font-face{font-family:"Inter";font-style:normal;font-weight:300 600;font-display:swap;src:url(assets/fonts/Inter.woff2) format("woff2")}
+  @font-face{font-family:"Oswald";font-style:normal;font-weight:500 600;font-display:swap;src:url(assets/fonts/Oswald.woff2) format("woff2")}
+  @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 500;font-display:swap;src:url(assets/fonts/JetBrainsMono.woff2) format("woff2")}
+
+  /* Theme: Shade Protocol litepaper. Near-black misty ground, acid-lime accent, tall condensed uppercase
+     headings, muted Inter body, "NN // SECTION" eyebrows with a short lime rule, square buttons. */
+  :root{
+    --bg:#07080a;
+    --bg2:#0d0f12;
+    --panel:#101317;
+    --ink:#E9ECEF;
+    --head:#F2F4F6;
+    --muted:#9AA1AA;
+    --dim:#80878f;
+    --line:#262a30;
+    --line-hi:#3a3f46;
+    --lime:#C6F432;
+    --lime-a:rgba(198,244,50,.06);
+    --display:"Oswald","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+    --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --nav-h:68px;
+    --gl:max(20px, env(safe-area-inset-left, 0px));
+    --gr:max(20px, env(safe-area-inset-right, 0px));
+    --max:1240px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html{
+    scroll-behavior:smooth;background-color:var(--bg);
+    background-image:
+      radial-gradient(ellipse 70% 40% at 85% 8%, rgba(120,128,138,.10), transparent 70%),
+      radial-gradient(ellipse 60% 35% at 10% 55%, rgba(110,118,128,.07), transparent 70%),
+      radial-gradient(ellipse 70% 35% at 80% 92%, rgba(198,244,50,.035), transparent 70%);
+    background-attachment:fixed;
+  }
+  body{
+    margin:0;color:var(--muted);
+    font:400 16px/1.65 var(--sans);
+    -webkit-font-smoothing:antialiased;overflow-x:hidden;
+  }
+  body::after{ /* film grain, as in the litepaper */
+    content:"";position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.6;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a{color:inherit;text-decoration:none}
+  em{font-style:normal;color:var(--lime)}
+  strong{color:var(--ink);font-weight:600}
+  :focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+  ::selection{background:var(--lime);color:var(--bg)}
+  .shell{max-width:var(--max);margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+  .skip{position:absolute;left:-9999px;top:8px;z-index:100;background:var(--lime);color:var(--bg);padding:10px 14px;font:600 13px var(--sans)}
+  .skip:focus{left:12px}
+
+  /* ---------- nav ---------- */
+  .nav{
+    position:sticky;top:0;z-index:60;
+    background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,.35));
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+    padding-top:env(safe-area-inset-top,0px);
+  }
+  .nav-in{display:flex;align-items:center;justify-content:space-between;gap:16px;height:var(--nav-h)}
+  .brand{display:flex;align-items:center;gap:12px;font:500 1.05rem var(--display);letter-spacing:.18em;color:var(--ink);text-transform:uppercase;white-space:nowrap}
+  .brand svg{flex:none;display:block}
+  .nav-links{display:flex;gap:2px;align-items:center;margin-left:auto}
+  .nav-links a{font:500 12px var(--sans);letter-spacing:.16em;text-transform:uppercase;color:var(--muted);padding:8px 12px}
+  .nav-links a:hover{color:var(--lime)}
+  .menu-btn{
+    display:none;width:44px;height:44px;margin-right:-8px;padding:12px 9px;
+    flex-direction:column;justify-content:center;gap:6px;background:none;border:0;cursor:pointer;
+  }
+  .menu-btn span{display:block;height:2px;background:var(--ink);transition:transform .2s ease,opacity .2s ease}
+  .menu-btn[aria-expanded="true"] span:nth-child(1){transform:translateY(8px) rotate(45deg)}
+  .menu-btn[aria-expanded="true"] span:nth-child(2){opacity:0}
+  .menu-btn[aria-expanded="true"] span:nth-child(3){transform:translateY(-8px) rotate(-45deg)}
+  .menu{position:absolute;top:100%;left:0;right:0;background:#07080a;box-shadow:0 24px 40px rgba(0,0,0,.6);border-bottom:1px solid var(--line-hi)}
+  .menu a{display:block;padding:16px 0;border-top:1px solid var(--line);font:500 1.15rem var(--display);letter-spacing:.12em;text-transform:uppercase;color:var(--ink)}
+  .menu a:first-child{border-top:0}
+  .menu a.lime{color:var(--lime)}
+  @media (max-width:900px){.nav-links{display:none}.menu-btn{display:flex}}
+  @media (max-width:559px){.nav .btn{display:none}}
+  @media (min-width:901px){.menu{display:none!important}}
+
+  /* ---------- buttons & links ---------- */
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;gap:10px;
+    padding:15px 26px;border:1px solid var(--lime);border-radius:0;
+    background:var(--lime);color:#0a0b0c;
+    font:600 12.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+    transition:background .2s ease,border-color .2s ease,color .2s ease;
+  }
+  .btn:hover{background:#d8ff5c;border-color:#d8ff5c}
+  .btn.line{background:transparent;border-color:#4a4f56;color:var(--ink)}
+  .btn.line:hover{border-color:var(--lime);color:var(--lime);background:transparent}
+  .nav .btn{padding:11px 16px;font-size:11.5px}
+  .link{
+    display:inline-flex;align-items:center;gap:8px;padding:6px 0;margin:0;
+    background:none;border:0;border-bottom:1px solid var(--line-hi);border-radius:0;
+    color:var(--ink);font:500 12.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;cursor:pointer;
+    transition:border-color .2s ease,color .2s ease;
+  }
+  .link:hover{border-color:var(--lime);color:var(--lime)}
+
+  /* ---------- eyebrow ---------- */
+  .eyebrow,.idx{
+    margin:0;display:flex;align-items:center;gap:14px;
+    font:500 12px var(--sans);letter-spacing:.24em;text-transform:uppercase;color:var(--lime);
+  }
+  .eyebrow::before,.idx::before{content:"";width:38px;height:1px;background:var(--lime);flex:none}
+
+  /* ---------- hero ---------- */
+  .hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line);margin-top:calc(var(--nav-h) * -1);
+    background:
+      radial-gradient(ellipse 60% 40% at 22% 24%, rgba(140,148,158,.13), transparent 70%),
+      radial-gradient(ellipse 80% 30% at 18% 86%, rgba(90,96,104,.14), transparent 70%),
+      linear-gradient(180deg,#0b0c0e 0%,#050607 62%,#08090b 100%);
+  }
+  .figure{
+    position:absolute;z-index:0;display:block;pointer-events:none;
+    right:-6%;top:calc(var(--nav-h) - 10px);height:min(150vw,640px);width:auto;max-width:none;
+    opacity:.72;
+    -webkit-mask-image:linear-gradient(180deg,#000 55%,transparent 98%);
+    mask-image:linear-gradient(180deg,#000 55%,transparent 98%);
+  }
+  .veil{position:absolute;z-index:1;inset:0;pointer-events:none;
+    background:linear-gradient(90deg,rgba(5,6,7,.82) 0,rgba(5,6,7,.45) 55%,rgba(5,6,7,.1) 100%)}
+  #field{
+    z-index:2;position:absolute;inset:0;width:100%;height:100%;display:block;pointer-events:none;opacity:.8;
+    -webkit-mask-image:linear-gradient(180deg,#000 70%,transparent);mask-image:linear-gradient(180deg,#000 70%,transparent);
+  }
+  .hero-in{
+    position:relative;z-index:3;
+    padding-top:calc(var(--nav-h) + clamp(150px,52vw,250px));padding-bottom:28px;
+  }
+  .hero-copy{max-width:640px}
+  h1{
+    margin:22px 0 26px;font:600 clamp(3.1rem,13.5vw,6.6rem)/.98 var(--display);
+    text-transform:uppercase;letter-spacing:-.005em;color:var(--head);
+    text-shadow:0 2px 24px rgba(0,0,0,.6);
+  }
+  h1 span{display:block}
+  .lede{margin:0;max-width:52ch;color:#AEB4BC;font:300 clamp(1.05rem,1.5vw,1.2rem)/1.6 var(--sans);text-shadow:0 1px 8px #000,0 0 2px #000}
+  .actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px 18px;margin-top:34px}
+  .actions .link{margin-left:6px}
+  .typed{margin:30px 0 0;font:500 clamp(.95rem,1.6vw,1.1rem)/1.3 var(--mono);color:var(--dim);letter-spacing:.02em;overflow-wrap:anywhere}
+  .typed b{color:var(--lime);font-weight:500}
+  .caret{display:inline-block;width:2px;height:1.05em;background:var(--ink);margin-left:2px;vertical-align:-.15em;animation:caret 1s steps(1) infinite}
+  @keyframes caret{50%{opacity:0}}
+  .facts{
+    display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 20px;margin:56px 0 0;
+    border-top:1px solid #23272c;padding-top:20px;font:400 14px/1.45 var(--sans);color:#9aa1a9;
+  }
+  .facts dt{font:500 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--lime);margin-bottom:4px}
+  .facts dd{margin:0}
+  .scroll{display:inline-flex;align-items:center;gap:12px;margin-top:26px;font:500 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+  .scroll::after{content:"";width:44px;height:1px;background:var(--line-hi)}
+  .scroll:hover{color:var(--lime)}
+  @media (min-width:1000px){
+    .hero{min-height:min(100vh,900px)}
+    .figure{right:-2%;top:calc(var(--nav-h) + 10px);bottom:0;height:calc(100% - var(--nav-h) - 10px);opacity:.97;
+      -webkit-mask-image:linear-gradient(180deg,#000 80%,transparent 100%),linear-gradient(90deg,transparent 0,#000 22%);
+      -webkit-mask-composite:source-in;
+      mask-image:linear-gradient(180deg,#000 80%,transparent 100%),linear-gradient(90deg,transparent 0,#000 22%);
+      mask-composite:intersect;}
+    .veil{background:linear-gradient(90deg,rgba(5,6,7,.9) 0,rgba(5,6,7,.55) 38%,rgba(5,6,7,0) 60%)}
+    .hero-in{padding-top:calc(var(--nav-h) + clamp(70px,9vh,120px));padding-bottom:40px}
+    .facts{grid-template-columns:repeat(4,minmax(0,1fr));max-width:none;margin-top:72px}
+  }
+
+  /* ---------- console + principles band ---------- */
+  .band{border-bottom:1px solid var(--line)}
+  .band-in{display:grid;grid-template-columns:minmax(0,1fr);gap:40px;padding-block:clamp(48px,6vw,80px)}
+  @media (min-width:1000px){.band-in{grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);gap:56px;align-items:center}}
+  .console{
+    background:rgba(10,11,13,.8);border:1px solid var(--line-hi);
+    font:400 12.5px/1.75 var(--mono);color:#aab0b8;min-width:0;
+  }
+  .con-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 16px;border-bottom:1px solid var(--line);
+    font-size:10.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .con-head .tag{color:var(--lime);border:1px solid var(--lime);padding:2px 8px}
+  .con-body{padding:14px 16px;overflow-wrap:anywhere}
+  .con-body .cmd b{color:var(--lime);font-weight:500}
+  .con-body .ok{color:var(--dim)}
+  .con-body .ok::first-letter{color:var(--lime)}
+  .routes{list-style:none;margin:10px 0 0;padding:10px 0 0;border-top:1px dashed var(--line-hi);min-height:7.2em}
+  .routes li{display:flex;flex-wrap:wrap;gap:0 14px}
+  .routes .rid{color:var(--lime)}
+  .routes li:last-child{color:var(--ink)}
+  .readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0;border-top:1px solid var(--line)}
+  .readout div{padding:12px 16px;border-left:1px solid var(--line)}
+  .readout div:first-child{border-left:0}
+  .readout dt{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .readout dd{margin:2px 0 0;font:500 13px var(--mono);letter-spacing:.06em;color:var(--ink);overflow-wrap:anywhere}
+  .readout .g{color:var(--lime)}
+  .con-note{margin:0;padding:10px 16px;border-top:1px solid var(--line);font-size:11px;line-height:1.5;color:var(--dim)}
+  .principles{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:36px 36px}
+  @media (max-width:559px){.principles{grid-template-columns:minmax(0,1fr);gap:28px}}
+  .principles article{position:relative;padding-top:18px;border-top:1px solid var(--line)}
+  .principles article::before{content:"";position:absolute;top:-1px;left:0;width:38px;height:1px;background:var(--lime)}
+  .code{font:500 11px var(--sans);letter-spacing:.22em;color:var(--lime);text-transform:uppercase}
+  .principles h3{margin:6px 0 8px;font:500 1.3rem/1.2 var(--display);text-transform:uppercase;letter-spacing:.05em;color:var(--ink)}
+  .principles p{margin:0;font-size:15px}
+
+  /* ---------- sections ---------- */
+  .sec{padding-block:clamp(64px,9vw,120px);border-bottom:1px solid var(--line);scroll-margin-top:var(--nav-h)}
+  h2{
+    margin:20px 0 18px;font:600 clamp(2.3rem,6.4vw,4.4rem)/1.02 var(--display);
+    text-transform:uppercase;letter-spacing:-.003em;color:var(--head);text-wrap:balance;max-width:20ch;
+  }
+  h3{color:var(--ink)}
+  .deck{margin:0;max-width:62ch;color:var(--muted);font-size:clamp(1rem,1.3vw,1.12rem)}
+  .sec-body{margin-top:clamp(32px,4vw,56px)}
+  .cols3{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px}
+  .cell{
+    --mx:50%;--my:-60%;
+    position:relative;padding:26px;border:1px solid var(--line);min-width:0;
+    background:radial-gradient(280px circle at var(--mx) var(--my),rgba(198,244,50,.09),transparent 62%),rgba(13,15,18,.75);
+    transition:border-color .2s ease;
+  }
+  .cell:hover{border-color:var(--line-hi)}
+  .cell .code{display:block;margin-bottom:12px}
+  .cell h3,.panel h3,.rail h3{margin:0 0 10px;font:500 1.35rem/1.2 var(--display);text-transform:uppercase;letter-spacing:.05em}
+  .cell h3::before,.rail h3::before{content:"";display:inline-block;width:8px;height:8px;background:var(--lime);margin-right:10px;vertical-align:.22em}
+  .cell p{margin:0;font-size:15px}
+
+  /* architecture stack */
+  .stack{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,.8fr);gap:20px;align-items:start}
+  @media (max-width:899px){.stack{grid-template-columns:minmax(0,1fr)}}
+  .map{display:grid;gap:8px}
+  .trio{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  @media (max-width:559px){.trio{grid-template-columns:minmax(0,1fr)}}
+  .layer{
+    display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;
+    padding:14px 16px;border:1px solid var(--line);border-left-width:3px;border-radius:0;
+    background:rgba(13,15,18,.8);color:var(--ink);font:inherit;cursor:pointer;
+    transition:border-color .2s ease,background .2s ease;
+  }
+  .layer.core{border-left-color:var(--ink)}
+  .layer.dev{border-left-color:var(--line-hi)}
+  .layer:hover{background:var(--panel)}
+  .layer .lk{font:500 10.5px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--dim)}
+  .layer b{font:500 1.08rem/1.2 var(--display);text-transform:uppercase;letter-spacing:.05em;font-weight:500}
+  .layer[aria-pressed="true"]{border-color:var(--lime);background:var(--lime-a)}
+  .layer[aria-pressed="true"] .lk{color:var(--lime)}
+  .detail{position:sticky;top:calc(var(--nav-h) + 20px);padding:28px;border:1px solid var(--lime);background:var(--lime-a);min-width:0}
+  @media (max-width:899px){.detail{position:static}}
+  .detail .lk{margin:0;font:500 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--lime)}
+  .detail h3{margin:10px 0 12px;font:600 2rem/1.05 var(--display);text-transform:uppercase;color:var(--head)}
+  .detail p.txt{margin:0;color:#B5BBC2}
+  .detail .hint{margin:20px 0 0;font:400 12px var(--sans);color:var(--dim)}
+  figure.diagram{margin:20px 0 0;padding:clamp(14px,3vw,28px);border:1px solid #23272c;background:rgba(10,11,13,.75)}
+  figure.diagram .scroller{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  figure.diagram img{display:block;width:100%;min-width:680px;height:auto}
+  @media (min-width:700px){figure.diagram img{min-width:0}}
+  figcaption{margin-top:14px;font:400 12.5px var(--sans);letter-spacing:.04em;color:var(--dim)}
+
+  /* token */
+  .tok{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:20px;align-items:start}
+  @media (max-width:899px){.tok{grid-template-columns:minmax(0,1fr)}}
+  .stackc{display:grid;gap:14px}
+  .sheet{margin:0;border:1px solid var(--lime);background:var(--lime-a)}
+  .sheet-h{padding:12px 16px;font:500 11px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--lime);border-bottom:1px solid var(--lime)}
+  .sheet .row{display:grid;grid-template-columns:6.5rem minmax(0,1fr);gap:14px;padding:14px 16px;border-top:1px solid var(--line)}
+  .sheet .row:first-of-type{border-top:0}
+  .sheet dt{font:500 11px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+  .sheet dd{margin:0;font:400 15px/1.55 var(--sans);color:var(--ink);overflow-wrap:anywhere}
+
+  /* roadmap rail */
+  .rail{list-style:none;margin:clamp(40px,5vw,64px) 0 0;padding:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:0 26px}
+  .rail li{position:relative;border-top:1px solid var(--line-hi);padding-top:28px}
+  .rail li::before{content:"";position:absolute;top:-5px;left:0;width:9px;height:9px;background:var(--line-hi)}
+  .rail li.now{border-top-color:var(--lime)}
+  .rail li.now::before{background:var(--lime)}
+  .rail .q{font:500 11.5px var(--sans);letter-spacing:.2em;text-transform:uppercase;color:var(--lime)}
+  .rail h3{margin:8px 0 10px;font-size:1.25rem}
+  .rail h3::before{display:none}
+  .rail p{margin:0;font-size:14.5px}
+  .rail-note{margin:34px 0 0;font-size:14px;color:var(--dim)}
+  @media (max-width:999px){
+    .rail{grid-template-columns:minmax(0,1fr)}
+    .rail li{border-top:0;border-left:1px solid var(--line-hi);padding:0 0 34px 28px}
+    .rail li.now{border-left-color:var(--lime)}
+    .rail li::before{top:4px;left:-5px}
+  }
+
+  /* docs */
+  .docs{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+  @media (max-width:899px){.docs{grid-template-columns:minmax(0,1fr)}}
+  .panel{padding:26px;border:1px solid var(--line);background:rgba(13,15,18,.75);min-width:0}
+  .panel>.code{display:block;margin-bottom:6px}
+  .steps{list-style:none;margin:8px 0 0;padding:0;counter-reset:s}
+  .steps li{counter-increment:s;display:grid;grid-template-columns:3rem minmax(0,1fr);padding:12px 0;border-top:1px solid var(--line);font-size:15px;color:var(--ink)}
+  .steps li::before{content:counter(s,decimal-leading-zero);font:500 12px var(--mono);color:var(--lime);padding-top:3px}
+  .steps li.opt span::after{content:" (optional)";color:var(--dim)}
+  .sec-list{margin:8px 0 0}
+  .sec-list .row{display:grid;grid-template-columns:7.5rem minmax(0,1fr);gap:14px;padding:12px 0;border-top:1px solid var(--line)}
+  .sec-list dt{font:500 11px var(--sans);letter-spacing:.18em;text-transform:uppercase;color:var(--dim);padding-top:3px}
+  .sec-list dd{margin:0;font-size:15px}
+  .panel .actions{margin-top:24px}
+  .doclist{list-style:none;margin:28px 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:0 24px}
+  .doclist a{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid var(--line);color:var(--ink);font:500 12.5px var(--sans);letter-spacing:.14em;text-transform:uppercase}
+  .doclist a::after{content:"→";color:var(--lime)}
+  .doclist a:hover{color:var(--lime)}
+
+  /* callout */
+  .callout{margin:0 0 clamp(28px,4vw,44px);padding:18px 22px;border:1px solid var(--lime);border-left-width:4px;background:var(--lime-a);color:#B5BBC2;font-size:15px}
+  .callout strong{color:var(--lime)}
+
+  /* community */
+  .closing{padding:clamp(28px,5vw,56px);border:1px solid #2a2e34;background:linear-gradient(135deg,rgba(198,244,50,.06),rgba(10,11,13,.6) 55%)}
+  .big{max-width:18ch;font-size:clamp(2.3rem,7vw,5rem);line-height:1}
+  .links{display:flex;flex-wrap:wrap;align-items:center;gap:16px 18px;margin-top:34px}
+
+  /* footer */
+  footer{padding-block:32px 56px;color:var(--dim);font-size:13.5px}
+  .foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:14px 24px}
+  .foot .brand{font-size:.95rem}
+  .foot nav{display:flex;flex-wrap:wrap;gap:6px 22px}
+  .foot nav a{font:500 11.5px var(--sans);letter-spacing:.16em;text-transform:uppercase}
+  .foot nav a:hover{color:var(--lime)}
+  .disc{margin:18px 0 0;font:400 12.5px/1.6 var(--sans);color:var(--dim);max-width:100ch}
+
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .caret{animation:none}
+    .btn,.link,.cell,.layer,.menu-btn span{transition:none}
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header class="nav" id="top">
+  <div class="shell nav-in">
+    <a class="brand" href="#top" aria-label="Shade Protocol, top of page">
+      <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg>
+      <span>Shade Protocol</span>
+    </a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#about">Premise</a>
+      <a href="#tech">Architecture</a>
+      <a href="#token">Token</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#docs">Docs</a>
+    </nav>
+    <a class="btn line" href="#community">Join community</a>
+    <button class="menu-btn" id="menuBtn" type="button" aria-expanded="false" aria-controls="menu" aria-label="Menu"><span></span><span></span><span></span></button>
+  </div>
+  <div class="menu" id="menu" hidden>
+    <div class="shell">
+      <a href="#about">Premise</a>
+      <a href="#tech">Architecture</a>
+      <a href="#token">Token</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="#docs">Docs</a>
+      <a class="lime" href="#community">Join community</a>
+    </div>
+  </div>
+</header>
+
+<main id="main">
+  <section class="hero" aria-labelledby="hero-title">
+    <img class="figure" src="assets/wizard-cover.png" alt="" aria-hidden="true" decoding="async" width="706" height="1016">
+    <div class="veil" aria-hidden="true"></div>
+    <canvas id="field" aria-hidden="true"></canvas>
+    <div class="shell hero-in">
+      <div class="hero-copy">
+        <p class="eyebrow">01 // Privacy infrastructure</p>
+        <h1 id="hero-title"><span>Private</span> <span>by <em>default.</em></span> <span>Verifiable</span> <span>by design.</span></h1>
+        <p class="lede">A shielded execution layer for private transfers and dark-pool trading: zero-knowledge proofs for validity, selective disclosure for when you choose to show your hand.</p>
+        <div class="actions">
+          <a class="btn" href="https://github.com/Chenz0-13/shade-protocol" target="_blank" rel="noopener noreferrer">View source</a>
+          <a class="btn line" href="docs/litepaper.html">Read the litepaper</a>
+          <button class="link" id="copyPitch" type="button">Copy 1-liner</button>
+        </div>
+        <p class="typed" aria-hidden="true">built to &lt;<b id="typed">shield</b><span class="caret"></span>&gt; your notes</p>
+      </div>
+      <dl class="facts">
+        <div><dt>Status</dt><dd>Devnet / testnet only</dd></div>
+        <div><dt>Audit</dt><dd>Not yet audited</dd></div>
+        <div><dt>Setup</dt><dd>Development keys, not secure</dd></div>
+        <div><dt>Token</dt><dd>None</dd></div>
+      </dl>
+      <a class="scroll" href="#about">Scroll</a>
+    </div>
+  </section>
+
+  <div class="band">
+    <div class="shell band-in">
+      <aside class="console" aria-label="Simulated shielded-transfer console">
+        <div class="con-head"><span>shade://devnet.session</span><span class="tag">simulated</span></div>
+        <div class="con-body">
+          <div class="cmd"><b>$</b> shade init --network=devnet</div>
+          <div class="ok">✔ spend + view keys derived</div>
+          <div class="ok">✔ poseidon merkle tree synced</div>
+          <div class="ok">✔ local groth16 prover loaded (dev setup)</div>
+          <div class="ok">✔ stealth address ready</div>
+          <div class="cmd" style="margin-top:8px"><b>$</b> shade transfer --shielded</div>
+          <ol class="routes" id="routes"></ol>
+        </div>
+        <dl class="readout">
+          <div><dt>network</dt><dd class="g">DEVNET</dd></div>
+          <div><dt>audit</dt><dd>NONE YET</dd></div>
+          <div><dt>setup</dt><dd>DEV ONLY</dd></div>
+        </dl>
+        <p class="con-note">Illustration. Paths are randomized in your browser to show the idea, not live network traffic.</p>
+      </aside>
+      <div class="principles">
+        <article>
+          <span class="code">C-1</span>
+          <h3>Shielded notes</h3>
+          <p>Value lives as encrypted notes. Only commitments and nullifiers touch the chain.</p>
+        </article>
+        <article>
+          <span class="code">C-2</span>
+          <h3>Dark-pool trading</h3>
+          <p>Orders stay hidden until they're matched and settled, so there's nothing to front-run.</p>
+        </article>
+        <article>
+          <span class="code">C-3</span>
+          <h3>Selective disclosure</h3>
+          <p>ZK KYC proofs and scoped viewing keys: show an auditor what you choose, no one else.</p>
+        </article>
+        <article>
+          <span class="code">C-4</span>
+          <h3>Chain-agnostic core</h3>
+          <p>One privacy core, thin chain adapters. Solana devnet first.</p>
+        </article>
+      </div>
+    </div>
+  </div>
+
+  <section class="sec" id="about">
+    <div class="shell">
+      <p class="idx">02 // Premise</p>
+      <h2>Public ledgers <em>leak too much.</em></h2>
+      <p class="deck">Blockchains made it possible to verify every transfer without trusting a bank. The price is that everything is visible to everyone, forever. Shade keeps the verifiability and drops the exposure.</p>
+      <div class="sec-body cols3">
+        <div class="cell">
+          <span class="code">Balances</span>
+          <h3>Balances are public</h3>
+          <p>Link one wallet to you, through a withdrawal, a name or a single payment, and anyone can see what you hold and everything you've done with it.</p>
+        </div>
+        <div class="cell">
+          <span class="code">Orders</span>
+          <h3>Orders leak early</h3>
+          <p>A pending trade reveals its size, direction and limit price. Searchers see it and act first: sandwich attacks, worse fills, higher slippage.</p>
+        </div>
+        <div class="cell">
+          <span class="code">Strategy</span>
+          <h3>Strategies leak</h3>
+          <p>Supplier payments, fund rebalancing and DAO payroll expose information that would stay confidential in traditional finance.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="tech">
+    <div class="shell">
+      <p class="idx">03 // Architecture</p>
+      <h2><em>Modular</em> layers. One privacy core.</h2>
+      <p class="deck">Select a layer to see what it does. Core components carry a bright bar; the developer surface and chain adapters sit around them.</p>
+      <div class="sec-body stack">
+        <div class="map" role="group" aria-label="Architecture layers">
+          <button class="layer dev" type="button" data-k="apps"><span class="lk">Developer surface</span><b>Apps &amp; wallets</b></button>
+          <button class="layer dev" type="button" data-k="sdk"><span class="lk">Developer surface</span><b>ShadeClient SDK</b></button>
+          <div class="trio">
+            <button class="layer core" type="button" data-k="notes"><span class="lk">Core</span><b>Shielded notes</b></button>
+            <button class="layer core" type="button" data-k="pool"><span class="lk">Core</span><b>Dark pool</b></button>
+            <button class="layer core" type="button" data-k="comply"><span class="lk">Core</span><b>Disclosure tools</b></button>
+          </div>
+          <button class="layer core" type="button" data-k="proofs" aria-pressed="true"><span class="lk">Core</span><b>ZK proofs (Circom + Groth16)</b></button>
+          <button class="layer dev" type="button" data-k="adapters"><span class="lk">Chains</span><b>Thin chain adapters</b></button>
+        </div>
+        <div class="detail" aria-live="polite">
+          <p class="lk" id="dTag"></p>
+          <h3 id="dName"></h3>
+          <p class="txt" id="dText"></p>
+          <p class="hint">Layers run top to bottom, from the apps people use down to the adapters that talk to each chain.</p>
+        </div>
+      </div>
+      <figure class="diagram">
+        <div class="scroller" tabindex="0" role="region" aria-label="Architecture diagram, scroll sideways on small screens"><img src="assets/litepaper-diagram-1.svg" alt="Architecture diagram: the user device (wallet and ShadeClient SDK, spend and view keys, local prover, note scanner) sends proofs and ciphertexts to the chain-agnostic Shade core (notes, commitments and nullifiers, Poseidon Merkle tree, dark-pool matcher and settlement, compliance tools), which verifies and stores roots and nullifiers through thin chain adapters: Solana on devnet; NEAR, Canton and Robinhood in progress." decoding="async"></div>
+        <figcaption>Figure 1. Proofs are generated on the user's device; chains only verify them and store roots and nullifiers.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="sec" id="token">
+    <div class="shell">
+      <p class="idx">04 // Token &amp; economics</p>
+      <h2>No token. <em>No yield.</em> No promises.</h2>
+      <p class="deck">Shade Protocol is an open-source research project running on test networks. There's nothing to buy.</p>
+      <div class="sec-body tok">
+        <div class="stackc">
+          <div class="cell">
+            <span class="code">Today</span>
+            <h3>There is no token</h3>
+            <p>Shade Protocol has no token, no sale and no expected return. Test networks use valueless test tokens.</p>
+          </div>
+          <div class="cell">
+            <span class="code">Impersonation</span>
+            <h3>Watch for fakes</h3>
+            <p>Any token claiming to be "Shade Protocol" is not ours. Check this site and the GitHub repo before trusting a contract address.</p>
+          </div>
+          <div class="cell">
+            <span class="code">If that changes</span>
+            <h3>Separate, reviewed docs</h3>
+            <p>Any future token would be announced here with its own separate, reviewed document. Not before.</p>
+          </div>
+        </div>
+        <dl class="sheet">
+          <div class="sheet-h">Fact sheet</div>
+          <div class="row"><dt>Ticker</dt><dd>None</dd></div>
+          <div class="row"><dt>Supply</dt><dd>Not applicable</dd></div>
+          <div class="row"><dt>Networks</dt><dd>Solana devnet first; NEAR, Canton and Robinhood Chain adapters in progress on test networks</dd></div>
+          <div class="row"><dt>Licence</dt><dd>Open source (MIT, pending review)</dd></div>
+        </dl>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="roadmap">
+    <div class="shell">
+      <p class="idx">05 // Roadmap</p>
+      <h2>Ship <em>primitives,</em> not buzzwords.</h2>
+      <p class="deck">Each phase begins only when the previous one is genuinely finished.</p>
+      <ol class="sec-body rail">
+        <li class="now"><span class="q">Phase 0 · Now</span><h3>Devnet</h3><p>Solana devnet deployment, SDK, test suite and CI. Development trusted setup only. Expect breaking changes and resets.</p></li>
+        <li><span class="q">Phase 1</span><h3>Testnets + hardening</h3><p>NEAR testnet and other adapters; fuzzing, internal review, public bug reports.</p></li>
+        <li><span class="q">Phase 2</span><h3>Independent audit</h3><p>Third-party review of circuits, cryptography, contracts and SDK, with findings published.</p></li>
+        <li><span class="q">Phase 3</span><h3>Setup ceremony</h3><p>Public multi-party ceremony for production Groth16 keys, with published transcripts.</p></li>
+        <li><span class="q">Phase 4</span><h3>Mainnet (conditional)</h3><p>Only after phases 2 and 3, with conservative deposit limits and a staged rollout.</p></li>
+      </ol>
+      <p class="rail-note">No dates are promised. Roadmap items describe intentions, not commitments.</p>
+    </div>
+  </section>
+
+  <section class="sec" id="docs">
+    <div class="shell">
+      <p class="idx">06 // Docs &amp; security</p>
+      <h2>Start building. Read the <em>threat model.</em></h2>
+      <p class="deck">The litepaper explains the idea in plain language. The technical docs cover the architecture, cryptography, circuits and security model.</p>
+      <div class="sec-body">
+        <div class="callout"><strong>Read this first.</strong> Shade Protocol is unaudited, experimental software on devnet/testnet only. Its proving keys come from a development trusted setup that is not secure for real value. Use throwaway keys and valueless test tokens.</div>
+        <div class="docs">
+          <div class="panel">
+            <span class="code">Quickstart · Solana devnet</span>
+            <ol class="steps">
+              <li><span>Clone and build from source</span></li>
+              <li><span>Create a ShadeClient on devnet</span></li>
+              <li><span>Derive spend + view keys</span></li>
+              <li><span>Shield, transfer or trade with a local proof</span></li>
+              <li class="opt"><span>Share a scoped viewing key</span></li>
+            </ol>
+            <div class="actions">
+              <a class="btn" href="docs/litepaper.html">Read litepaper</a>
+              <a class="btn line" href="docs/litepaper.pdf" download>PDF</a>
+              <a class="link" href="https://github.com/Chenz0-13/shade-protocol" target="_blank" rel="noopener noreferrer">View GitHub →</a>
+            </div>
+          </div>
+          <div class="panel">
+            <span class="code">Security</span>
+            <dl class="sec-list">
+              <div class="row"><dt>Threat model</dt><dd>Funds safety rests on cryptography and on-chain proof checks, not an operator. The dark-pool matcher is trusted for order privacy, not funds.</dd></div>
+              <div class="row"><dt>Key mgmt</dt><dd>Separate spend and view keys; viewing keys can be scoped to a time window and can't spend.</dd></div>
+              <div class="row"><dt>Audits</dt><dd>Not yet audited. An independent audit is a required phase before any mainnet.</dd></div>
+              <div class="row"><dt>Bug bounty</dt><dd>None yet. Report vulnerabilities privately: see the security doc.</dd></div>
+            </dl>
+          </div>
+        </div>
+        <ul class="doclist" aria-label="Technical documentation">
+          <li><a href="docs/docs/architecture.md">Architecture</a></li>
+          <li><a href="docs/docs/cryptography.md">Cryptography</a></li>
+          <li><a href="docs/docs/circuits.md">Circuits</a></li>
+          <li><a href="docs/docs/dark-pool.md">Dark pool</a></li>
+          <li><a href="docs/docs/compliance.md">Compliance tooling</a></li>
+          <li><a href="docs/docs/sdk-quickstart.md">SDK quickstart</a></li>
+          <li><a href="docs/docs/security.md">Security</a></li>
+          <li><a href="docs/docs/glossary.md">Glossary</a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="sec" id="community">
+    <div class="shell">
+      <p class="idx">07 // Community</p>
+      <div class="closing">
+        <h2 class="big">If privacy matters, you're already <em>one of us.</em></h2>
+        <div class="sec-body cols3">
+          <div class="cell">
+            <span class="code">Builders</span>
+            <h3>Builders</h3>
+            <p>Try the SDK on devnet, build integrations, and contribute to the docs and tooling.</p>
+          </div>
+          <div class="cell">
+            <span class="code">Researchers</span>
+            <h3>Researchers</h3>
+            <p>Review the circuits and threat model, propose hardening, and help test our assumptions.</p>
+          </div>
+          <div class="cell">
+            <span class="code">Testers</span>
+            <h3>Testers</h3>
+            <p>Break things on devnet with valueless test tokens and file public bug reports.</p>
+          </div>
+        </div>
+        <div class="links">
+          <!-- TODO (owner): replace the Discord and X links with your real community links. -->
+          <a class="btn" href="https://discord.com/" target="_blank" rel="noopener noreferrer">Join Discord</a>
+          <a class="btn line" href="https://github.com/Chenz0-13/shade-protocol" target="_blank" rel="noopener noreferrer">GitHub</a>
+          <a class="link" href="https://x.com/" target="_blank" rel="noopener noreferrer">X / Twitter →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="shell">
+    <div class="foot">
+      <a class="brand" href="#top" aria-label="Shade Protocol, back to top">
+        <svg width="22" height="20" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+        <span>Shade Protocol</span>
+      </a>
+      <div>© <span id="year"></span> Shade Protocol. Private by default, verifiable by design.</div>
+      <nav aria-label="Footer">
+        <a href="#">Terms</a>
+        <a href="#">Privacy</a>
+        <a href="#about">About</a>
+      </nav>
+    </div>
+    <p class="disc">Disclaimer: This site is informational and not financial, legal or tax advice. Shade Protocol is experimental, unaudited software on devnet/testnet only and may contain bugs that lead to loss of funds or privacy. There is no token, no yield and no expected return. The selective-disclosure features are tools; using them doesn't by itself make anyone compliant with any law, and no regulator has reviewed or approved Shade Protocol. Chains named on this site are engineering targets only; Shade Protocol has no partnership, endorsement or affiliation with them.</p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  /* ---------- year ---------- */
+  document.getElementById("year").textContent = new Date().getFullYear();
+
+  /* ---------- copy 1-liner ---------- */
+  var oneLiner = "Shade Protocol is an open-source shielded execution layer for private transfers and dark-pool trading: private by default, verifiable by design. (Devnet only, unaudited.)";
+  var copyBtn = document.getElementById("copyPitch");
+  var copyLabel = copyBtn.textContent;
+  function flash(msg) {
+    copyBtn.textContent = msg;
+    setTimeout(function () { copyBtn.textContent = copyLabel; }, 1400);
+  }
+  function fallbackCopy() {
+    var ta = document.createElement("textarea");
+    ta.value = oneLiner; ta.setAttribute("readonly", "");
+    ta.style.position = "fixed"; ta.style.opacity = "0";
+    document.body.appendChild(ta); ta.select();
+    var ok = false;
+    try { ok = document.execCommand("copy"); } catch (e) {}
+    document.body.removeChild(ta);
+    flash(ok ? "Copied ✓" : "Copy unavailable");
+  }
+  copyBtn.addEventListener("click", function () {
+    try { navigator.clipboard.writeText(oneLiner).then(function () { flash("Copied ✓"); }, fallbackCopy); }
+    catch (e) { fallbackCopy(); }
+  });
+
+  /* ---------- pointer spotlight on cells ---------- */
+  var cells = document.querySelectorAll(".cell");
+  Array.prototype.forEach.call(cells, function (el) {
+    el.addEventListener("pointermove", function (e) {
+      var r = el.getBoundingClientRect();
+      el.style.setProperty("--mx", (e.clientX - r.left) + "px");
+      el.style.setProperty("--my", (e.clientY - r.top) + "px");
+    });
+  });
+
+  /* ---------- architecture stack ---------- */
+  var DATA = {
+    apps:     { tag: "Developer surface", name: "Apps & wallets", text: "Wallets and apps integrate shielded transfers and dark-pool trading through the SDK. Proofs are generated on the user's device, so secrets never leave it." },
+    sdk:      { tag: "Developer surface", name: "ShadeClient SDK", text: "A TypeScript client for key management, note scanning, local proving and submitting transactions to a chain adapter. Devnet only; API subject to change." },
+    notes:    { tag: "Core", name: "Shielded notes", text: "Value is held as encrypted notes. Only a Poseidon commitment is public; spending reveals a nullifier so the same note can't be spent twice. Recipients get one-time stealth addresses." },
+    pool:     { tag: "Core", name: "Dark pool", text: "Orders are encrypted to the matching engine and stay hidden until matched in batches, buys only against sells, each filled at most once. Every settlement must pass an on-chain proof check, so the matcher can't steal funds or forge trades." },
+    comply:   { tag: "Core", name: "Disclosure tools", text: "Optional zero-knowledge KYC credentials, scoped viewing keys, per-pool auditor ciphertexts and a sanctions-screening hook. These are tools only, not a compliance guarantee." },
+    proofs:   { tag: "Core", name: "ZK proofs", text: "A Circom circuit enforces Merkle membership, nullifier derivation, ownership, value conservation and range limits. Users prove locally with Groth16; the chain verifies cheaply. Today's keys come from a development setup and must never protect real value." },
+    adapters: { tag: "Chains", name: "Thin chain adapters", text: "Each chain only verifies proofs, stores roots and nullifiers and custodies pooled tokens. Solana devnet comes first; NEAR, Canton and Robinhood Chain adapters are in progress on test networks." }
+  };
+  var layers = document.querySelectorAll(".layer");
+  function show(k) {
+    var d = DATA[k]; if (!d) return;
+    document.getElementById("dTag").textContent = d.tag;
+    document.getElementById("dName").textContent = d.name;
+    document.getElementById("dText").textContent = d.text;
+    Array.prototype.forEach.call(layers, function (b) {
+      b.setAttribute("aria-pressed", b.getAttribute("data-k") === k ? "true" : "false");
+    });
+  }
+  Array.prototype.forEach.call(layers, function (b) {
+    var k = b.getAttribute("data-k");
+    b.addEventListener("click", function () { show(k); });
+    b.addEventListener("pointerenter", function (e) { if (e.pointerType === "mouse") show(k); });
+  });
+  show("proofs");
+
+  /* ---------- hero field: mist + randomized paths ---------- */
+  var cv = document.getElementById("field");
+  var hero = cv.parentNode;
+  var ctx = cv.getContext("2d");
+  var routesEl = document.getElementById("routes");
+  var reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  /* ---------- mobile menu ---------- */
+  var menuBtn = document.getElementById("menuBtn"), menu = document.getElementById("menu");
+  function setMenu(open) { menu.hidden = !open; menuBtn.setAttribute("aria-expanded", open ? "true" : "false"); }
+  menuBtn.addEventListener("click", function () { setMenu(menu.hidden); });
+  Array.prototype.forEach.call(menu.querySelectorAll("a"), function (a) { a.addEventListener("click", function () { setMenu(false); }); });
+  window.addEventListener("resize", function () { if (window.innerWidth > 900) setMenu(false); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !menu.hidden) { setMenu(false); menuBtn.focus(); } });
+
+  /* ---------- typed line ---------- */
+  var typedEl = document.getElementById("typed");
+  if (typedEl && !reduce) {
+    var words = ["shield", "cloak", "protect", "hide", "secure"], wi = 0, deleting = false, shown = words[0];
+    (function tickType() {
+      var target = words[wi], delay;
+      if (!deleting) {
+        shown = target.slice(0, shown.length + 1); delay = 95;
+        if (shown === target) { deleting = true; delay = 2000; }
+      } else {
+        shown = shown.slice(0, -1); delay = 55;
+        if (!shown.length) { deleting = false; wi = (wi + 1) % words.length; delay = 350; }
+      }
+      typedEl.textContent = shown;
+      setTimeout(tickType, delay);
+    })();
+  }
+  var LIME = "198,244,50";
+  var W = 0, H = 0, dpr = 1, nodes = [], blobs = [], packets = [];
+  var last = 0, tick = 0, spawnIn = 0, looping = false, visible = true;
+
+  function rnd(a, b) { return a + Math.random() * (b - a); }
+  function hex4() { var s = Math.floor(Math.random() * 65535).toString(16); while (s.length < 4) s = "0" + s; return s; }
+
+  function seed() {
+    var cnt = W < 620 ? 12 : (W < 1000 ? 18 : 26);
+    var min = Math.sqrt(W * H / cnt) * 0.72, tries = 0;
+    nodes = []; blobs = [];
+    while (nodes.length < cnt && tries < 2500) {
+      tries++;
+      var p = { x: rnd(0.04, 0.96) * W, y: rnd(0.06, 0.94) * H, pulse: 0, nb: [] }, ok = true;
+      for (var i = 0; i < nodes.length; i++) {
+        var dx = nodes[i].x - p.x, dy = nodes[i].y - p.y;
+        if (dx * dx + dy * dy < min * min) { ok = false; break; }
+      }
+      if (ok) nodes.push(p);
+    }
+    nodes.forEach(function (a, i) {
+      var d = nodes.map(function (b, j) {
+        return { j: j, d: (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y) };
+      }).filter(function (o) { return o.j !== i; })
+        .sort(function (x, y) { return x.d - y.d; }).slice(0, 3);
+      d.forEach(function (o) {
+        if (a.nb.indexOf(o.j) < 0) a.nb.push(o.j);
+        if (nodes[o.j].nb.indexOf(i) < 0) nodes[o.j].nb.push(i);
+      });
+    });
+    for (var b = 0; b < 7; b++) {
+      blobs.push({ x: rnd(0, 1), y: rnd(0, 1), r: rnd(0.3, 0.6), a: rnd(0.03, 0.06), s: rnd(0.05, 0.12), ph: rnd(0, 6.28) });
+    }
+  }
+
+  function makePath() {
+    if (nodes.length < 4) return null;
+    var hops = 3 + Math.floor(Math.random() * 3);
+    var cur = Math.floor(Math.random() * nodes.length), path = [cur];
+    for (var h = 0; h < hops; h++) {
+      var opts = nodes[cur].nb.filter(function (n) { return path.indexOf(n) < 0; });
+      if (!opts.length) break;
+      cur = opts[Math.floor(Math.random() * opts.length)];
+      path.push(cur);
+    }
+    if (path.length < 3) return null;
+    var cum = [0];
+    for (var i = 1; i < path.length; i++) {
+      var a = nodes[path[i - 1]], b = nodes[path[i]];
+      cum.push(cum[i - 1] + Math.hypot(b.x - a.x, b.y - a.y));
+    }
+    return { path: path, cum: cum, len: cum[cum.length - 1], d: 0, next: 1, speed: rnd(110, 180) * (W < 620 ? 0.75 : 1), id: hex4() };
+  }
+
+  function pointAt(p, d) {
+    d = Math.max(0, Math.min(p.len, d));
+    var i = 1;
+    while (i < p.cum.length - 1 && p.cum[i] < d) i++;
+    var a = nodes[p.path[i - 1]], b = nodes[p.path[i]];
+    var t = (d - p.cum[i - 1]) / ((p.cum[i] - p.cum[i - 1]) || 1);
+    return { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+  }
+
+  function logRoute(p) {
+    if (!routesEl) return;
+    var li = document.createElement("li");
+    var a = document.createElement("span"); a.className = "rid"; a.textContent = "nf-" + p.id;
+    var b = document.createElement("span"); b.textContent = (p.path.length - 1) + " hops";
+    var c = document.createElement("span"); c.textContent = "proof ok (sim)";
+    li.appendChild(a); li.appendChild(b); li.appendChild(c);
+    routesEl.appendChild(li);
+    while (routesEl.children.length > 4) routesEl.removeChild(routesEl.firstChild);
+  }
+
+  function spawn(initial, quiet) {
+    var p = makePath();
+    if (!p) return;
+    if (initial) {
+      p.d = rnd(0.05, 0.6) * p.len;
+      while (p.next < p.cum.length - 1 && p.cum[p.next] < p.d) p.next++;
+    }
+    packets.push(p);
+    if (!quiet) logRoute(p);
+  }
+
+  function draw(dt) {
+    ctx.clearRect(0, 0, W, H);
+
+    /* mist */
+    ctx.globalCompositeOperation = "lighter";
+    for (var i = 0; i < blobs.length; i++) {
+      var b = blobs[i];
+      var x = (b.x + Math.sin(tick * b.s + b.ph) * 0.09) * W;
+      var y = (b.y + Math.cos(tick * b.s * 0.8 + b.ph) * 0.07) * H;
+      var r = b.r * Math.max(W, H * 1.2);
+      var g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, "rgba(140,148,158," + b.a + ")");
+      g.addColorStop(1, "rgba(140,148,158,0)");
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, W, H);
+    }
+    ctx.globalCompositeOperation = "source-over";
+
+    /* edges */
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(" + LIME + ",0.07)";
+    ctx.beginPath();
+    for (var n = 0; n < nodes.length; n++) {
+      for (var k = 0; k < nodes[n].nb.length; k++) {
+        var j = nodes[n].nb[k];
+        if (j > n) { ctx.moveTo(nodes[n].x, nodes[n].y); ctx.lineTo(nodes[j].x, nodes[j].y); }
+      }
+    }
+    ctx.stroke();
+
+    /* packets */
+    for (var q = packets.length - 1; q >= 0; q--) {
+      var p = packets[q];
+      p.d += p.speed * dt;
+      while (p.next < p.path.length && p.cum[p.next] <= p.d) {
+        nodes[p.path[p.next]].pulse = 1; p.next++;
+      }
+      if (p.d > p.len + 80) { packets.splice(q, 1); continue; }
+      var trail = 80, steps = 10, prev = pointAt(p, p.d - trail);
+      for (var s = 1; s <= steps; s++) {
+        var cur = pointAt(p, p.d - trail + trail * (s / steps));
+        ctx.strokeStyle = "rgba(" + LIME + "," + (0.7 * s / steps) + ")";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(prev.x, prev.y); ctx.lineTo(cur.x, cur.y); ctx.stroke();
+        prev = cur;
+      }
+      if (p.d <= p.len) {
+        var h = pointAt(p, p.d);
+        ctx.fillStyle = "rgba(" + LIME + ",0.18)";
+        ctx.beginPath(); ctx.arc(h.x, h.y, 7, 0, 6.2832); ctx.fill();
+        ctx.fillStyle = "rgba(233,236,239,0.95)";
+        ctx.beginPath(); ctx.arc(h.x, h.y, 2.2, 0, 6.2832); ctx.fill();
+      }
+    }
+
+    /* nodes */
+    for (var m = 0; m < nodes.length; m++) {
+      var nd = nodes[m];
+      nd.pulse = Math.max(0, nd.pulse - dt * 1.5);
+      ctx.fillStyle = "rgba(200,206,214," + (0.28 + nd.pulse * 0.6) + ")";
+      ctx.beginPath(); ctx.arc(nd.x, nd.y, 1.6 + nd.pulse * 2.2, 0, 6.2832); ctx.fill();
+      if (nd.pulse > 0.02) {
+        ctx.strokeStyle = "rgba(" + LIME + "," + (nd.pulse * 0.5) + ")";
+        ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(nd.x, nd.y, 4 + (1 - nd.pulse) * 14, 0, 6.2832); ctx.stroke();
+      }
+    }
+  }
+
+  function frame(ts) {
+    if (!visible || reduce) { looping = false; return; }
+    var dt = Math.min(0.05, (ts - last) / 1000 || 0);
+    last = ts; tick += dt;
+    spawnIn -= dt;
+    if (spawnIn <= 0) { if (packets.length < 5) spawn(false, false); spawnIn = rnd(0.9, 1.8); }
+    draw(dt);
+    requestAnimationFrame(frame);
+  }
+  function start() {
+    if (looping || reduce || !visible) return;
+    looping = true; last = performance.now();
+    requestAnimationFrame(frame);
+  }
+
+  var firstSize = true, lastW = 0, lastH = 0;
+  function size() {
+    var r = hero.getBoundingClientRect();
+    if (!firstSize && Math.abs(r.width - lastW) < 2 && Math.abs(r.height - lastH) < 60) return;
+    lastW = r.width; lastH = r.height;
+    W = r.width; H = r.height;
+    dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    cv.width = Math.max(1, Math.round(W * dpr)); cv.height = Math.max(1, Math.round(H * dpr));
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    seed();
+    packets = [];
+    var quiet = !firstSize;
+    for (var i = 0; i < 3; i++) spawn(true, quiet);
+    firstSize = false;
+    draw(0);
+  }
+  size();
+  if (window.ResizeObserver) { new ResizeObserver(size).observe(hero); }
+  else { window.addEventListener("resize", size); }
+  if ("IntersectionObserver" in window) {
+    new IntersectionObserver(function (es) {
+      visible = es[0].isIntersecting;
+      if (visible) start();
+    }, { threshold: 0 }).observe(hero);
+  }
+  start();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,240 @@
+<!doctype html><html lang="en-AU"><head><meta charset="utf-8"><title>Shade Protocol — Litepaper v0.1 (draft)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Oswald:wght@400;500;600&display=swap");
+:root{--bg:#07080a;--bg2:#0d0f12;--ink:#E9ECEF;--muted:#9AA1AA;--dim:#6b727b;--lime:#C6F432;--line:#262a30}
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;min-height:100%;color:var(--muted);font:400 10.4pt/1.62 Inter,system-ui,sans-serif;}
+html{background-color:var(--bg);
+ background-image:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+  radial-gradient(ellipse 70% 40% at 85% 8%, rgba(120,128,138,.10), transparent 70%),
+  radial-gradient(ellipse 60% 35% at 10% 55%, rgba(110,118,128,.08), transparent 70%),
+  radial-gradient(ellipse 70% 35% at 80% 92%, rgba(198,244,50,.035), transparent 70%);
+ background-repeat:repeat,no-repeat,no-repeat,no-repeat}
+a{color:var(--lime);text-decoration:none}
+em{font-style:normal}
+strong{color:var(--ink);font-weight:600}
+/* ---------- cover ---------- */
+.cover{position:relative;width:210mm;height:297mm;overflow:hidden;break-after:page;background:#050607}
+.cover-bg{position:absolute;inset:0;background:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+  radial-gradient(ellipse 60% 30% at 25% 20%, rgba(140,148,158,.16), transparent 70%),
+  radial-gradient(ellipse 80% 30% at 20% 80%, rgba(90,96,104,.18), transparent 70%),
+  linear-gradient(180deg,#0b0c0e 0%,#050607 60%,#08090b 100%)}
+.wizard{position:absolute;right:-4mm;top:30mm;height:240mm;width:auto;opacity:.96}
+.topbar{position:absolute;top:0;left:0;right:0;height:24mm;display:flex;align-items:center;gap:4mm;padding:0 16mm;border-bottom:1px solid rgba(255,255,255,.05);background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.2))}
+.brand{font:500 12pt Oswald,sans-serif;letter-spacing:.18em;color:var(--ink)}
+.pill{margin-left:auto;border:1px solid var(--lime);color:var(--lime);font:500 8pt Inter;letter-spacing:.14em;padding:2.6mm 4mm}
+.cover-main{position:absolute;left:16mm;top:62mm;width:112mm}
+.cover h1{font:600 62pt/0.98 Oswald,sans-serif;text-transform:uppercase;color:#F2F4F6;margin:6mm 0 8mm;letter-spacing:-.005em}
+.cover h1 em,h2 em{color:var(--lime)}
+.lede{text-shadow:0 1px 8px #000,0 0 2px #000;font:300 12.5pt/1.55 Inter;color:#A3AAB3;margin:0 0 10mm;max-width:104mm}
+.btns{display:flex;gap:5mm}
+.btn{display:inline-block;font:500 9pt Inter;letter-spacing:.14em;text-transform:uppercase;padding:4.2mm 7mm}
+.btn.fill{background:var(--lime);color:#0a0b0c}
+.btn.line{border:1px solid #4a4f56;color:var(--ink)}
+.cover-foot{position:absolute;left:16mm;right:16mm;bottom:14mm;display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;border-top:1px solid #23272c;padding-top:5mm;font:400 8.6pt/1.4 Inter;color:#8d949c}
+.cover-foot b{display:block;font:500 7.4pt Inter;letter-spacing:.18em;color:var(--lime);margin-bottom:1.2mm}
+/* ---------- eyebrow ---------- */
+.eyebrow{display:flex;align-items:center;gap:3.5mm;font:500 8.4pt Inter;letter-spacing:.24em;color:var(--lime);text-transform:uppercase}
+.eyebrow .rule{display:inline-block;width:10mm;height:1px;background:var(--lime)}
+/* ---------- flowing pages ---------- */
+table.flow{width:100%;border-collapse:collapse}
+table.flow>thead>tr>td,table.flow>tfoot>tr>td,table.flow>tbody>tr>td{padding:0}
+.runhead{height:20mm;display:flex;align-items:center;gap:3mm;padding:0 16mm;font:500 7.6pt Inter;letter-spacing:.2em;color:#7d848c}
+.runhead .logo{width:16px;height:15px}
+.runhead span:nth-of-type(1){color:var(--ink)}
+.runhead .sep{color:var(--lime)}
+.runhead .r{margin-left:auto;color:var(--lime)}
+.runfoot{height:16mm;display:flex;align-items:center;padding:0 16mm;font:400 7.2pt Inter;letter-spacing:.08em;color:#5d636b}
+main{padding:0 18mm 0 18mm}
+.notice{margin:6mm 0 10mm}
+.sec{margin:0 0 11mm}
+.sec.page-start{break-before:page}
+h2{font:600 30pt/1.04 Oswald,sans-serif;text-transform:uppercase;color:#F2F4F6;margin:4mm 0 6mm;break-after:avoid}
+h3{font:500 13.5pt/1.2 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:7mm 0 2.5mm;break-after:avoid}
+h3::before{content:"";display:inline-block;width:2.2mm;height:2.2mm;background:var(--lime);margin-right:2.6mm;vertical-align:.25em}
+p{margin:0 0 3.2mm}
+ul,ol{margin:0 0 3.5mm;padding-left:5mm}
+li{margin:0 0 1.6mm}
+li::marker{color:var(--lime)}
+hr{display:none}
+code{font:400 9pt "JetBrains Mono",ui-monospace,monospace;color:var(--ink);background:#14171a;padding:.2mm 1.2mm}
+.callout{margin:5mm 0;padding:5mm 6mm;border:1px solid var(--lime);background:rgba(198,244,50,.04);color:#B5BBC2;break-inside:avoid}
+.callout.warn{border-left:4px solid var(--lime)}
+.callout p:last-child{margin:0}
+.callout strong{color:var(--lime)}
+table:not(.flow){width:100%;border-collapse:collapse;margin:4mm 0 6mm;font-size:9.2pt;break-inside:avoid}
+table:not(.flow) th{text-align:left;font:500 7.8pt Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--lime);border-bottom:1px solid var(--lime);padding:2.4mm 3mm}
+table:not(.flow) td{border-bottom:1px solid var(--line);padding:2.4mm 3mm;vertical-align:top;color:#B0B6BD}
+table:not(.flow) tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+figure.diagram{margin:6mm 0;padding:6mm;border:1px solid #23272c;background:rgba(10,11,13,.75);break-inside:avoid}
+figure.diagram svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{margin-top:4mm;font:400 8pt Inter;letter-spacing:.06em;color:var(--dim)}
+@media screen{body{max-width:210mm;margin:0 auto;box-shadow:0 0 60px #000}}
+.sechead{break-inside:avoid;break-after:avoid}
+.sechead + *{break-before:avoid}
+.closing{margin:14mm 0 6mm;padding:10mm 10mm 11mm;border:1px solid #2a2e34;background:linear-gradient(135deg,rgba(198,244,50,.06),rgba(10,11,13,.6) 55%);break-inside:avoid}
+.closing h2{font-size:26pt}
+.closing .btns{flex-wrap:wrap;margin-top:6mm}
+
+.closing .btn{padding:4mm 5mm}
+</style></head><body>
+<div class="cover">
+  <div class="cover-bg"></div>
+  <img class="wizard" src="assets/wizard-cover.png" alt="">
+  <header class="topbar"><svg class="logo" viewBox="0 0 40 36" width="30" height="27"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg><span class="brand">SHADE PROTOCOL</span><span class="pill">LITEPAPER v0.1 · DRAFT</span></header>
+  <div class="cover-main">
+    <div class="eyebrow"><span class="rule"></span>01 // PRIVACY INFRASTRUCTURE</div>
+    <h1>Private<br>by <em>default.</em><br>Verifiable<br>by design.</h1>
+    <p class="lede">A shielded execution layer for private transfers and dark-pool trading — zero-knowledge proofs for validity, selective disclosure for when you choose to show your hand.</p>
+    <div class="btns"><a class="btn fill" href="https://github.com/Chenz0-13/shade-protocol">View source</a><a class="btn line" href="docs/architecture.md">Read the docs</a></div>
+  </div>
+  <footer class="cover-foot">
+    <div><b>STATUS</b>Devnet / testnet only</div><div><b>AUDIT</b>Not yet audited</div><div><b>SETUP</b>Development keys — not secure</div><div><b>DATE</b>October 2026</div>
+  </footer>
+</div>
+<table class="flow"><thead><tr><td><div class="runhead"><svg class="logo" viewBox="0 0 40 36" width="30" height="27"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg><span>SHADE PROTOCOL</span><span class="sep">//</span><span>LITEPAPER v0.1 · DRAFT</span><span class="r">DEVNET · UNAUDITED</span></div></td></tr></thead>
+<tfoot><tr><td><div class="runfoot">Experimental software. Not financial, legal or tax advice. No token. No mainnet.</div></td></tr></tfoot>
+<tbody><tr><td><main>
+<div class="notice"><blockquote class="callout warn">
+<p><strong>Read this first.</strong> Shade Protocol is an early-stage, open-source research project. It runs on developer networks (devnets/testnets) only. The code has <strong>not</strong> been audited, its zero-knowledge proving keys come from a <strong>development trusted setup that is not secure for real value</strong>, and parts of the system (notably every chain adapter other than Solana) may still be in progress. There is no token, no mainnet deployment and no partnership with any chain, exchange or broker mentioned in this document. Nothing here is financial, legal or tax advice.</p>
+</blockquote>
+</div>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>01 // THE PROBLEM</div><h2>Public ledgers <em>leak</em> too much.</h2></div><p>Public blockchains made something new possible: anyone can verify that every transfer and trade followed the rules, without trusting a bank or an exchange to keep honest books. The price of that verifiability is that <strong>everything is visible to everyone, forever</strong>.</p>
+<p>In practice that means:</p>
+<ul>
+<li><strong>Balances are public.</strong> Once someone links a wallet to you — through an exchange withdrawal, an ENS-style name, an NFT purchase or a single payment — they can see what you hold and everything you have ever done with it.</li>
+<li><strong>Orders are public before they execute.</strong> A trade sent to a public mempool or on-chain order book reveals its size, direction and limit price while it is still pending. Searchers and block builders can see it and act first.</li>
+<li><strong>Front-running and MEV are the result.</strong> &quot;Maximal extractable value&quot; (MEV) is the profit someone can take by reordering, inserting or censoring transactions. For ordinary users it shows up as sandwich attacks, worse fills and higher slippage. For larger traders it means they cannot move size without telegraphing it.</li>
+<li><strong>Counterparties and strategies leak.</strong> Businesses paying suppliers, funds rebalancing, or DAOs paying contributors all expose commercially sensitive information that would be confidential in traditional finance.</li>
+</ul>
+<p>The usual responses are unsatisfying. Centralised venues hide your order from the public but require you to trust the operator with both your data and your funds. Mixers break links but offer no structure for trading and no way to prove anything to an auditor afterwards. &quot;Just use a fresh wallet&quot; does not survive contact with real usage.</p>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>02 // OVERVIEW</div><h2>The idea in <em>one paragraph.</em></h2></div><p>Shade Protocol is a <strong>shielded execution layer</strong>: users hold value as encrypted <em>notes</em> inside a shielded pool, move it with <strong>zero-knowledge proofs</strong> that show a transaction is valid without revealing who, what or how much, and trade through a <strong>dark pool</strong> where orders stay hidden until they are matched and settled. On top of that sits a <strong>selective-disclosure toolkit</strong> — optional KYC proofs, scoped viewing keys and a sanctions-screening hook — so that users and integrators who need to show information to an auditor or regulator can do so deliberately, rather than leaking it to the whole world by default. The core is chain-agnostic; thin adapters connect it to individual chains, starting with <strong>Solana devnet</strong>.</p>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>03 // HOW IT WORKS</div><h2>Shielded notes &amp; the <em>dark pool.</em></h2></div><h3>3.1 Shielded notes</h3>
+<p>Think of a note as a sealed envelope with a value inside, written to a public noticeboard.</p>
+<ul>
+<li><strong>Depositing</strong> (&quot;shielding&quot;) moves tokens from a normal wallet into the pool. In return a new envelope — a <em>note</em> — is pinned to the board. Only a <strong>commitment</strong> to it is public: a fingerprint that hides the amount and owner but cannot later be changed.</li>
+<li><strong>Spending</strong> a note means proving, in zero knowledge, three things at once: <em>&quot;one of the envelopes on the board is mine&quot;</em>, <em>&quot;I haven&#39;t opened it before&quot;</em>, and <em>&quot;the value going out equals the value coming in&quot;</em> — without saying which envelope.</li>
+<li>To stop double-spending, each spent note reveals a <strong>nullifier</strong>: a unique tag that only the owner can compute. The chain records it. If the same note is spent twice, the same nullifier appears twice and the second spend is rejected. Nobody can tell which commitment a nullifier belongs to.</li>
+<li>The <strong>recipient</strong> of a transfer receives fresh notes addressed to a one-time <strong>stealth address</strong>, with the note details encrypted so only they can read them. Observers cannot link payments to the recipient&#39;s public identity or to each other.</li>
+</ul>
+<p>All commitments live in a <strong>Merkle tree</strong> — a compact structure that lets anyone check &quot;this item is in the set&quot; from a single short root hash. The chain stores the root; users prove membership against it.</p>
+<h3>3.2 The dark pool</h3>
+<p>The dark pool lets two users trade assets held as shielded notes without exposing their orders to the public mempool.</p>
+<ol>
+<li><strong>Submit.</strong> A trader locks an input note into an <em>order commitment</em> and submits it with a proof that they own sufficient funds. Order details (pair, side, size, limit price) are encrypted to the matching engine. The public only sees an opaque commitment.</li>
+<li><strong>Match.</strong> At the end of each batch window, the matching engine pairs buy orders with sell orders whose limit prices cross. Buys are only matched against sells, each order is filled at most once (or partially, with the remainder carried forward), and price-time priority decides who goes first.</li>
+<li><strong>Settle.</strong> Each match is settled on-chain by a transaction carrying a proof that both sides&#39; input notes were valid and unspent, that both received the right outputs, and that no value was created or destroyed. Input nullifiers are published; new output notes are encrypted to each trader.</li>
+</ol>
+<p>Because orders are not visible until after they are settled — and even then only as commitments and nullifiers — there is nothing public for a front-runner to act on.</p>
+<p><strong>What you trust the matcher for (and what you don&#39;t).</strong> In the current design the matching engine is operated by a known party and can read the orders it matches. It <strong>cannot</strong> steal funds or forge trades, because every settlement must pass the on-chain proof check. It <strong>could</strong> censor orders, or leak order information it sees. Reducing this trust — for example with threshold decryption, multi-party computation or trusted hardware — is on the roadmap, not in the current build.</p>
+<h3>3.3 Proofs</h3>
+<p>Validity is enforced by an arithmetic circuit (written in Circom) that checks Merkle membership, nullifier derivation, ownership, value conservation and range limits. Users generate a <strong>Groth16</strong> proof locally; the chain verifies it cheaply. Groth16 needs a one-off &quot;trusted setup&quot;; see §6.</p>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>04 // SELECTIVE DISCLOSURE</div><h2>Private by default. <em>Disclose by choice.</em></h2></div><p>Privacy that can never be opened is hard to use for businesses, and privacy that is always open is not privacy. Shade&#39;s design goal is <strong>privacy by default, disclosure by choice, and verifiability always</strong>. It provides tools; whether a particular deployment meets any particular law is for its operator and their advisers to determine.</p>
+<ul>
+<li><strong>Zero-knowledge KYC credentials.</strong> A KYC provider (an <em>issuer</em>) can sign a credential for a user after its own checks. The user can then prove statements such as &quot;my credential is from an issuer this pool accepts, is not expired, has at least level 2, and my jurisdiction is in the allowed set&quot; — without revealing their identity, the credential itself or their jurisdiction. Pools can require such a proof to deposit or trade.</li>
+<li><strong>Viewing keys.</strong> Every user has a viewing key separate from their spending key. They can share it — whole, or scoped to a time window — with an accountant, auditor or regulator, who can then decrypt that user&#39;s notes but <strong>cannot spend them</strong>.</li>
+<li><strong>Auditor ciphertexts (optional, per pool).</strong> A pool may be configured so that each note also carries a copy of its details encrypted to a designated auditor public key. This is a policy decision made visibly at pool creation, not a hidden backdoor, and pools without it remain fully private.</li>
+<li><strong>Sanctions-screening hook.</strong> Deposits and withdrawals cross the boundary between public and shielded state. At that boundary an integrator can plug in a screening provider of their choice to check public addresses. Shade supplies the hook; it does not supply or endorse any list.</li>
+</ul>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>05 // MULTI-CHAIN</div><h2>One core. <em>Thin adapters.</em></h2></div><p>The privacy logic — notes, commitments, nullifiers, the Merkle tree, proofs and matching — lives in a chain-agnostic core. Each chain gets a <strong>thin adapter</strong> that only verifies proofs, stores roots and nullifiers, and custodies pooled tokens using that chain&#39;s native tools.</p>
+<table>
+<thead>
+<tr>
+<th>Chain</th>
+<th>Adapter target</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Solana</td>
+<td>On-chain program verifying Groth16 proofs via Solana&#39;s alt_bn128 syscalls</td>
+<td><strong>First target — devnet</strong></td>
+</tr>
+<tr>
+<td>NEAR</td>
+<td>Smart contract using NEAR&#39;s alt_bn128 host functions</td>
+<td>Testnet — in progress</td>
+</tr>
+<tr>
+<td>Canton</td>
+<td>Daml workflows for institutional settlement</td>
+<td>Research / in progress</td>
+</tr>
+<tr>
+<td>Robinhood</td>
+<td>Adapter for Robinhood&#39;s chain environment <em>(see TODO in docs)</em></td>
+<td>Research / in progress</td>
+</tr>
+</tbody></table>
+<p>Listing a chain here describes an engineering target only. <strong>Shade Protocol has no partnership, endorsement or affiliation with Solana, NEAR, Canton/Digital Asset, Robinhood or any other organisation.</strong> Cross-chain transfers between shielded pools are not part of the current scope.</p>
+<figure class="diagram"><svg id="my-svg" width="100%" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" class="flowchart" style="max-width: 1146.16px; background-color: transparent;" viewBox="4 4 1146.15625 628" role="graphics-document document" aria-roledescription="flowchart-v2"><style>#my-svg{font-family:Inter,sans-serif;font-size:15px;fill:#C9CDD2;}@keyframes edge-animation-frame{from{stroke-dashoffset:0;}}@keyframes dash{to{stroke-dashoffset:0;}}#my-svg .edge-animation-slow{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 50s linear infinite;stroke-linecap:round;}#my-svg .edge-animation-fast{stroke-dasharray:9,5!important;stroke-dashoffset:900;animation:dash 20s linear infinite;stroke-linecap:round;}#my-svg .error-icon{fill:#0c0d0f;}#my-svg .error-text{fill:#f3f2f0;stroke:#f3f2f0;}#my-svg .edge-thickness-normal{stroke-width:1px;}#my-svg .edge-thickness-thick{stroke-width:3.5px;}#my-svg .edge-pattern-solid{stroke-dasharray:0;}#my-svg .edge-thickness-invisible{stroke-width:0;fill:none;}#my-svg .edge-pattern-dashed{stroke-dasharray:3;}#my-svg .edge-pattern-dotted{stroke-dasharray:2;}#my-svg .marker{fill:#C6F432;stroke:#C6F432;}#my-svg .marker.cross{stroke:#C6F432;}#my-svg svg{font-family:Inter,sans-serif;font-size:15px;}#my-svg p{margin:0;}#my-svg .label{font-family:Inter,sans-serif;color:#E9ECEF;}#my-svg .cluster-label text{fill:#C6F432;}#my-svg .cluster-label span{color:#C6F432;}#my-svg .cluster-label span p{background-color:transparent;}#my-svg .label text,#my-svg span{fill:#E9ECEF;color:#E9ECEF;}#my-svg .node rect,#my-svg .node circle,#my-svg .node ellipse,#my-svg .node polygon,#my-svg .node path{fill:#16181b;stroke:#C6F432;stroke-width:1px;}#my-svg .rough-node .label text,#my-svg .node .label text,#my-svg .image-shape .label,#my-svg .icon-shape .label{text-anchor:middle;}#my-svg .node .katex path{fill:#000;stroke:#000;stroke-width:1px;}#my-svg .rough-node .label,#my-svg .node .label,#my-svg .image-shape .label,#my-svg .icon-shape .label{text-align:center;}#my-svg .node.clickable{cursor:pointer;}#my-svg .root .anchor path{fill:#C6F432!important;stroke-width:0;stroke:#C6F432;}#my-svg .arrowheadPath{fill:rgba(255, 255, 255, 0);}#my-svg .edgePaths .path{stroke:#C6F432;stroke-width:1px;}#my-svg .flowchart-link{stroke:#C6F432;fill:none;}#my-svg .edgeLabel{background-color:#0b0c0e;text-align:center;}#my-svg .edgeLabel p{background-color:#0b0c0e;}#my-svg .edgeLabel rect{opacity:0.5;background-color:#0b0c0e;fill:#0b0c0e;}#my-svg .labelBkg{background-color:rgba(11, 12, 14, 0.5);}#my-svg .cluster rect{fill:#0e1012;stroke:#3a3f45;stroke-width:1px;}#my-svg .cluster text{fill:#C6F432;}#my-svg .cluster span{color:#C6F432;}#my-svg .node .collapsed-indicator{fill:#3a3f45;stroke:none;opacity:0.6;}#my-svg .node .collapsed-separator{stroke:#3a3f45;stroke-width:0.75px;}#my-svg div.mermaidTooltip{position:absolute;text-align:center;max-width:200px;padding:2px;font-family:Inter,sans-serif;font-size:12px;background:#0c0d0f;border:1px solid hsl(220, 0%, 0%);border-radius:2px;pointer-events:none;z-index:100;}#my-svg .flowchartTitleText{text-anchor:middle;font-size:18px;fill:#C9CDD2;}#my-svg rect.text{fill:none;stroke-width:0;}#my-svg .icon-shape,#my-svg .image-shape{background-color:#0b0c0e;text-align:center;}#my-svg .icon-shape p,#my-svg .image-shape p{background-color:#0b0c0e;padding:2px;}#my-svg .icon-shape .label rect,#my-svg .image-shape .label rect{opacity:0.5;background-color:#0b0c0e;fill:#0b0c0e;}#my-svg .label-icon{display:inline-block;height:1em;overflow:visible;vertical-align:-0.125em;}#my-svg .node .label-icon path{fill:currentColor;stroke:revert;stroke-width:revert;}#my-svg .node .neo-node{stroke:#C6F432;}#my-svg [data-look="neo"].node rect,#my-svg [data-look="neo"].cluster rect,#my-svg [data-look="neo"].node polygon{stroke:url(#my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#my-svg [data-look="neo"].swimlane.cluster rect{filter:none;}#my-svg [data-look="neo"].node path{stroke:url(#my-svg-gradient);stroke-width:1px;}#my-svg [data-look="neo"].node .outer-path{filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#my-svg [data-look="neo"].node .neo-line path{stroke:#C6F432;filter:none;}#my-svg [data-look="neo"].node circle{stroke:url(#my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#my-svg [data-look="neo"].node circle .state-start{fill:#000000;}#my-svg [data-look="neo"].icon-shape .icon{fill:url(#my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#my-svg [data-look="neo"].icon-shape .icon-neo path{stroke:url(#my-svg-gradient);filter:drop-shadow( 1px 2px 2px rgba(185,185,185,1));}#my-svg :root{--mermaid-font-family:"trebuchet ms",verdana,arial,sans-serif;}</style><g><marker id="my-svg_flowchart-v2-pointEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-pointStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="4.5" refY="5" markerUnits="userSpaceOnUse" markerWidth="8" markerHeight="8" orient="auto"><path d="M 0 5 L 10 10 L 10 0 z" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-pointEnd-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="11.5" refY="7" markerUnits="userSpaceOnUse" markerWidth="10.5" markerHeight="14" orient="auto"><path d="M 0 0 L 11.5 7 L 0 14 z" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-pointStart-margin" class="marker flowchart-v2" viewBox="0 0 11.5 14" refX="1" refY="7" markerUnits="userSpaceOnUse" markerWidth="11.5" markerHeight="14" orient="auto"><polygon points="0,7 11.5,14 11.5,0" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-circleEnd" class="marker flowchart-v2" viewBox="0 0 10 10" refX="11" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-circleStart" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-1" refY="5" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 1; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-circleEnd-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refY="5" refX="12.25" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-circleStart-margin" class="marker flowchart-v2" viewBox="0 0 10 10" refX="-2" refY="5" markerUnits="userSpaceOnUse" markerWidth="14" markerHeight="14" orient="auto"><circle cx="5" cy="5" r="5" class="arrowMarkerPath" style="stroke-width: 0; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-crossEnd" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="12" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-crossStart" class="marker cross flowchart-v2" viewBox="0 0 11 11" refX="-1" refY="5.2" markerUnits="userSpaceOnUse" markerWidth="11" markerHeight="11" orient="auto"><path d="M 1,1 l 9,9 M 10,1 l -9,9" class="arrowMarkerPath" style="stroke-width: 2; stroke-dasharray: 1, 0;"/></marker><marker id="my-svg_flowchart-v2-crossEnd-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="17.7" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5;"/></marker><marker id="my-svg_flowchart-v2-crossStart-margin" class="marker cross flowchart-v2" viewBox="0 0 15 15" refX="-3.5" refY="7.5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto"><path d="M 1,1 L 14,14 M 1,14 L 14,1" class="arrowMarkerPath" style="stroke-width: 2.5; stroke-dasharray: 1, 0;"/></marker><g class="root"><g class="clusters"><g class="cluster" id="my-svg-Chains" data-look="neo"><rect style="" x="942.15625" y="79.5" width="200" height="477"/><g class="cluster-label" transform="translate(956.6796875, 79.5)"><foreignObject width="170.953125" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"><p>THIN CHAIN ADAPTERS</p></span></div></foreignObject></g></g><g class="cluster" id="my-svg-Core" data-look="neo"><rect style="" x="435.28125" y="12" width="226.875" height="612"/><g class="cluster-label" transform="translate(440.28125, 12)"><foreignObject width="216.875" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"><p>SHADE CORE (chain-agnostic)</p></span></div></foreignObject></g></g><g class="cluster" id="my-svg-Client" data-look="neo"><rect style="" x="12" y="57" width="200" height="522"/><g class="cluster-label" transform="translate(63.0625, 57)"><foreignObject width="97.875" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table-cell; white-space: nowrap; line-height: 1.5;"><span class="nodeLabel"><p>USER DEVICE</p></span></div></foreignObject></g></g></g><g class="edges edgePaths"><path d="M212,318L431.28125,318" id="my-svg-L_Client_Core_0" class="edge-thickness-thick edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 215.28125 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="L_Client_Core_0" data-points="W3sieCI6MjEyLCJ5IjozMTh9LHsieCI6NDM1LjI4MTI1LCJ5IjozMTh9XQ==" data-look="neo" marker-end="url(#my-svg_flowchart-v2-pointEnd-margin)"/><path d="M662.15625,318L938.15625,318" id="my-svg-L_Core_Chains_0" class="edge-thickness-thick edge-pattern-solid edge-thickness-normal edge-pattern-solid flowchart-link" style="stroke-dasharray: 0 0 272 4; stroke-dashoffset: 0;;" data-edge="true" data-et="edge" data-id="L_Core_Chains_0" data-points="W3sieCI6NjYyLjE1NjI1LCJ5IjozMTh9LHsieCI6OTQyLjE1NjI1LCJ5IjozMTh9XQ==" data-look="neo" marker-end="url(#my-svg_flowchart-v2-pointEnd-margin)"/></g><g class="edgeLabels"><g class="edgeLabel" transform="translate(323.640625, 317.25)"><g class="label" data-id="L_Client_Core_0" transform="translate(-71.640625, -11.25)"><foreignObject width="143.28125" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table-cell; white-space: nowrap; line-height: 1.5; max-width: 200px; text-align: center;"><span class="edgeLabel"><p>proofs + ciphertexts</p></span></div></foreignObject></g></g><g class="edgeLabel" transform="translate(802.15625, 317.5)"><g class="label" data-id="L_Core_Chains_0" transform="translate(-100, -22.5)"><foreignObject width="200" height="45"><div xmlns="http://www.w3.org/1999/xhtml" class="labelBkg" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 200px; text-align: center; width: 200px;"><span class="edgeLabel"><p>verify · store roots &amp; nullifiers</p></span></div></foreignObject></g></g></g><g class="nodes"><g class="node default" id="my-svg-flowchart-SDK-0" data-look="neo" transform="translate(112, 293.75)"><rect class="basic label-container" style="" x="-76" y="-45.75" width="152" height="91.5"/><g class="label" style="" transform="translate(-60, -33.75)"><rect/><foreignObject width="120" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Wallet + ShadeClient SDK</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-K-1" data-look="neo" transform="translate(112, 424)"><rect class="basic label-container" style="" x="-76" y="-34.5" width="152" height="69"/><g class="label" style="" transform="translate(-60, -22.5)"><rect/><foreignObject width="120" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Keys: spend / view</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-P-2" data-look="neo" transform="translate(112, 152.25)"><rect class="basic label-container" style="" x="-76" y="-45.75" width="152" height="91.5"/><g class="label" style="" transform="translate(-60, -33.75)"><rect/><foreignObject width="120" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Local prover<br />Circom + Groth16</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-SC-3" data-look="neo" transform="translate(112, 531.75)"><rect class="basic label-container" style="" x="-76" y="-23.25" width="152" height="46.5"/><g class="label" style="" transform="translate(-60, -11.25)"><rect/><foreignObject width="120" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: nowrap; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Note scanner</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-N-4" data-look="neo" transform="translate(535.28125, 248.75)"><rect class="basic label-container" style="" x="-76" y="-45.75" width="152" height="91.5"/><g class="label" style="" transform="translate(-60, -33.75)"><rect/><foreignObject width="120" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Notes, commitments,<br />nullifiers</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-T-5" data-look="neo" transform="translate(535.28125, 379)"><rect class="basic label-container" style="" x="-76" y="-34.5" width="152" height="69"/><g class="label" style="" transform="translate(-60, -22.5)"><rect/><foreignObject width="120" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Poseidon Merkle tree</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-M-6" data-look="neo" transform="translate(535.28125, 107.25)"><rect class="basic label-container" style="" x="-76" y="-45.75" width="152" height="91.5"/><g class="label" style="" transform="translate(-60, -33.75)"><rect/><foreignObject width="120" height="67.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Dark-pool matcher<br />+ settlement</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-C-7" data-look="neo" transform="translate(535.28125, 531.75)"><rect class="basic label-container" style="" x="-76" y="-68.25" width="152" height="136.5"/><g class="label" style="" transform="translate(-60, -56.25)"><rect/><foreignObject width="120" height="112.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Compliance tools<br />KYC proofs · view keys · screening</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-S-8" data-look="neo" transform="translate(1042.15625, 271.25)"><rect class="basic label-container" style="" x="-76" y="-23.25" width="152" height="46.5"/><g class="label" style="" transform="translate(-60, -11.25)"><rect/><foreignObject width="120" height="22.5"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: nowrap; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Solana — devnet</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-NE-9" data-look="neo" transform="translate(1042.15625, 379)"><rect class="basic label-container" style="" x="-76" y="-34.5" width="152" height="69"/><g class="label" style="" transform="translate(-60, -22.5)"><rect/><foreignObject width="120" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>NEAR — in progress</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-CA-10" data-look="neo" transform="translate(1042.15625, 163.5)"><rect class="basic label-container" style="" x="-76" y="-34.5" width="152" height="69"/><g class="label" style="" transform="translate(-60, -22.5)"><rect/><foreignObject width="120" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Canton — in progress</p></span></div></foreignObject></g></g><g class="node default" id="my-svg-flowchart-RH-11" data-look="neo" transform="translate(1042.15625, 498)"><rect class="basic label-container" style="" x="-76" y="-34.5" width="152" height="69"/><g class="label" style="" transform="translate(-60, -22.5)"><rect/><foreignObject width="120" height="45"><div xmlns="http://www.w3.org/1999/xhtml" style="display: table; white-space: break-spaces; line-height: 1.5; max-width: 120px; text-align: center; width: 120px;"><span class="nodeLabel"><p>Robinhood — in progress</p></span></div></foreignObject></g></g></g></g></g><defs><filter id="my-svg-drop-shadow" height="130%" width="130%"><feDropShadow dx="4" dy="4" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><defs><filter id="my-svg-drop-shadow-small" height="150%" width="150%"><feDropShadow dx="2" dy="2" stdDeviation="0" flood-opacity="0.06" flood-color="#000000"/></filter></defs><linearGradient id="my-svg-gradient" gradientUnits="objectBoundingBox" x1="0%" y1="0%" x2="100%" y2="0%"><stop offset="0%" stop-color="#C6F432" stop-opacity="1"/><stop offset="100%" stop-color="hsl(210, 0%, 0%)" stop-opacity="1"/></linearGradient></svg><figcaption>Fig. 1 — Shade Protocol architecture (target design). Adapters other than Solana may be in progress.</figcaption></figure></section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>06 // SECURITY MODEL</div><h2>What you <em>trust.</em></h2></div><p>Shade is designed so that <strong>funds safety depends on mathematics and on-chain verification, not on any operator</strong>. Specifically, we assume:</p>
+<ol>
+<li><strong>Cryptography holds.</strong> Poseidon is collision-resistant, Groth16 on the BN254 curve is sound, ECDH on Baby Jubjub is hard to break, AES-256-GCM and HKDF-SHA256 are secure. BN254 offers roughly 100–128 bits of security by current estimates; this is standard for Ethereum-style zk systems but is not &quot;post-quantum&quot;.</li>
+<li><strong>The trusted setup was honest.</strong> Groth16 proving keys come from a setup ceremony. If <em>every</em> participant kept their secret randomness, they could forge proofs and create value from nothing. Today&#39;s keys come from a <strong>development setup with a single contributor — it must be assumed compromised and must never protect real value.</strong> A public multi-party ceremony, where one honest participant suffices, is required before any mainnet.</li>
+<li><strong>The circuit and contracts are correct.</strong> A missing constraint is a critical bug. This is the main reason an independent audit is required.</li>
+<li><strong>The chain is live and honest.</strong> Shade inherits its host chain&#39;s liveness, censorship resistance and finality.</li>
+<li><strong>The dark-pool matcher is trusted for order privacy and fairness, not for funds.</strong> See §3.2.</li>
+<li><strong>Users protect their keys.</strong> Losing a spending key loses funds; leaking a viewing key leaks history.</li>
+</ol>
+<p>Privacy is also statistical: the <strong>anonymity set</strong> is only as large as the number of real users and notes. A small devnet pool provides little practical privacy, and timing, amounts and deposit/withdrawal patterns can still link activity.</p>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>07 // STATUS &amp; ROADMAP</div><h2>Devnet <em>first.</em></h2></div><p><strong>Where we are now (October 2026).</strong> The codebase is being rewritten from an early scaffold into the architecture described here: a real Poseidon Merkle tree, hiding and binding commitments, per-note nullifiers, ECDH stealth addresses with KDF-derived AES-GCM encryption, a Circom circuit enforcing membership, conservation and range checks, Groth16 proofs, fixed dark-pool matching and settlement, the compliance toolkit, CI, and a Solana devnet adapter first. Licence: MIT (pending). Nothing is on mainnet.</p>
+<table>
+<thead>
+<tr>
+<th>Phase</th>
+<th>Milestone</th>
+<th>What it means</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>0</td>
+<td><strong>Devnet</strong> <em>(now)</em></td>
+<td>Solana devnet deployment, SDK, test suite and CI. Development trusted setup only. Expect breaking changes and resets.</td>
+</tr>
+<tr>
+<td>1</td>
+<td><strong>Testnets + hardening</strong></td>
+<td>NEAR testnet and other adapters; fuzzing, internal review, public bug reports.</td>
+</tr>
+<tr>
+<td>2</td>
+<td><strong>Independent audit</strong></td>
+<td>Third-party review of circuits, cryptography, contracts and SDK; findings published.</td>
+</tr>
+<tr>
+<td>3</td>
+<td><strong>Trusted setup ceremony</strong></td>
+<td>Public multi-party ceremony for production Groth16 keys, with published transcripts.</td>
+</tr>
+<tr>
+<td>4</td>
+<td><strong>Mainnet (conditional)</strong></td>
+<td>Only after phases 2–3, with conservative deposit limits and staged rollout.</td>
+</tr>
+</tbody></table>
+<p>No dates are promised. Each phase begins only when the previous one is genuinely finished.</p>
+<p><strong>Token.</strong> <em>TODO (owner): Shade Protocol currently has no token. If that changes, a separate, reviewed document is needed. Until then, any token claiming to be &quot;Shade Protocol&quot; is not ours.</em></p>
+</section>
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>08 // RISKS</div><h2>Risks &amp; <em>disclaimers.</em></h2></div><ul>
+<li><strong>Experimental software.</strong> Shade Protocol is unaudited research code under active development. It may contain bugs that lead to total loss of funds or loss of privacy. Use only on devnets/testnets with valueless test tokens.</li>
+<li><strong>No financial, legal or tax advice.</strong> Nothing in this document is an offer, solicitation or recommendation to buy, sell or hold any asset. There is no token, no yield and no expected return.</li>
+<li><strong>Not a compliance guarantee.</strong> The selective-disclosure features are tools. Using them does not by itself make any deployment or user compliant with any law, and no regulator has reviewed or approved Shade Protocol.</li>
+<li><strong>Regulatory uncertainty.</strong> Privacy technology is treated differently across jurisdictions and the rules are changing. Users and integrators are responsible for their own legal position.</li>
+<li><strong>Privacy is not absolute.</strong> Small anonymity sets, metadata (IP addresses, timing, amounts) and user error can all reveal information.</li>
+<li><strong>Third-party dependencies.</strong> Host chains, RPC providers, KYC issuers and screening providers are outside the project&#39;s control.</li>
+<li><strong>Forward-looking statements.</strong> Roadmap items describe intentions, not commitments, and may change or never happen.</li>
+</ul>
+<p><strong>Learn more:</strong> technical documentation in <a href="docs/architecture.md"><code>docs/</code></a> · source at <a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a> · security reports: see <a href="docs/security.md"><code>docs/security.md</code></a>.</p>
+</section>
+<section class="closing"><div class="eyebrow"><span class="rule"></span>09 // GET INVOLVED</div><h2>Read the code. <em>Break it.</em> Tell us.</h2><p>Shade Protocol is open source and devnet-only. The most useful thing you can do right now is review the circuits and contracts, run the SDK on devnet, and report what you find.</p><div class="btns"><a class="btn fill" href="https://github.com/Chenz0-13/shade-protocol">GitHub repository</a><a class="btn line" href="docs/architecture.md">Technical docs</a><a class="btn line" href="docs/security.md">Report a vulnerability</a></div></section>
+</main></td></tr></tbody></table>
+</body></html>
