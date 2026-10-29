@@ -10,4 +10,12 @@ circuits/build/
 *.ptau
 *.zkey
 *.wtns
+contracts/evm/out/
+contracts/evm/cache/
+contracts/evm/lib/
+contracts/evm/src/Verifier.sol
+contracts/shade-crypto/target/
+contracts/near/target/
+programs/shade-solana/target/
+programs/shade-solana/src/verifying_key.rs
 

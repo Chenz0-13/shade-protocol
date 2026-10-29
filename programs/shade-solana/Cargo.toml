@@ -1,0 +1,20 @@
+[package]
+name = "shade-solana"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[features]
+default = []
+insecure-test-setup = []
+
+[dependencies]
+groth16-solana = "0.3.1"
+pinocchio = "0.10"
+sha2 = { version = "0.10", default-features = false }
+
+[build-dependencies]
+groth16-solana = { version = "0.3.1", features = ["circom-vk"] }

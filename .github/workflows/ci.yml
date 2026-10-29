@@ -24,8 +24,25 @@ jobs:
         run: npm run build
       - name: Lint
         run: npm run lint
+      - name: Install Foundry
+        run: |
+          curl -L https://foundry.paradigm.xyz | bash
+          export PATH="$HOME/.foundry/bin:$PATH"
+          foundryup
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
       - name: Compile circuit and run the devnet setup
         run: npm run circuit:setup
+      - name: Forge tests
+        run: |
+          cd contracts/evm
+          forge install foundry-rs/forge-std --no-git
+          forge test
+      - name: Rust contract tests
+        run: |
+          cargo test --manifest-path contracts/shade-crypto/Cargo.toml
+          cargo test --manifest-path contracts/near/Cargo.toml
+          rustup target add wasm32-unknown-unknown
+          cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/near/Cargo.toml
       - name: Test
         run: npm test
       - name: Audit

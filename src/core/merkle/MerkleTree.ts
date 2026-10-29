@@ -13,6 +13,59 @@ export interface MerkleProof {
  * hashes: zeros[0] = 0 and zeros[i+1] = Poseidon(zeros[i], zeros[i]).
  * Proofs have exactly `depth` siblings. Verification recomputes the root.
  */
+export function zeroHashes(depth: number): bigint[] {
+  const zeros: bigint[] = [0n];
+  for (let level = 0; level < depth; level += 1) {
+    zeros.push(poseidon([zeros[level]!, zeros[level]!]));
+  }
+  return zeros;
+}
+
+/**
+ * On-chain frontier tree. `filled[level]` is the left node waiting for a
+ * right sibling. This matches `MerkleTree` roots so a proof built from the
+ * full tree verifies against the frontier root the contracts store.
+ */
+export class IncrementalMerkleTree {
+  readonly zeros: bigint[];
+  private readonly filled: bigint[];
+  private nextIndex = 0;
+  private currentRoot: bigint;
+
+  constructor(readonly depth: number) {
+    this.zeros = zeroHashes(depth);
+    this.filled = this.zeros.slice(0, depth);
+    this.currentRoot = this.zeros[depth]!;
+  }
+
+  get size(): number {
+    return this.nextIndex;
+  }
+
+  root(): bigint {
+    return this.currentRoot;
+  }
+
+  insert(leaf: bigint): bigint {
+    assertField("leaf", leaf);
+    if (this.nextIndex >= 2 ** this.depth) throw new Error("Merkle tree is full");
+    let index = this.nextIndex;
+    let current = leaf;
+    for (let level = 0; level < this.depth; level += 1) {
+      if (index % 2 === 0) {
+        this.filled[level] = current;
+        current = poseidon([current, this.zeros[level]!]);
+      } else {
+        current = poseidon([this.filled[level]!, current]);
+      }
+      index = Math.floor(index / 2);
+    }
+    this.nextIndex += 1;
+    this.currentRoot = current;
+    return current;
+  }
+}
+
 export class MerkleTree {
   private readonly layers: bigint[][];
   private leafCount = 0;
@@ -28,11 +81,7 @@ export class MerkleTree {
     if (!Number.isInteger(depth) || depth < 1 || depth > 32) {
       throw new Error("Merkle depth must be an integer from 1 to 32");
     }
-    const zeros: bigint[] = [0n];
-    for (let level = 0; level < depth; level += 1) {
-      zeros.push(poseidon([zeros[level]!, zeros[level]!]));
-    }
-    return new MerkleTree(depth, zeros);
+    return new MerkleTree(depth, zeroHashes(depth));
   }
 
   get size(): number {

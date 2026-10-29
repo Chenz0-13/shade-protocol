@@ -23,4 +23,6 @@ export * from "./compliance/SanctionsScreen.js";
 export * from "./compliance/ZKComplianceLayer.js";
 export * from "./chain/config.js";
 export * from "./chain/solana.js";
-export * from "./chain/unsupported.js";
+export * from "./chain/robinhood.js";
+export * from "./chain/near.js";
+export * from "./chain/canton.js";

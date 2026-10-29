@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { TREE_DEPTH } from "../src/core/constants.js";
 import { randomField } from "../src/core/crypto/field.js";
-import { MerkleTree } from "../src/core/merkle/MerkleTree.js";
+import { IncrementalMerkleTree, MerkleTree } from "../src/core/merkle/MerkleTree.js";
 
 describe("Poseidon Merkle tree", () => {
   it("uses the circuit depth and verifies real paths", () => {
@@ -32,6 +32,19 @@ describe("Poseidon Merkle tree", () => {
     expect(tree.verify(leaf, forged, tree.root())).toBe(false);
     expect(tree.verify(leaf + 1n, proof, tree.root())).toBe(false);
     expect(tree.verify(leaf, { ...proof, pathIndices: [2, ...proof.pathIndices.slice(1)] }, tree.root())).toBe(false);
+  });
+
+  it("matches the on-chain frontier tree", () => {
+    const full = MerkleTree.empty();
+    const incremental = new IncrementalMerkleTree(TREE_DEPTH);
+    const leaves = [1n, 2n, 3n, 9n, 11n, 42n];
+    for (const leaf of leaves) {
+      full.insert(leaf);
+      incremental.insert(leaf);
+      expect(incremental.root()).toBe(full.root());
+    }
+    const proof = full.getProof(4);
+    expect(full.verify(11n, proof, incremental.root())).toBe(true);
   });
 
   it("does not use an XOR fold and the empty root is the zero hash", () => {

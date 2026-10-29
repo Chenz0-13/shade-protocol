@@ -126,6 +126,8 @@ async function main() {
     `-e=${entropy()}`,
   ]);
   await run("node", [snarkjs, "zkey", "export", "verificationkey", zkey, vkey]);
+  const verifier = path.join(root, "contracts", "evm", "src", "Verifier.sol");
+  await run("node", [snarkjs, "zkey", "export", "solidityverifier", zkey, verifier]);
 
   for (const file of [pot0, pot1, potFinal, zkey0]) rmSync(file, { force: true });
   const marker = {

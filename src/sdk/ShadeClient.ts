@@ -2,8 +2,10 @@ import { logger } from "../core/log/logger.js";
 import { ASSET_BASE, TREE_DEPTH } from "../core/constants.js";
 import { DoubleSpendError } from "../core/errors.js";
 import { resolveConfig, type ShadeConfig, type SupportedChain } from "../core/chain/config.js";
+import { submitCanton } from "../core/chain/canton.js";
+import { NearTestnetAdapter } from "../core/chain/near.js";
+import { RobinhoodTestnetAdapter } from "../core/chain/robinhood.js";
 import { SolanaDevnetAdapter, type ChainSubmission, type SolanaRpc } from "../core/chain/solana.js";
-import { submitCanton, submitNear, submitRobinhood } from "../core/chain/unsupported.js";
 import {
   DevnetPermissiveScreen,
   type SanctionsScreen,
@@ -60,6 +62,8 @@ export class ShadeClient {
   readonly config: ShadeConfig;
   readonly compliance: ZKComplianceLayer;
   private readonly solana: SolanaDevnetAdapter;
+  private readonly near: NearTestnetAdapter;
+  private readonly robinhood: RobinhoodTestnetAdapter;
   private prover?: ShieldedTransferProver;
   private tree?: MerkleTree;
   private nullifiers?: NullifierSet;
@@ -78,7 +82,20 @@ export class ShadeClient {
     this.solana = new SolanaDevnetAdapter({
       rpcUrl: resolved.config.solanaRpc,
       secretKey: resolved.solanaSecretKey,
+      programId: resolved.config.solanaProgramId,
       rpc: options.solanaRpc,
+    });
+    this.near = new NearTestnetAdapter({
+      rpcUrl: resolved.config.nearRpc,
+      accountId: resolved.config.nearAccountId,
+      contractId: resolved.config.nearContractId,
+      secretKey: resolved.nearSecretKey,
+    });
+    this.robinhood = new RobinhoodTestnetAdapter({
+      rpcUrl: resolved.config.robinhoodRpc,
+      chainId: resolved.config.robinhoodChainId,
+      pool: resolved.config.robinhoodPool as `0x${string}` | undefined,
+      privateKey: resolved.robinhoodPrivateKey,
     });
   }
 
@@ -132,6 +149,8 @@ export class ShadeClient {
     assetId: bigint;
     outputs: Array<{ value: bigint; recipient: PublicIdentity }>;
     fee?: bigint;
+    nearRecipient?: string;
+    evmRecipient?: `0x${string}`;
   }): Promise<{ signature: string; outputs: OutgoingNote[] }> {
     if (!this.config.chains.includes(params.chain)) {
       throw new Error(`chain ${params.chain} is not enabled`);
@@ -188,8 +207,9 @@ export class ShadeClient {
       commitmentOut1: proved.publicSignals[2]!,
       commitmentOut2: proved.publicSignals[3]!,
       fee: proved.publicSignals[4]!,
+      proof: proved.proof,
     };
-    const signature = await this.submit(params.chain, payload);
+    const signature = await this.submit(params.chain, payload, params.nearRecipient, params.evmRecipient);
     return { signature, outputs };
   }
 
@@ -202,16 +222,23 @@ export class ShadeClient {
     return sealOrder(this.darkPool.operatorViewPublicKey, draft);
   }
 
-  private async submit(chain: SupportedChain, payload: ChainSubmission): Promise<string> {
+  private async submit(
+    chain: SupportedChain,
+    payload: ChainSubmission,
+    nearRecipient?: string,
+    evmRecipient?: `0x${string}`,
+  ): Promise<string> {
     switch (chain) {
       case "solana":
         return (await this.solana.submit(payload)).signature;
       case "near":
-        return submitNear(payload);
+        if (!nearRecipient) throw new Error("nearRecipient is required");
+        return (await this.near.shieldedTransfer(payload, nearRecipient)).hash;
       case "canton":
-        return submitCanton(payload);
+        return submitCanton();
       case "robinhood":
-        return submitRobinhood(payload);
+        if (!evmRecipient) throw new Error("evmRecipient is required");
+        return (await this.robinhood.shieldedTransfer(payload, evmRecipient)).hash;
       default:
         throw new Error(`unknown chain ${chain satisfies never}`);
     }

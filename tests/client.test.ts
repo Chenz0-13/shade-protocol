@@ -1,7 +1,8 @@
-import { Keypair, Transaction } from "@solana/web3.js";
+import { Keypair, PublicKey, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { SOLANA_DEVNET_GENESIS, SOLANA_DEVNET_RPC } from "../src/core/constants.js";
+import { SHADE_LOCAL_PROGRAM_ID } from "../src/core/chain/solana.js";
 import { publicIdentity } from "../src/core/crypto/keys.js";
 import { readNote } from "../src/core/notes/outgoing.js";
 import { DoubleSpendError } from "../src/core/errors.js";
@@ -66,10 +67,9 @@ describe("ShadeClient", () => {
     });
     expect(sent).toHaveLength(1);
     expect(result.signature.length).toBeGreaterThan(20);
-    const memo = JSON.parse(Transaction.from(Buffer.from(sent[0]!)).instructions[0]!.data.toString("utf8")) as {
-      nullifier: string;
-    };
-    expect(memo.nullifier).toBe(minted.note.nullifier?.toString());
+    const instruction = Transaction.from(Buffer.from(sent[0]!)).instructions[0]!;
+    expect(instruction.programId.equals(new PublicKey(SHADE_LOCAL_PROGRAM_ID))).toBe(true);
+    expect(instruction.data[0]).toBe(1);
     const received = result.outputs.find((output) => output.ownerPub === recipient.ownerPub);
     expect(received).toBeDefined();
     expect(readNote(recipient, received!).value).toBe(80n);

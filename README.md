@@ -83,17 +83,19 @@ Groth16 KYC proof.
 
 ## Chains
 
-Configuration defaults to Solana devnet, NEAR testnet, and a loopback Canton
-host. Mainnet RPC URLs and the Solana mainnet genesis hash are rejected at
-startup and again at submit time.
+Every adapter defaults to a devnet or testnet and rejects mainnet. Nothing
+here has been broadcast to a live network: this environment has no funded
+deploy key. The deploy scripts refuse mainnet and read keys from the
+environment.
 
-Solana submission builds, signs, and sends a Memo transaction containing the
-public proof inputs. It returns the signature of that signed transaction.
-Without `SOLANA_KEYPAIR` it throws, and it does not invent a signature.
-NEAR, Canton, and Robinhood throw `NotImplementedError`.
+| Chain | What is implemented | How it was tested | Live deploy |
+| --- | --- | --- | --- |
+| Robinhood Chain testnet (chain id 46630, Arbitrum Orbit) | `contracts/evm` ShadePool: Poseidon frontier tree, nullifier map, snarkjs Groth16 verifier, ETH deposit and fee withdraw. TS adapter in `src/core/chain/robinhood.ts` (viem). | `forge test` deposits, proves, withdraws, and rejects a second spend. | Not deployed. `node scripts/deploy-robinhood.mjs` needs `ROBINHOOD_PRIVATE_KEY` with testnet ETH. |
+| NEAR testnet | `contracts/near` (near-sdk 5.11): same frontier tree, nullifier set, root history, and arkworks Groth16 verification of a snarkjs proof. Note values are yoctoNEAR and must fit in 64 bits. TS adapter signs a real ed25519 function-call transaction with `@noble/curves` (the `@near-js/*` packages pull in `elliptic`, so they were not added). | `cargo test` in `contracts/shade-crypto` verifies a proof from the devnet circuit. `cargo build --target wasm32-unknown-unknown` produces a 2.1 MB wasm. | Not deployed. There is no funded testnet account in this environment. |
+| Solana devnet | `programs/shade-solana` verifies the transfer with `groth16-solana` (alt_bn128 syscalls). The TS adapter signs a transaction to that program id. The on-chain Merkle update, nullifier account, and SOL vault are not in this binary yet. | `cargo-build-sbf --features insecure-test-setup` after `npm run circuit:setup`. The verifying key is the single-party setup; the generated file is marked insecure and must not be treated as a production verifier. | Not deployed. `solana program deploy` needs a devnet keypair with SOL. |
+| Canton | Not implemented. | The adapter throws `NotImplementedError`. | No. DevNet needs a Super Validator sponsor and an IP allowlist. Daml has no BN254 pairing, so a sandbox contract cannot check this proof. Recording an unchecked proof would be a fake verifier. |
 
-There is no deployed Shade program. The memo is a devnet anchor for the
-public inputs, not a verifier.
+`ROBINHOOD_API_KEY` is gone. Robinhood configuration is `ROBINHOOD_RPC_URL` (default `https://rpc.testnet.chain.robinhood.com`) and `ROBINHOOD_CHAIN_ID` (default `46630`). Chain id `4663` is mainnet and is rejected.
 
 ## Develop
 
@@ -106,9 +108,16 @@ npm test
 npm run audit
 ```
 
-`npm run circuit:setup` needs the `circom` 2.2.x binary on `PATH`. The setup
-is single-party. Re-run it with `--force` after changing the circuit. Artifacts
-go to `circuits/build/` and are not committed.
+`npm run circuit:setup` needs the `circom` 2.2.x binary on `PATH`. It also
+writes `contracts/evm/src/Verifier.sol`. The setup is single-party. Re-run it
+with `--force` after changing the circuit. Artifacts under `circuits/build/`
+are not committed.
+
+```bash
+cd contracts/evm && forge install foundry-rs/forge-std --no-git && forge test
+cargo test --manifest-path contracts/shade-crypto/Cargo.toml
+cargo test --manifest-path contracts/near/Cargo.toml
+```
 
 Copy `.env.example` if you want a local Solana key. Never commit a real key.
 `SOLANA_KEYPAIR` is a JSON array from `solana-keygen` or 128 hex characters.
@@ -122,7 +131,9 @@ and does not print raw key bytes. Do not put secrets in the log message string.
   for anyone who sees the intermediate parameters.
 - Tree depth 8 is a devnet limit.
 - No external cryptographic audit has been done.
-- No on-chain verifier or Shade program is deployed.
+- The EVM verifier, NEAR wasm, and Solana SBF program have not been broadcast.
+  The Solana binary only verifies the Groth16 proof; it does not yet update a
+  Merkle tree or hold a SOL vault. Its verifying key is the insecure test setup.
 - The dark pool is operator-visible.
 - Sanctions screening and Groth16 KYC proofs are not implemented.
 - `circomlib` and `snarkjs` are GPL-3.0. `LICENSE` is MIT for this
