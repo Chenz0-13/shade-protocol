@@ -18,4 +18,6 @@ contracts/shade-crypto/target/
 contracts/near/target/
 programs/shade-solana/target/
 programs/shade-solana/src/verifying_key.rs
+**/.daml/
+contracts/canton/**/log/
 

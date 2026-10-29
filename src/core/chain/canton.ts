@@ -1,17 +1,13 @@
 import { NotImplementedError } from "../errors.js";
 
 /**
- * Canton cannot verify this Groth16 circuit.
- *
- * Public DevNet requires a Super Validator sponsor and an egress-IP allowlist,
- * and it is reset on a fixed cadence. LocalNet (cn-quickstart) is a Docker
- * stack, not something this process can assume is running. More importantly,
- * Daml has no BN254 pairing or alt_bn128 precompile, so a sandbox choice that
- * "accepts" a proof would be recording an unchecked blob. The adapter refuses
- * that.
+ * Canton has no BN254 verifier. The Daml package in `contracts/canton` records
+ * a spend only after two named attestors authorize it, and it has no proof
+ * field. See `docs/canton-attestation.md`. This process has no participant,
+ * so it still refuses to submit.
  */
 export function submitCanton(): never {
   throw new NotImplementedError(
-    "Canton shielded submission. Daml has no BN254 pairing, and Canton DevNet requires a Super Validator sponsor plus an IP allowlist. Refusing to record an unverified Groth16 proof.",
+    "Canton has no BN254 verifier. Refusing to record an unchecked Groth16 proof. A spend is recorded only as a 2-of-n attestation by the named attestors in contracts/canton. This process has no Canton participant.",
   );
 }

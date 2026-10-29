@@ -40,11 +40,28 @@ jobs:
           cd contracts/evm
           forge install foundry-rs/forge-std --no-git
           forge test
+      - name: Install Solana
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Rust contract tests
         run: |
           cargo test --manifest-path contracts/shade-crypto/Cargo.toml
           cargo test --manifest-path contracts/near/Cargo.toml
           cargo build --release --target wasm32-unknown-unknown --manifest-path contracts/near/Cargo.toml
+      - name: Solana pool
+        run: |
+          cd programs/shade-solana
+          cargo-build-sbf --features insecure-test-setup
+          cargo test --features insecure-test-setup
+      - name: Canton attestation tests
+        run: |
+          curl -fsSL https://get.digitalasset.com/install/install.sh | sh
+          echo "$HOME/.dpm/bin" >> "$GITHUB_PATH"
+          export PATH="$HOME/.dpm/bin:$PATH"
+          cd contracts/canton
+          dpm build
+          cd test && dpm test
       - name: Test
         run: npm test
       - name: Audit

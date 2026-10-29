@@ -1,0 +1,80 @@
+-- Canton does not verify Groth16. This package records a spend only when two
+-- distinct parties from a named attestor set authorize it. The trust
+-- assumption is those parties: they are expected to report a result that a
+-- Groth16 verifier already accepted (the Robinhood Chain testnet ShadePool).
+-- If they collude, Canton accepts a spend that never happened on that chain.
+-- There is no proof field. An unchecked proof blob cannot be recorded here.
+module ShadeAttestation where
+
+-- The publisher names the attestors. The publisher alone cannot record a spend.
+-- threshold is 2: Record has two controllers. A larger integer would not be
+-- enforced by this choice, so the template rejects any other value.
+template AttestorSet
+  with
+    publisher : Party
+    attestors : [Party]
+    threshold : Int
+    spent : [Text]
+  where
+    ensure threshold == 2 && length attestors >= threshold
+    signatory publisher
+    observer attestors
+
+    -- Consuming: the set is archived and recreated with the nullifier appended.
+    -- A second Record of that nullifier fails the assert. The IDE ledger used
+    -- by `dpm test` does not enforce contract-key uniqueness, so the spent
+    -- list is the replay lock that the script actually checks.
+    choice Record : (ContractId AttestorSet, ContractId RecordedSpend)
+      with
+        signerA : Party
+        signerB : Party
+        observer : Party
+        sourceChain : Text
+        sourceTx : Text
+        nullifier : Text
+        commitmentOut1 : Text
+        commitmentOut2 : Text
+        fee : Text
+        merkleRoot : Text
+      controller signerA, signerB
+      do
+        assertMsg "signers must be two distinct named attestors"
+          (signerA /= signerB && signerA `elem` attestors && signerB `elem` attestors)
+        assertMsg "nullifier already recorded" (nullifier `notElem` spent)
+        recorded <- create RecordedSpend with
+          recordedBy = publisher
+          signerA
+          signerB
+          observer
+          sourceChain
+          sourceTx
+          nullifier
+          commitmentOut1
+          commitmentOut2
+          fee
+          merkleRoot
+        updated <- create this with spent = nullifier :: spent
+        pure (updated, recorded)
+
+-- The visible result. Replay is enforced by AttestorSet.spent, not by a proof.
+-- Signatories are the publisher and the two attestors.
+template RecordedSpend
+  with
+    recordedBy : Party
+    signerA : Party
+    signerB : Party
+    observer : Party
+    sourceChain : Text
+    sourceTx : Text
+    nullifier : Text
+    commitmentOut1 : Text
+    commitmentOut2 : Text
+    fee : Text
+    merkleRoot : Text
+  where
+    ensure
+      sourceChain /= "" && sourceTx /= "" && nullifier /= "" &&
+      commitmentOut1 /= "" && commitmentOut2 /= "" && merkleRoot /= "" &&
+      signerA /= signerB
+    signatory recordedBy, signerA, signerB
+    observer observer

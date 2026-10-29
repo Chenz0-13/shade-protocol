@@ -15,7 +15,7 @@ src/core/merkle       fixed-depth Poseidon tree
 src/core/proof        Groth16 witness builder, prove, verify
 src/core/pool         operator dark pool
 src/core/compliance   credential store, issuer signatures, sanctions hook
-src/core/chain        Solana devnet adapter; NEAR, Canton, and Robinhood throw
+src/core/chain        Solana, NEAR, and Robinhood devnet adapters; Canton attestation only
 src/sdk               ShadeClient
 circuits/             shielded transfer circuit
 tests/                unit and adversarial tests
@@ -92,8 +92,8 @@ environment.
 | --- | --- | --- | --- |
 | Robinhood Chain testnet (chain id 46630, Arbitrum Orbit) | `contracts/evm` ShadePool: Poseidon frontier tree, nullifier map, snarkjs Groth16 verifier, ETH deposit and fee withdraw. TS adapter in `src/core/chain/robinhood.ts` (viem). | `forge test` deposits, proves, withdraws, and rejects a second spend. | Not deployed. `node scripts/deploy-robinhood.mjs` needs `ROBINHOOD_PRIVATE_KEY` with testnet ETH. |
 | NEAR testnet | `contracts/near` (near-sdk 5.11): same frontier tree, nullifier set, root history, and arkworks Groth16 verification of a snarkjs proof. Note values are yoctoNEAR and must fit in 64 bits. TS adapter signs a real ed25519 function-call transaction with `@noble/curves` (the `@near-js/*` packages pull in `elliptic`, so they were not added). | `cargo test` in `contracts/shade-crypto` verifies a proof from the devnet circuit. `cargo build --target wasm32-unknown-unknown` produces a 2.1 MB wasm. | Not deployed. There is no funded testnet account in this environment. |
-| Solana devnet | `programs/shade-solana` verifies the transfer with `groth16-solana` (alt_bn128 syscalls). The TS adapter signs a transaction to that program id. The on-chain Merkle update, nullifier account, and SOL vault are not in this binary yet. | `cargo-build-sbf --features insecure-test-setup` after `npm run circuit:setup`. The verifying key is the single-party setup; the generated file is marked insecure and must not be treated as a production verifier. | Not deployed. `solana program deploy` needs a devnet keypair with SOL. |
-| Canton | Not implemented. | The adapter throws `NotImplementedError`. | No. DevNet needs a Super Validator sponsor and an IP allowlist. Daml has no BN254 pairing, so a sandbox contract cannot check this proof. Recording an unchecked proof would be a fake verifier. |
+| Solana devnet | `programs/shade-solana` is a pool: Poseidon frontier and root history (`solana-poseidon` Bn254X5, big-endian), nullifier PDAs (a second create fails), and a SOL vault. Deposit moves lamports in. Withdraw checks the root, verifies Groth16, creates the nullifier account, inserts both output commitments, and pays `fee` to the recipient. The TS adapter signs those accounts. | LiteSVM test: deposit, a real proof from `scripts/evm-proof.mjs`, withdraw, then reject a reused nullifier and an unknown root. Build with `cargo-build-sbf --features insecure-test-setup`. The verifying key is the single-party setup. | Not deployed. `scripts/deploy-solana.sh` needs `SOLANA_KEYPAIR` with devnet SOL and refuses mainnet. |
+| Canton | Not a verifier. `contracts/canton` records a result only when two named attestors authorize it, with a contract key on `(sourceChain, nullifier)`. There is no proof field. The trust assumption is the attestors, who are expected to report a Groth16 result already accepted by the Robinhood pool. The TS adapter still throws. | `dpm test` in `contracts/canton` (Daml SDK 3.6.4). See `docs/canton-attestation.md`. | No. DevNet needs a Super Validator sponsor and an IP allowlist. This environment has no participant. |
 
 `ROBINHOOD_API_KEY` is gone. Robinhood configuration is `ROBINHOOD_RPC_URL` (default `https://rpc.testnet.chain.robinhood.com`) and `ROBINHOOD_CHAIN_ID` (default `46630`). Chain id `4663` is mainnet and is rejected.
 
@@ -117,6 +117,8 @@ are not committed.
 cd contracts/evm && forge install foundry-rs/forge-std --no-git && forge test
 cargo test --manifest-path contracts/shade-crypto/Cargo.toml
 cargo test --manifest-path contracts/near/Cargo.toml
+cd programs/shade-solana && cargo-build-sbf --features insecure-test-setup && cargo test --features insecure-test-setup
+cd contracts/canton && dpm build && cd test && dpm test
 ```
 
 Copy `.env.example` if you want a local Solana key. Never commit a real key.
@@ -132,8 +134,11 @@ and does not print raw key bytes. Do not put secrets in the log message string.
 - Tree depth 8 is a devnet limit.
 - No external cryptographic audit has been done.
 - The EVM verifier, NEAR wasm, and Solana SBF program have not been broadcast.
-  The Solana binary only verifies the Groth16 proof; it does not yet update a
-  Merkle tree or hold a SOL vault. Its verifying key is the insecure test setup.
+  The Solana verifying key is the insecure test setup. The generated key file
+  says not to deploy it; this repository still builds it for devnet tests and
+  the deploy script refuses mainnet.
+- Canton records attestor signatures, not proofs. Two colluding attestors can
+  insert a spend the EVM pool never accepted.
 - The dark pool is operator-visible.
 - Sanctions screening and Groth16 KYC proofs are not implemented.
 - `circomlib` and `snarkjs` are GPL-3.0. `LICENSE` is MIT for this

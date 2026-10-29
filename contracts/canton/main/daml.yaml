@@ -1,0 +1,7 @@
+sdk-version: 3.6.4
+name: shade-canton-attestation
+source: daml
+version: 0.0.1
+dependencies:
+  - daml-prim
+  - daml-stdlib

@@ -67,8 +67,9 @@ describe("ShadeClient", () => {
     });
     expect(sent).toHaveLength(1);
     expect(result.signature.length).toBeGreaterThan(20);
-    const instruction = Transaction.from(Buffer.from(sent[0]!)).instructions[0]!;
-    expect(instruction.programId.equals(new PublicKey(SHADE_LOCAL_PROGRAM_ID))).toBe(true);
+    const instruction = Transaction.from(Buffer.from(sent[0]!)).instructions.find((item) =>
+      item.programId.equals(new PublicKey(SHADE_LOCAL_PROGRAM_ID)),
+    )!;
     expect(instruction.data[0]).toBe(1);
     const received = result.outputs.find((output) => output.ownerPub === recipient.ownerPub);
     expect(received).toBeDefined();

@@ -12,4 +12,6 @@ export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 cd "$(dirname "$0")/../programs/shade-solana"
 cargo-build-sbf --features insecure-test-setup
 solana program deploy target/deploy/shade_solana.so --url "$url" --keypair "$SOLANA_KEYPAIR"
+echo "Deployed the Shade pool (frontier tree, nullifier PDAs, SOL vault)."
+echo "Set SHADE_SOLANA_PROGRAM_ID to the program id printed above."
 echo "This binary embeds the single-party Groth16 setup. Do not point it at mainnet."

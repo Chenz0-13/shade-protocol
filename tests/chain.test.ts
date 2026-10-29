@@ -1,4 +1,4 @@
-import { Keypair, Transaction } from "@solana/web3.js";
+import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, Transaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import { describe, expect, it } from "vitest";
 import { SOLANA_DEVNET_GENESIS, SOLANA_DEVNET_RPC, SOLANA_MAINNET_GENESIS } from "../src/core/constants.js";
@@ -9,9 +9,16 @@ import { ed25519 } from "@noble/curves/ed25519.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { NearTestnetAdapter, signFunctionCall } from "../src/core/chain/near.js";
 import {
+  NULLIFIER_SEED,
+  POOL_SEED,
   SHADE_LOCAL_PROGRAM_ID,
   SolanaDevnetAdapter,
+  VAULT_SEED,
+  encodeDeposit,
   encodeShadeTransfer,
+  nullifierPda,
+  poolPda,
+  vaultPda,
   type ChainSubmission,
   type SolanaRpc,
 } from "../src/core/chain/solana.js";
@@ -88,10 +95,27 @@ describe("submission adapters", () => {
     expect(sent).toHaveLength(1);
     const tx = Transaction.from(Buffer.from(sent[0]!));
     expect(tx.verifySignatures()).toBe(true);
-    expect(tx.instructions[0]?.programId.toBase58()).toBe(SHADE_LOCAL_PROGRAM_ID);
-    const data = tx.instructions[0]!.data;
+    expect(tx.instructions[0]?.programId.equals(ComputeBudgetProgram.programId)).toBe(true);
+    const instruction = tx.instructions[1]!;
+    const programId = new PublicKey(SHADE_LOCAL_PROGRAM_ID);
+    expect(instruction.programId.toBase58()).toBe(SHADE_LOCAL_PROGRAM_ID);
+    const data = instruction.data;
     expect(data[0]).toBe(1);
     expect(data.subarray(1 + 64 + 128 + 64, 1 + 64 + 128 + 64 + 32)).toEqual(encodeShadeTransfer(payload).subarray(1 + 64 + 128 + 64, 1 + 64 + 128 + 96));
+    expect(instruction.keys.map((key) => key.pubkey.toBase58())).toEqual([
+      signer.publicKey.toBase58(),
+      poolPda(programId).toBase58(),
+      vaultPda(programId).toBase58(),
+      nullifierPda(programId, BigInt(payload.nullifier)).toBase58(),
+      signer.publicKey.toBase58(),
+      SystemProgram.programId.toBase58(),
+    ]);
+    const deposit = encodeDeposit({ blinding: 1n, rho: 2n, ownerPub: 3n, value: 1000n });
+    expect(deposit[0]).toBe(2);
+    expect(deposit.subarray(deposit.length - 8).readBigUInt64LE()).toBe(1000n);
+    expect(PublicKey.findProgramAddressSync([POOL_SEED], programId)[0].equals(poolPda(programId))).toBe(true);
+    expect(PublicKey.findProgramAddressSync([VAULT_SEED], programId)[0].equals(vaultPda(programId))).toBe(true);
+    expect(PublicKey.findProgramAddressSync([NULLIFIER_SEED, Buffer.alloc(32)], programId)).toBeDefined();
     expect(data.toString("utf8")).not.toContain("spending");
     expect(signature).toBe(bs58.encode(tx.signatures[0]!.signature!));
 

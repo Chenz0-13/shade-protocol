@@ -1,6 +1,8 @@
 import {
+  ComputeBudgetProgram,
   Keypair,
   PublicKey,
+  SystemProgram,
   Transaction,
   TransactionInstruction,
 } from "@solana/web3.js";
@@ -18,6 +20,25 @@ import { assertSolanaRpc } from "./config.js";
 const FQ = 21888242871839275222246405745257275088696311157297823662689037894645226208583n;
 
 export const SHADE_LOCAL_PROGRAM_ID = "2ThVE9c8Gf9WVrof4NejHGnFjK16izVjBM4sUJvofvwK";
+
+export const POOL_SEED = Buffer.from("pool");
+export const VAULT_SEED = Buffer.from("vault");
+export const NULLIFIER_SEED = Buffer.from("nullifier");
+
+/** Withdraw verifies Groth16 and inserts two leaves. Give it room past the default 200k. */
+export const WITHDRAW_COMPUTE_UNITS = 1_400_000;
+
+export function poolPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([POOL_SEED], programId)[0];
+}
+
+export function vaultPda(programId: PublicKey): PublicKey {
+  return PublicKey.findProgramAddressSync([VAULT_SEED], programId)[0];
+}
+
+export function nullifierPda(programId: PublicKey, nullifier: bigint): PublicKey {
+  return PublicKey.findProgramAddressSync([NULLIFIER_SEED, be32(nullifier, scalarPrime())], programId)[0];
+}
 
 export interface ChainSubmission {
   merkleRoot: string;
@@ -37,10 +58,11 @@ export interface SolanaRpc {
 const ALLOWED_GENESIS = new Set([SOLANA_DEVNET_GENESIS, SOLANA_TESTNET_GENESIS]);
 
 /**
- * Submits a signed transaction to the Shade program. The instruction carries
- * the Groth16 proof in the byte layout `groth16-solana` verifies, plus the
- * five public inputs. Mainnet genesis hashes are rejected. Without a keypair
- * or program id the adapter throws instead of inventing a signature.
+ * Submits a signed transaction to the Shade pool. Withdraw carries the Groth16
+ * proof in the byte layout `groth16-solana` verifies, plus the five public
+ * inputs, and names the pool, vault, nullifier PDA, and recipient. Deposit
+ * moves SOL into the vault PDA. Mainnet genesis hashes are rejected. Without
+ * a keypair or program id the adapter throws instead of inventing a signature.
  */
 export class SolanaDevnetAdapter {
   private readonly signer?: Keypair;
@@ -65,32 +87,63 @@ export class SolanaDevnetAdapter {
     if (options.secretKey) this.signer = Keypair.fromSecretKey(options.secretKey);
   }
 
-  async submit(payload: ChainSubmission): Promise<{ signature: string }> {
+  async submit(payload: ChainSubmission, recipient?: PublicKey): Promise<{ signature: string }> {
+    const signer = this.requireSigner();
+    const data = encodeShadeTransfer(payload);
+    const paid = recipient ?? signer.publicKey;
+    return this.send([
+      ComputeBudgetProgram.setComputeUnitLimit({ units: WITHDRAW_COMPUTE_UNITS }),
+      new TransactionInstruction({
+        programId: this.programId,
+        keys: [
+          { pubkey: signer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: poolPda(this.programId), isSigner: false, isWritable: true },
+          { pubkey: vaultPda(this.programId), isSigner: false, isWritable: true },
+          { pubkey: nullifierPda(this.programId, BigInt(payload.nullifier)), isSigner: false, isWritable: true },
+          { pubkey: paid, isSigner: false, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data,
+      }),
+    ]);
+  }
+
+  async deposit(params: { blinding: bigint; rho: bigint; ownerPub: bigint; value: bigint }): Promise<{ signature: string }> {
+    const signer = this.requireSigner();
+    return this.send([
+      new TransactionInstruction({
+        programId: this.programId,
+        keys: [
+          { pubkey: signer.publicKey, isSigner: true, isWritable: true },
+          { pubkey: poolPda(this.programId), isSigner: false, isWritable: true },
+          { pubkey: vaultPda(this.programId), isSigner: false, isWritable: true },
+          { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+        ],
+        data: encodeDeposit(params),
+      }),
+    ]);
+  }
+
+  private requireSigner(): Keypair {
     if (!this.signer) {
       throw new ConfigError(
         "SOLANA_KEYPAIR is required to submit to Solana devnet. Refusing to invent a transaction signature.",
       );
     }
+    return this.signer;
+  }
+
+  private async send(instructions: TransactionInstruction[]): Promise<{ signature: string }> {
+    const signer = this.requireSigner();
     const rpc = this.options.rpc ?? (await defaultRpc(this.options.rpcUrl));
     const genesis = await rpc.getGenesisHash();
     this.assertGenesis(genesis);
     const { blockhash } = await rpc.getLatestBlockhash();
-    const data = encodeShadeTransfer(payload);
     const transaction = new Transaction();
-    transaction.feePayer = this.signer.publicKey;
+    transaction.feePayer = signer.publicKey;
     transaction.recentBlockhash = blockhash;
-    transaction.add(
-      new TransactionInstruction({
-        programId: this.programId,
-        keys: [
-          { pubkey: this.signer.publicKey, isSigner: true, isWritable: true },
-          { pubkey: this.signer.publicKey, isSigner: false, isWritable: true },
-          { pubkey: new PublicKey("11111111111111111111111111111111"), isSigner: false, isWritable: false },
-        ],
-        data,
-      }),
-    );
-    transaction.sign(this.signer);
+    transaction.add(...instructions);
+    transaction.sign(signer);
     const raw = transaction.serialize();
     const expected = bs58.encode(transaction.signatures[0]!.signature!);
     const returned = await rpc.sendRawTransaction(raw);
@@ -115,6 +168,22 @@ export class SolanaDevnetAdapter {
 function isLocal(url: string): boolean {
   const host = new URL(url).hostname;
   return host === "localhost" || host === "127.0.0.1" || host === "::1";
+}
+
+/** Instruction tag 2: blinding || rho || owner || value as a little-endian u64. */
+export function encodeDeposit(params: { blinding: bigint; rho: bigint; ownerPub: bigint; value: bigint }): Buffer {
+  if (params.value <= 0n || params.value > (1n << 64n) - 1n) {
+    throw new Error("deposit value is out of range");
+  }
+  const value = Buffer.alloc(8);
+  value.writeBigUInt64LE(params.value);
+  return Buffer.concat([
+    Buffer.from([2]),
+    be32(params.blinding, scalarPrime()),
+    be32(params.rho, scalarPrime()),
+    be32(params.ownerPub, scalarPrime()),
+    value,
+  ]);
 }
 
 /** Instruction tag 1, then negated-A || B || C || five scalar public inputs. */
