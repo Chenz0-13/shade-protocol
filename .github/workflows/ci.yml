@@ -56,7 +56,9 @@ jobs:
           cargo test --features insecure-test-setup
       - name: Canton attestation tests
         run: |
-          curl -fsSL https://get.digitalasset.com/install/install.sh | sh
+          # The packages pin sdk-version 3.6.4. The installer defaults to latest,
+          # which does not satisfy that pin.
+          curl -fsSL https://get.digitalasset.com/install/install.sh | sh -s 3.6.4
           echo "$HOME/.dpm/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.dpm/bin:$PATH"
           cd contracts/canton
