@@ -43,6 +43,7 @@ const payload: ChainSubmission = {
   commitmentOut1: "33",
   commitmentOut2: "44",
   fee: "0",
+  extDataHash: "6",
   proof,
 };
 

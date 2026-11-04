@@ -2,8 +2,8 @@
 //! then reject a reused nullifier and an unknown root.
 
 use shade_solana::{
-    rent_exempt, DEPOSIT_LEN, ERR_NULLIFIER_SPENT, ERR_UNKNOWN_ROOT, IX_INIT, NULLIFIER_SEED, POOL_LEN, POOL_SEED,
-    VAULT_SEED, WITHDRAW_LEN,
+    rent_exempt, DEPOSIT_LEN, ERR_EXT_DATA, ERR_NULLIFIER_SPENT, ERR_UNKNOWN_ROOT, IX_INIT, NULLIFIER_SEED, POOL_LEN,
+    POOL_SEED, SOLANA_EXT_DOMAIN, VAULT_SEED, WITHDRAW_LEN,
 };
 use solana_address::Address;
 use solana_instruction::{account_meta::AccountMeta, Instruction};
@@ -14,29 +14,35 @@ use solana_signer::Signer;
 use solana_transaction::Transaction;
 use solana_transaction_error::TransactionError;
 use std::path::PathBuf;
-use std::sync::OnceLock;
 
 const FQ: [u8; 32] = [
     0x30, 0x64, 0x4e, 0x72, 0xe1, 0x31, 0xa0, 0x29, 0xb8, 0x50, 0x45, 0xb6, 0x81, 0x81, 0x58, 0x5d,
     0x97, 0x81, 0x6a, 0x91, 0x68, 0x71, 0xca, 0x8d, 0x3c, 0x20, 0x8c, 0x16, 0xd8, 0x7c, 0xfd, 0x47,
 ];
 
-fn fixture() -> &'static serde_json::Value {
-    static FIXTURE: OnceLock<serde_json::Value> = OnceLock::new();
-    FIXTURE.get_or_init(|| {
-        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-        let output = std::process::Command::new("node")
-            .arg("scripts/evm-proof.mjs")
-            .current_dir(&root)
-            .output()
-            .expect("node is required to build the devnet proof");
-        assert!(
-            output.status.success(),
-            "evm-proof failed\n{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
-        serde_json::from_slice(&output.stdout).expect("proof json")
-    })
+fn fixture(recipient: &Address, relayer: &Address) -> serde_json::Value {
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let output = std::process::Command::new("node")
+        .arg("scripts/evm-proof.mjs")
+        .arg("--recipient-hex")
+        .arg(hex_address(recipient))
+        .arg("--relayer-hex")
+        .arg(hex_address(relayer))
+        .arg("--domain")
+        .arg(SOLANA_EXT_DOMAIN.to_string())
+        .current_dir(&root)
+        .output()
+        .expect("node is required to build the devnet proof");
+    assert!(
+        output.status.success(),
+        "evm-proof failed\n{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    serde_json::from_slice(&output.stdout).expect("proof json")
+}
+
+fn hex_address(address: &Address) -> String {
+    address.as_ref().iter().map(|byte| format!("{byte:02x}")).collect()
 }
 
 fn be32_dec(value: &str) -> [u8; 32] {
@@ -128,7 +134,6 @@ fn custom_code(err: &TransactionError) -> Option<u32> {
 
 #[test]
 fn deposit_proves_and_withdraws_once() {
-    let payload = fixture();
     let mut svm = litesvm::LiteSVM::new();
     let program_id = Keypair::new().pubkey();
     let so_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/deploy/shade_solana.so");
@@ -137,6 +142,7 @@ fn deposit_proves_and_withdraws_once() {
 
     let payer = Keypair::new();
     let recipient = Keypair::new().pubkey();
+    let payload = fixture(&recipient, &payer.pubkey());
     svm.airdrop(&payer.pubkey(), 2_000_000_000).unwrap();
     svm.airdrop(&recipient, 1_000_000_000).unwrap();
 
@@ -169,7 +175,7 @@ fn deposit_proves_and_withdraws_once() {
             AccountMeta::new(vault, false),
             AccountMeta::new_readonly(system, false),
         ],
-        data: encode_deposit(payload),
+        data: encode_deposit(&payload),
     };
     expect_ok(send(&mut svm, &payer, &[deposit]), "deposit");
     let value: u64 = payload["value"].as_str().unwrap().parse().unwrap();
@@ -189,7 +195,7 @@ fn deposit_proves_and_withdraws_once() {
         AccountMeta::new(recipient, false),
         AccountMeta::new_readonly(system, false),
     ];
-    let mut unknown = encode_withdraw(payload);
+    let mut unknown = encode_withdraw(&payload);
     unknown[257..289].fill(2);
     let rejected = send(
         &mut svm,
@@ -203,6 +209,22 @@ fn deposit_proves_and_withdraws_once() {
     let err = rejected.expect_err("unknown root must fail").err;
     assert_eq!(custom_code(&err), Some(ERR_UNKNOWN_ROOT), "{err:?}");
 
+    let other = Keypair::new().pubkey();
+    svm.airdrop(&other, 1_000_000_000).unwrap();
+    let mut front_run = withdraw_accounts.clone();
+    front_run[4] = AccountMeta::new(other, false);
+    let front = send(
+        &mut svm,
+        &payer,
+        &[Instruction {
+            program_id,
+            accounts: front_run,
+            data: encode_withdraw(&payload),
+        }],
+    );
+    let err = front.expect_err("different recipient must fail").err;
+    assert_eq!(custom_code(&err), Some(ERR_EXT_DATA), "{err:?}");
+
     let recipient_before = svm.get_account(&recipient).unwrap().lamports;
     expect_ok(
         send(
@@ -211,7 +233,7 @@ fn deposit_proves_and_withdraws_once() {
             &[Instruction {
                 program_id,
                 accounts: withdraw_accounts.clone(),
-                data: encode_withdraw(payload),
+                data: encode_withdraw(&payload),
             }],
         ),
         "withdraw",
@@ -229,7 +251,7 @@ fn deposit_proves_and_withdraws_once() {
         &[Instruction {
             program_id,
             accounts: withdraw_accounts,
-            data: encode_withdraw(payload),
+            data: encode_withdraw(&payload),
         }],
     );
     let err = reused.expect_err("reused nullifier must fail").err;

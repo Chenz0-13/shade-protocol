@@ -1,5 +1,4 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -27,7 +26,7 @@ if (chainId !== 46630) {
 const forge = path.join(root, "contracts", "evm");
 const run = spawnSync(
   "forge",
-  ["script", "script/Deploy.s.sol", "--rpc-url", rpc, "--private-key", key, "--broadcast"],
-  { cwd: forge, stdio: "inherit", env: { ...process.env, ROBINHOOD_PRIVATE_KEY: key } },
+  ["script", "script/Deploy.s.sol", "--rpc-url", rpc, "--broadcast"],
+  { cwd: forge, stdio: "inherit", env: { ...process.env, DEPLOYER_PRIVATE_KEY: key } },
 );
 process.exit(run.status ?? 1);

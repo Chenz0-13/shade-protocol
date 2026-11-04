@@ -32,6 +32,15 @@ export const ASSET_QUOTE = 2n;
 export const SIDE_BUY = 1n;
 export const SIDE_SELL = 2n;
 
+/**
+ * External-data domains mixed into extDataHash. EVM pools use `block.chainid`
+ * (46630 Robinhood testnet, 99801 Elysium testnet) instead of these constants.
+ */
+export const EXT_DOMAIN = {
+  solana: 1001n,
+  near: 1002n,
+} as const;
+
 export const SOLANA_DEVNET_RPC = "https://api.devnet.solana.com";
 export const SOLANA_DEVNET_GENESIS = "EtWTRABZaYq6iMfeYKouRu166VU2xqa1wcaWoxPkrZBG";
 export const SOLANA_TESTNET_GENESIS = "4uhcVJyU9pJkvQyS88uRDiswHXSCkY3zQawwpjk2NsNY";

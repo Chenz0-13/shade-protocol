@@ -173,6 +173,7 @@ export class DarkPool {
       pathElements: proofData.pathElements,
       pathIndices: proofData.pathIndices,
       fee: 0n,
+      ext: { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, chainDomain: 0n },
       out1: toTransferOutput(out1),
       out2: toTransferOutput(out2),
     });

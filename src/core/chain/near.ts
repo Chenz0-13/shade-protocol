@@ -47,6 +47,7 @@ export class NearTestnetAdapter {
           payload.commitmentOut1,
           payload.commitmentOut2,
           payload.fee,
+          payload.extDataHash,
         ],
         recipient,
       }),

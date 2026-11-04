@@ -55,6 +55,9 @@ template ShieldedTransfer(depth, valueBits) {
     signal input commitmentOut1;
     signal input commitmentOut2;
     signal input fee;
+    // Poseidon(recipientLo, recipientHi, relayerLo, relayerHi, fee, chainDomain).
+    // Each address is split into 128-bit limbs so a 32-byte key fits in the field.
+    signal input extDataHash;
 
     // Private input note.
     signal input valueIn;
@@ -64,6 +67,14 @@ template ShieldedTransfer(depth, valueBits) {
     signal input spendingKey;
     signal input pathElements[depth];
     signal input pathIndices[depth];
+
+    // Private external data. The contract recomputes extDataHash from the
+    // recipient it actually pays, the relayer, the fee, and its chain domain.
+    signal input recipientLo;
+    signal input recipientHi;
+    signal input relayerLo;
+    signal input relayerHi;
+    signal input chainDomain;
 
     // Private outputs. out2 is the change note (it may be a hidden zero).
     signal input valueOut1;
@@ -135,6 +146,15 @@ template ShieldedTransfer(depth, valueBits) {
     commitOut2.inputs[4] <== ownerOut2;
     commitOut2.inputs[5] <== assetOut2;
     commitOut2.out === commitmentOut2;
+
+    component extData = Poseidon(6);
+    extData.inputs[0] <== recipientLo;
+    extData.inputs[1] <== recipientHi;
+    extData.inputs[2] <== relayerLo;
+    extData.inputs[3] <== relayerHi;
+    extData.inputs[4] <== fee;
+    extData.inputs[5] <== chainDomain;
+    extData.out === extDataHash;
 }
 
-component main {public [merkleRoot, nullifierHash, commitmentOut1, commitmentOut2, fee]} = ShieldedTransfer(8, 64);
+component main {public [merkleRoot, nullifierHash, commitmentOut1, commitmentOut2, fee, extDataHash]} = ShieldedTransfer(8, 64);

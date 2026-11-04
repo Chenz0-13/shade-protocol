@@ -33,6 +33,9 @@ contract ShadePool {
     error ValueOutOfRange();
     error FieldOverflow();
     error TreeFull();
+    error ExtDataMismatch();
+
+    uint256 internal constant MASK128 = (uint256(1) << 128) - 1;
 
     constructor(Groth16Verifier verifier_) {
         verifier = verifier_;
@@ -66,19 +69,21 @@ contract ShadePool {
         emit Deposited(commitment, msg.value, currentRoot, index);
     }
 
-    /// @dev pubSignals = [root, nullifier, commitmentOut1, commitmentOut2, fee]
+    /// @dev pubSignals = [root, nullifier, commitmentOut1, commitmentOut2, fee, extDataHash]
     function shieldedTransfer(
         uint256[2] calldata pA,
         uint256[2][2] calldata pB,
         uint256[2] calldata pC,
-        uint256[5] calldata pubSignals,
-        address payable recipient
+        uint256[6] calldata pubSignals,
+        address payable recipient,
+        address relayer
     ) external {
         uint256 root = pubSignals[0];
         uint256 nullifier = pubSignals[1];
         uint256 fee = pubSignals[4];
         if (!knownRoots[root]) revert UnknownRoot();
         if (nullifiers[nullifier]) revert NullifierSpent();
+        if (pubSignals[5] != _extDataHash(recipient, relayer, fee)) revert ExtDataMismatch();
         if (!verifier.verifyProof(pA, pB, pC, pubSignals)) revert InvalidProof();
         nullifiers[nullifier] = true;
         _insert(pubSignals[2]);
@@ -113,6 +118,19 @@ contract ShadePool {
         nextIndex += 1;
         currentRoot = current;
         knownRoots[current] = true;
+    }
+
+    function _extDataHash(address recipient, address relayer, uint256 fee) internal view returns (uint256) {
+        uint256 recipientRaw = uint256(uint160(recipient));
+        uint256 relayerRaw = uint256(uint160(relayer));
+        uint256[6] memory preimage;
+        preimage[0] = recipientRaw & MASK128;
+        preimage[1] = recipientRaw >> 128;
+        preimage[2] = relayerRaw & MASK128;
+        preimage[3] = relayerRaw >> 128;
+        preimage[4] = fee;
+        preimage[5] = block.chainid;
+        return PoseidonT7.hash(preimage);
     }
 
     function _field(uint256 value) internal pure {

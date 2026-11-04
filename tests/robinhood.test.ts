@@ -21,6 +21,7 @@ describe("Robinhood Chain adapter", () => {
       commitmentOut1: "3",
       commitmentOut2: "4",
       fee: "5",
+      extDataHash: "6",
       proof: {
         pi_a: ["9", "8", "1"],
         pi_b: [

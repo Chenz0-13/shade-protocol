@@ -9,7 +9,7 @@
 //! Deposit (tag 2): payer, pool PDA, vault PDA, system program.
 //!   Data: tag || blinding(32) || rho(32) || owner_pub(32) || value(u64 LE).
 //! Withdraw (tag 1): payer, pool PDA, vault PDA, nullifier PDA, recipient, system program.
-//!   Data: tag || proof_a(64) || proof_b(128) || proof_c(64) || five public inputs.
+//!   Data: tag || proof_a(64) || proof_b(128) || proof_c(64) || six public inputs.
 //!
 //! The pool PDA stores the Poseidon frontier (`solana_poseidon` Bn254X5,
 //! big-endian, the same parameters the circuit uses) and a ring of roots.
@@ -43,7 +43,9 @@ pub const NULLIFIER_SEED: &[u8] = b"nullifier";
 pub const IX_INIT: u8 = 0;
 pub const IX_WITHDRAW: u8 = 1;
 pub const IX_DEPOSIT: u8 = 2;
-pub const WITHDRAW_LEN: usize = 1 + 64 + 128 + 64 + 5 * 32;
+pub const WITHDRAW_LEN: usize = 1 + 64 + 128 + 64 + 6 * 32;
+/// External-data domain for Solana devnet and testnet. Not an EVM chain id.
+pub const SOLANA_EXT_DOMAIN: u64 = 1001;
 pub const DEPOSIT_LEN: usize = 1 + 32 + 32 + 32 + 8;
 
 pub const ERR_UNKNOWN_ROOT: u32 = 1;
@@ -52,6 +54,7 @@ pub const ERR_INVALID_PROOF: u32 = 3;
 pub const ERR_BAD_ACCOUNT: u32 = 4;
 pub const ERR_VALUE: u32 = 5;
 pub const ERR_TREE_FULL: u32 = 6;
+pub const ERR_EXT_DATA: u32 = 7;
 
 const MAGIC: &[u8; 8] = b"SHADEpl1";
 const NEXT_INDEX_OFFSET: usize = 12;
@@ -164,11 +167,13 @@ fn withdraw(program_id: &Address, accounts: &[AccountView], data: &[u8]) -> Prog
     let out1: [u8; 32] = data[321..353].try_into().unwrap();
     let out2: [u8; 32] = data[353..385].try_into().unwrap();
     let fee_be: [u8; 32] = data[385..417].try_into().unwrap();
+    let ext_data: [u8; 32] = data[417..449].try_into().unwrap();
     require_field(&root)?;
     require_field(&nullifier)?;
     require_field(&out1)?;
     require_field(&out2)?;
     require_field(&fee_be)?;
+    require_field(&ext_data)?;
     let fee = fee_lamports(&fee_be)?;
 
     let nullifier_bump = require_pda(nullifier_account, &[NULLIFIER_SEED, &nullifier], program_id)?;
@@ -181,6 +186,10 @@ fn withdraw(program_id: &Address, accounts: &[AccountView], data: &[u8]) -> Prog
     }
     if !is_fresh(nullifier_account, program_id) {
         return Err(ProgramError::Custom(ERR_NULLIFIER_SPENT));
+    }
+    let expected = ext_commitment(recipient.address(), payer.address(), &fee_be)?;
+    if expected != ext_data {
+        return Err(ProgramError::Custom(ERR_EXT_DATA));
     }
 
     verify_proof(data)?;
@@ -197,7 +206,7 @@ fn verify_proof(data: &[u8]) -> ProgramResult {
     let proof_a: &[u8; 64] = data[1..65].try_into().unwrap();
     let proof_b: &[u8; 128] = data[65..193].try_into().unwrap();
     let proof_c: &[u8; 64] = data[193..257].try_into().unwrap();
-    let mut public_inputs = [[0u8; 32]; 5];
+    let mut public_inputs = [[0u8; 32]; 6];
     for (index, chunk) in data[257..].chunks(32).enumerate() {
         public_inputs[index].copy_from_slice(chunk);
     }
@@ -222,6 +231,28 @@ fn verify_proof(data: &[u8]) -> ProgramResult {
         let _ = (proof_a, proof_b, proof_c, public_inputs);
         Err(ProgramError::Custom(ERR_INVALID_PROOF))
     }
+}
+
+fn ext_commitment(recipient: &Address, relayer: &Address, fee: &[u8; 32]) -> Result<[u8; 32], ProgramError> {
+    let (recipient_lo, recipient_hi) = split_addr(recipient.as_array());
+    let (relayer_lo, relayer_hi) = split_addr(relayer.as_array());
+    let domain = be_bytes(SOLANA_EXT_DOMAIN);
+    poseidon(&[
+        &recipient_lo,
+        &recipient_hi,
+        &relayer_lo,
+        &relayer_hi,
+        fee,
+        &domain,
+    ])
+}
+
+fn split_addr(bytes: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
+    let mut hi = [0u8; 32];
+    let mut lo = [0u8; 32];
+    hi[16..].copy_from_slice(&bytes[..16]);
+    lo[16..].copy_from_slice(&bytes[16..]);
+    (lo, hi)
 }
 
 fn commitment(value: u64, blinding: &[u8; 32], rho: &[u8; 32], owner: &[u8; 32]) -> Result<[u8; 32], ProgramError> {

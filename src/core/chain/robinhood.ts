@@ -18,9 +18,9 @@ export const ROBINHOOD_MAINNET_CHAIN_ID = 4663;
 export const ROBINHOOD_TESTNET_RPC = "https://rpc.testnet.chain.robinhood.com";
 export const ANVIL_CHAIN_ID = 31337;
 
-const poolAbi = parseAbi([
+export const shadePoolAbi = parseAbi([
   "function deposit(uint256 blinding, uint256 rho, uint256 ownerPub) payable returns (uint256)",
-  "function shieldedTransfer(uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[5] pubSignals, address recipient) external",
+  "function shieldedTransfer(uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[6] pubSignals, address recipient, address relayer) external",
   "function currentRoot() view returns (uint256)",
   "function nullifiers(uint256) view returns (bool)",
 ]);
@@ -42,11 +42,16 @@ export function solidityProof(payload: ChainSubmission): {
   pA: [bigint, bigint];
   pB: [[bigint, bigint], [bigint, bigint]];
   pC: [bigint, bigint];
-  pubSignals: [bigint, bigint, bigint, bigint, bigint];
+  pubSignals: [bigint, bigint, bigint, bigint, bigint, bigint];
 } {
-  const pub = [payload.merkleRoot, payload.nullifier, payload.commitmentOut1, payload.commitmentOut2, payload.fee].map(
-    (value) => BigInt(value),
-  ) as [bigint, bigint, bigint, bigint, bigint];
+  const pub = [
+    payload.merkleRoot,
+    payload.nullifier,
+    payload.commitmentOut1,
+    payload.commitmentOut2,
+    payload.fee,
+    payload.extDataHash,
+  ].map((value) => BigInt(value)) as [bigint, bigint, bigint, bigint, bigint, bigint];
   return {
     pA: [BigInt(payload.proof.pi_a[0]!), BigInt(payload.proof.pi_a[1]!)],
     pB: [
@@ -79,7 +84,11 @@ export class RobinhoodTestnetAdapter {
     this.chainId = options.chainId;
   }
 
-  async shieldedTransfer(payload: ChainSubmission, recipient: Address): Promise<{ hash: Hex }> {
+  async shieldedTransfer(
+    payload: ChainSubmission,
+    recipient: Address,
+    relayer: Address = "0x0000000000000000000000000000000000000000",
+  ): Promise<{ hash: Hex }> {
     const pool = this.options.pool;
     if (!pool) {
       throw new ConfigError(
@@ -90,9 +99,9 @@ export class RobinhoodTestnetAdapter {
     const wallet = this.wallet();
     const hash = await wallet.writeContract({
       address: pool,
-      abi: poolAbi,
+      abi: shadePoolAbi,
       functionName: "shieldedTransfer",
-      args: [proof.pA, proof.pB, proof.pC, proof.pubSignals, recipient],
+      args: [proof.pA, proof.pB, proof.pC, proof.pubSignals, recipient, relayer],
       account: wallet.account!,
       chain: this.chain(),
     });
@@ -105,7 +114,7 @@ export class RobinhoodTestnetAdapter {
     const wallet = this.wallet();
     const hash = await wallet.writeContract({
       address: pool,
-      abi: poolAbi,
+      abi: shadePoolAbi,
       functionName: "deposit",
       args: [params.blinding, params.rho, params.ownerPub],
       value: params.value,

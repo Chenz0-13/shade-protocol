@@ -10,6 +10,7 @@ contract ShadePoolTest is Test {
     address payable internal recipient = payable(address(0xBEEF));
 
     function setUp() public {
+        vm.chainId(46630);
         pool = new ShadePool(new Groth16Verifier());
     }
 
@@ -34,24 +35,26 @@ contract ShadePoolTest is Test {
         uint256[2] memory pA = _pair(json, ".pA");
         uint256[2][2] memory pB = _quad(json, ".pB");
         uint256[2] memory pC = _pair(json, ".pC");
-        uint256[5] memory pubSignals = _five(json, ".pub");
-        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient);
+        uint256[6] memory pubSignals = _six(json, ".pub");
+        vm.expectRevert(ShadePool.ExtDataMismatch.selector);
+        pool.shieldedTransfer(pA, pB, pC, pubSignals, payable(address(0xCAFE)), address(0));
+        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient, address(0));
         assertEq(recipient.balance, value);
         assertEq(address(pool).balance, 0);
         assertTrue(pool.nullifiers(pubSignals[1]));
 
         vm.expectRevert(ShadePool.NullifierSpent.selector);
-        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient);
+        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient, address(0));
     }
 
     function testUnknownRootRejectedBeforeTheVerifier() public {
         uint256[2] memory pA;
         uint256[2][2] memory pB;
         uint256[2] memory pC;
-        uint256[5] memory pubSignals;
+        uint256[6] memory pubSignals;
         pubSignals[0] = 123;
         vm.expectRevert(ShadePool.UnknownRoot.selector);
-        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient);
+        pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient, address(0));
     }
 
     function _proofJson() internal returns (string memory) {
@@ -73,8 +76,8 @@ contract ShadePoolTest is Test {
         out[1][1] = vm.parseJsonUint(json, string.concat(key, "[1][1]"));
     }
 
-    function _five(string memory json, string memory key) internal pure returns (uint256[5] memory out) {
-        for (uint256 i = 0; i < 5; i++) {
+    function _six(string memory json, string memory key) internal pure returns (uint256[6] memory out) {
+        for (uint256 i = 0; i < 6; i++) {
             out[i] = vm.parseJsonUint(json, string.concat(key, "[", vm.toString(i), "]"));
         }
     }

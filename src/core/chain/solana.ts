@@ -46,6 +46,7 @@ export interface ChainSubmission {
   commitmentOut1: string;
   commitmentOut2: string;
   fee: string;
+  extDataHash: string;
   proof: Groth16Proof;
 }
 
@@ -85,6 +86,10 @@ export class SolanaDevnetAdapter {
     }
     this.programId = new PublicKey(options.programId);
     if (options.secretKey) this.signer = Keypair.fromSecretKey(options.secretKey);
+  }
+
+  get signerPublicKey(): PublicKey | undefined {
+    return this.signer?.publicKey;
   }
 
   async submit(payload: ChainSubmission, recipient?: PublicKey): Promise<{ signature: string }> {
@@ -186,14 +191,19 @@ export function encodeDeposit(params: { blinding: bigint; rho: bigint; ownerPub:
   ]);
 }
 
-/** Instruction tag 1, then negated-A || B || C || five scalar public inputs. */
+/** Instruction tag 1, then negated-A || B || C || six scalar public inputs. */
 export function encodeShadeTransfer(payload: ChainSubmission): Buffer {
   const proofA = g1(payload.proof.pi_a, true);
   const proofB = g2(payload.proof.pi_b);
   const proofC = g1(payload.proof.pi_c, false);
-  const inputs = [payload.merkleRoot, payload.nullifier, payload.commitmentOut1, payload.commitmentOut2, payload.fee].map(
-    (value) => be32(BigInt(value), scalarPrime()),
-  );
+  const inputs = [
+    payload.merkleRoot,
+    payload.nullifier,
+    payload.commitmentOut1,
+    payload.commitmentOut2,
+    payload.fee,
+    payload.extDataHash,
+  ].map((value) => be32(BigInt(value), scalarPrime()));
   return Buffer.concat([Buffer.from([1]), proofA, proofB, proofC, ...inputs]);
 }
 

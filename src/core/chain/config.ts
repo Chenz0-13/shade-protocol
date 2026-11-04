@@ -4,10 +4,11 @@ import { SOLANA_DEVNET_RPC } from "../constants.js";
 import { NEAR_TESTNET_RPC, assertNearRpc } from "./near.js";
 import { SHADE_LOCAL_PROGRAM_ID } from "./solana.js";
 import { ROBINHOOD_TESTNET_CHAIN_ID, ROBINHOOD_TESTNET_RPC, assertRobinhoodTarget } from "./robinhood.js";
+import { ELYSIUM_TESTNET_CHAIN_ID, ELYSIUM_TESTNET_RPC, assertElysiumTarget } from "./elysium.js";
 
-export type SupportedChain = "solana" | "near" | "canton" | "robinhood";
+export type SupportedChain = "solana" | "near" | "canton" | "robinhood" | "elysium";
 
-const CHAINS: readonly SupportedChain[] = ["solana", "near", "canton", "robinhood"];
+const CHAINS: readonly SupportedChain[] = ["solana", "near", "canton", "robinhood", "elysium"];
 
 export interface ShadeConfig {
   chains: SupportedChain[];
@@ -21,6 +22,9 @@ export interface ShadeConfig {
   robinhoodRpc: string;
   robinhoodChainId: number;
   robinhoodPool?: string;
+  elysiumRpc: string;
+  elysiumChainId: number;
+  elysiumPool?: string;
 }
 
 export interface ResolvedConfig {
@@ -28,6 +32,7 @@ export interface ResolvedConfig {
   solanaSecretKey?: Uint8Array;
   nearSecretKey?: Uint8Array;
   robinhoodPrivateKey?: `0x${string}`;
+  elysiumPrivateKey?: `0x${string}`;
 }
 
 const MAINNET = /(^|[./:_-])mainnet(-beta)?([./:_-]|$)/i;
@@ -47,8 +52,11 @@ export function resolveConfig(
     nearContractId: overrides.nearContractId ?? env.NEAR_CONTRACT_ID,
     cantonHost: overrides.cantonHost ?? env.CANTON_HOST ?? "http://127.0.0.1:5000",
     robinhoodRpc: overrides.robinhoodRpc ?? env.ROBINHOOD_RPC_URL ?? ROBINHOOD_TESTNET_RPC,
-    robinhoodChainId: overrides.robinhoodChainId ?? numberEnv(env.ROBINHOOD_CHAIN_ID, ROBINHOOD_TESTNET_CHAIN_ID),
+    robinhoodChainId: overrides.robinhoodChainId ?? numberEnv(env.ROBINHOOD_CHAIN_ID, ROBINHOOD_TESTNET_CHAIN_ID, "ROBINHOOD_CHAIN_ID"),
     robinhoodPool: overrides.robinhoodPool ?? env.ROBINHOOD_POOL,
+    elysiumRpc: overrides.elysiumRpc ?? env.ELYSIUM_RPC_URL ?? ELYSIUM_TESTNET_RPC,
+    elysiumChainId: overrides.elysiumChainId ?? numberEnv(env.ELYSIUM_CHAIN_ID, ELYSIUM_TESTNET_CHAIN_ID, "ELYSIUM_CHAIN_ID"),
+    elysiumPool: overrides.elysiumPool ?? env.ELYSIUM_POOL,
   };
   validateConfig(config);
   const secret = solanaSecretKey ?? parseOptionalSolanaSecret(env.SOLANA_KEYPAIR);
@@ -56,7 +64,8 @@ export function resolveConfig(
     config,
     solanaSecretKey: secret,
     nearSecretKey: parseOptionalNearSecret(env.NEAR_PRIVATE_KEY),
-    robinhoodPrivateKey: parseRobinhoodKey(env.ROBINHOOD_PRIVATE_KEY),
+    robinhoodPrivateKey: parseRobinhoodKey(env.ROBINHOOD_PRIVATE_KEY, "ROBINHOOD_PRIVATE_KEY"),
+    elysiumPrivateKey: parseRobinhoodKey(env.ELYSIUM_PRIVATE_KEY, "ELYSIUM_PRIVATE_KEY"),
   };
 }
 
@@ -68,6 +77,7 @@ export function validateConfig(config: ShadeConfig): void {
   assertSolanaRpc(config.solanaRpc);
   assertNearRpc(config.nearRpc);
   assertRobinhoodTarget(config.robinhoodRpc, config.robinhoodChainId);
+  assertElysiumTarget(config.elysiumRpc, config.elysiumChainId);
   if (!["testnet", "localnet", "sandbox"].includes(config.nearNetwork)) {
     throw new ConfigError(
       `NEAR network must be testnet, localnet, or sandbox. Refusing "${config.nearNetwork}".`,
@@ -137,10 +147,10 @@ export function parseSolanaSecret(value: string): Uint8Array {
   throw new ConfigError("SOLANA_KEYPAIR could not be parsed. Expected a JSON byte array or 128 hex characters.");
 }
 
-function numberEnv(value: string | undefined, fallback: number): number {
+function numberEnv(value: string | undefined, fallback: number, name: string): number {
   if (!value || value.trim() === "") return fallback;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed)) throw new ConfigError("ROBINHOOD_CHAIN_ID must be an integer");
+  if (!Number.isInteger(parsed)) throw new ConfigError(`${name} must be an integer`);
   return parsed;
 }
 
@@ -153,11 +163,11 @@ export function parseOptionalNearSecret(value: string | undefined): Uint8Array |
   throw new ConfigError("NEAR_PRIVATE_KEY must be 32 or 64 bytes");
 }
 
-function parseRobinhoodKey(value: string | undefined): `0x${string}` | undefined {
+function parseRobinhoodKey(value: string | undefined, name: string): `0x${string}` | undefined {
   if (!value || value.trim() === "") return undefined;
   const trimmed = value.trim();
   const hex = trimmed.startsWith("0x") ? trimmed : `0x${trimmed}`;
-  if (!/^0x[0-9a-fA-F]{64}$/.test(hex)) throw new ConfigError("ROBINHOOD_PRIVATE_KEY must be 32 bytes hex");
+  if (!/^0x[0-9a-fA-F]{64}$/.test(hex)) throw new ConfigError(`${name} must be 32 bytes hex`);
   return hex as `0x${string}`;
 }
 

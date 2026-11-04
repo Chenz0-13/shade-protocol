@@ -1,11 +1,14 @@
 import { logger } from "../core/log/logger.js";
-import { ASSET_BASE, TREE_DEPTH } from "../core/constants.js";
+import { ASSET_BASE, EXT_DOMAIN, TREE_DEPTH } from "../core/constants.js";
 import { DoubleSpendError } from "../core/errors.js";
 import { resolveConfig, type ShadeConfig, type SupportedChain } from "../core/chain/config.js";
 import { submitCanton } from "../core/chain/canton.js";
 import { NearTestnetAdapter } from "../core/chain/near.js";
 import { RobinhoodTestnetAdapter } from "../core/chain/robinhood.js";
+import { PublicKey } from "@solana/web3.js";
 import { SolanaDevnetAdapter, type ChainSubmission, type SolanaRpc } from "../core/chain/solana.js";
+import { ElysiumTestnetAdapter } from "../core/chain/elysium.js";
+import { extDataHash, limbsFrom32, limbsFromAccount, limbsFromEvmAddress, type ExtDataLimbs } from "../core/proof/extData.js";
 import {
   DevnetPermissiveScreen,
   type SanctionsScreen,
@@ -64,6 +67,7 @@ export class ShadeClient {
   private readonly solana: SolanaDevnetAdapter;
   private readonly near: NearTestnetAdapter;
   private readonly robinhood: RobinhoodTestnetAdapter;
+  private readonly elysium: ElysiumTestnetAdapter;
   private prover?: ShieldedTransferProver;
   private tree?: MerkleTree;
   private nullifiers?: NullifierSet;
@@ -96,6 +100,12 @@ export class ShadeClient {
       chainId: resolved.config.robinhoodChainId,
       pool: resolved.config.robinhoodPool as `0x${string}` | undefined,
       privateKey: resolved.robinhoodPrivateKey,
+    });
+    this.elysium = new ElysiumTestnetAdapter({
+      rpcUrl: resolved.config.elysiumRpc,
+      chainId: resolved.config.elysiumChainId,
+      pool: resolved.config.elysiumPool as `0x${string}` | undefined,
+      privateKey: resolved.elysiumPrivateKey,
     });
   }
 
@@ -151,6 +161,8 @@ export class ShadeClient {
     fee?: bigint;
     nearRecipient?: string;
     evmRecipient?: `0x${string}`;
+    evmRelayer?: `0x${string}`;
+    solanaRecipient?: Uint8Array;
   }): Promise<{ signature: string; outputs: OutgoingNote[] }> {
     if (!this.config.chains.includes(params.chain)) {
       throw new Error(`chain ${params.chain} is not enabled`);
@@ -167,6 +179,7 @@ export class ShadeClient {
       throw new Error("input value does not equal outputs plus fee");
     }
     const proofPath = tree.getProof(params.inputIndex);
+    const ext = this.extLimbs(params.chain, params);
     const proved = await prover.prove({
       root: proofPath.root,
       spendingKey: params.owner.spendingKey,
@@ -177,6 +190,7 @@ export class ShadeClient {
       pathElements: proofPath.pathElements,
       pathIndices: proofPath.pathIndices,
       fee,
+      ext,
       out1: {
         value: outputs[0].value,
         blinding: outputs[0].blinding,
@@ -207,9 +221,20 @@ export class ShadeClient {
       commitmentOut1: proved.publicSignals[2]!,
       commitmentOut2: proved.publicSignals[3]!,
       fee: proved.publicSignals[4]!,
+      extDataHash: proved.publicSignals[5]!,
       proof: proved.proof,
     };
-    const signature = await this.submit(params.chain, payload, params.nearRecipient, params.evmRecipient);
+    if (extDataHash(ext, fee).toString() !== payload.extDataHash) {
+      throw new Error("proof external data hash does not match the recipient");
+    }
+    const signature = await this.submit(
+      params.chain,
+      payload,
+      params.nearRecipient,
+      params.evmRecipient,
+      params.evmRelayer,
+      params.solanaRecipient,
+    );
     return { signature, outputs };
   }
 
@@ -222,15 +247,49 @@ export class ShadeClient {
     return sealOrder(this.darkPool.operatorViewPublicKey, draft);
   }
 
+  private extLimbs(
+    chain: SupportedChain,
+    params: { nearRecipient?: string; evmRecipient?: `0x${string}`; evmRelayer?: `0x${string}`; solanaRecipient?: Uint8Array },
+  ): ExtDataLimbs {
+    const zero = "0x0000000000000000000000000000000000000000" as const;
+    if (chain === "solana") {
+      const relayer = this.solana.signerPublicKey?.toBytes();
+      if (!relayer) throw new Error("SOLANA_KEYPAIR is required before proving a Solana transfer");
+      const recipient = params.solanaRecipient ?? relayer;
+      const [recipientLo, recipientHi] = limbsFrom32(recipient);
+      const [relayerLo, relayerHi] = limbsFrom32(relayer);
+      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: EXT_DOMAIN.solana };
+    }
+    if (chain === "near") {
+      if (!params.nearRecipient || !this.config.nearAccountId) {
+        throw new Error("nearRecipient and NEAR_ACCOUNT_ID are required before proving");
+      }
+      const [recipientLo, recipientHi] = limbsFromAccount(params.nearRecipient);
+      const [relayerLo, relayerHi] = limbsFromAccount(this.config.nearAccountId);
+      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: EXT_DOMAIN.near };
+    }
+    if (chain === "robinhood" || chain === "elysium") {
+      if (!params.evmRecipient) throw new Error("evmRecipient is required before proving");
+      const [recipientLo, recipientHi] = limbsFromEvmAddress(params.evmRecipient);
+      const [relayerLo, relayerHi] = limbsFromEvmAddress(params.evmRelayer ?? zero);
+      const chainDomain = chain === "robinhood" ? BigInt(this.config.robinhoodChainId) : BigInt(this.config.elysiumChainId);
+      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain };
+    }
+    return { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, chainDomain: 0n };
+  }
+
   private async submit(
     chain: SupportedChain,
     payload: ChainSubmission,
     nearRecipient?: string,
     evmRecipient?: `0x${string}`,
+    evmRelayer?: `0x${string}`,
+    solanaRecipient?: Uint8Array,
   ): Promise<string> {
+    const relayer = evmRelayer ?? "0x0000000000000000000000000000000000000000";
     switch (chain) {
       case "solana":
-        return (await this.solana.submit(payload)).signature;
+        return (await this.solana.submit(payload, solanaRecipient ? new PublicKey(solanaRecipient) : undefined)).signature;
       case "near":
         if (!nearRecipient) throw new Error("nearRecipient is required");
         return (await this.near.shieldedTransfer(payload, nearRecipient)).hash;
@@ -238,7 +297,10 @@ export class ShadeClient {
         return submitCanton();
       case "robinhood":
         if (!evmRecipient) throw new Error("evmRecipient is required");
-        return (await this.robinhood.shieldedTransfer(payload, evmRecipient)).hash;
+        return (await this.robinhood.shieldedTransfer(payload, evmRecipient, relayer)).hash;
+      case "elysium":
+        if (!evmRecipient) throw new Error("evmRecipient is required");
+        return (await this.elysium.shieldedTransfer(payload, evmRecipient, relayer)).hash;
       default:
         throw new Error(`unknown chain ${chain satisfies never}`);
     }

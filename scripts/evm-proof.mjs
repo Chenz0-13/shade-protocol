@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -65,6 +66,15 @@ const nullifier = poseidon([2n, spendingKey, rho], unstringify(require(path.join
 const out1 = { value: 0n, blinding: 19n, rho: 23n, owner, asset };
 const out2 = { value: 0n, blinding: 29n, rho: 31n, owner, asset };
 const fee = value;
+const external = externalData(process.argv.slice(2), fee);
+const extHash = hash6([
+  external.recipientLo,
+  external.recipientHi,
+  external.relayerLo,
+  external.relayerHi,
+  fee,
+  external.domain,
+]);
 const commitmentOut1 = hash6([1n, out1.value, out1.blinding, out1.rho, out1.owner, out1.asset]);
 const commitmentOut2 = hash6([1n, out2.value, out2.blinding, out2.rho, out2.owner, out2.asset]);
 
@@ -74,6 +84,12 @@ const witness = {
   commitmentOut1: commitmentOut1.toString(),
   commitmentOut2: commitmentOut2.toString(),
   fee: fee.toString(),
+  extDataHash: extHash.toString(),
+  recipientLo: external.recipientLo.toString(),
+  recipientHi: external.recipientHi.toString(),
+  relayerLo: external.relayerLo.toString(),
+  relayerHi: external.relayerHi.toString(),
+  chainDomain: external.domain.toString(),
   valueIn: value.toString(),
   blindingIn: blinding.toString(),
   rhoIn: rho.toString(),
@@ -112,6 +128,52 @@ const payload = {
   ],
   pC: [zk.pi_c[0], zk.pi_c[1]],
   pub: publicSignals,
+  snarkjs: { pi_a: zk.pi_a, pi_b: zk.pi_b, pi_c: zk.pi_c },
 };
 process.stdout.write(`${JSON.stringify(payload)}\n`);
 process.exit(0);
+
+function arg(name, fallback) {
+  const index = process.argv.indexOf(name);
+  if (index === -1) return fallback;
+  return process.argv[index + 1];
+}
+
+function split128(value) {
+  const mask = (1n << 128n) - 1n;
+  return [value & mask, value >> 128n];
+}
+
+function limbsFrom32(bytes) {
+  if (bytes.length !== 32) throw new Error("expected 32 bytes");
+  const hi = BigInt(`0x${bytes.subarray(0, 16).toString("hex")}`);
+  const lo = BigInt(`0x${bytes.subarray(16).toString("hex") || "0"}`);
+  return [lo, hi];
+}
+
+function limbsFromHex(hex) {
+  const body = hex.replace(/^0x/, "");
+  if (body.length === 64) return limbsFrom32(Buffer.from(body, "hex"));
+  return split128(BigInt(hex.startsWith("0x") ? hex : `0x${body}`));
+}
+
+function limbsFromAccount(account) {
+  return limbsFrom32(createHash("sha256").update(account).digest());
+}
+
+function externalData(argv, fee) {
+  const domain = BigInt(arg("--domain", "46630"));
+  const recipientAccount = arg("--recipient-account", "");
+  const relayerAccount = arg("--relayer-account", "");
+  const recipientHex = arg("--recipient-hex", "");
+  const relayerHex = arg("--relayer-hex", "");
+  const [recipientLo, recipientHi] = recipientAccount
+    ? limbsFromAccount(recipientAccount)
+    : limbsFromHex(recipientHex || "0xBEEF");
+  const [relayerLo, relayerHi] = relayerAccount
+    ? limbsFromAccount(relayerAccount)
+    : limbsFromHex(relayerHex || "0x0");
+  void fee;
+  void argv;
+  return { recipientLo, recipientHi, relayerLo, relayerHi, domain };
+}

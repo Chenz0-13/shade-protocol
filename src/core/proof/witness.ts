@@ -1,6 +1,7 @@
 import { TREE_DEPTH } from "../constants.js";
 import { assertValue } from "../crypto/field.js";
 import { noteCommitment, noteNullifier, ownerAddress, type NoteParts } from "../crypto/note.js";
+import { extDataHash, type ExtDataLimbs } from "./extData.js";
 
 export interface TransferOutput {
   value: bigint;
@@ -20,6 +21,7 @@ export interface TransferWitnessInput {
   pathElements: bigint[];
   pathIndices: number[];
   fee: bigint;
+  ext: ExtDataLimbs;
   out1: TransferOutput;
   out2: TransferOutput;
 }
@@ -44,6 +46,7 @@ export function buildTransferWitness(input: TransferWitnessInput): {
     throw new Error("output asset does not match the input asset");
   }
 
+  const bound = extDataHash(input.ext, input.fee);
   const commitmentOut1 = noteCommitment(toParts(input.out1));
   const commitmentOut2 = noteCommitment(toParts(input.out2));
   const nullifier = noteNullifier(input.spendingKey, input.rhoIn);
@@ -63,6 +66,12 @@ export function buildTransferWitness(input: TransferWitnessInput): {
     commitmentOut1: commitmentOut1.toString(),
     commitmentOut2: commitmentOut2.toString(),
     fee: input.fee.toString(),
+    extDataHash: bound.toString(),
+    recipientLo: input.ext.recipientLo.toString(),
+    recipientHi: input.ext.recipientHi.toString(),
+    relayerLo: input.ext.relayerLo.toString(),
+    relayerHi: input.ext.relayerHi.toString(),
+    chainDomain: input.ext.chainDomain.toString(),
     valueIn: input.valueIn.toString(),
     blindingIn: input.blindingIn.toString(),
     rhoIn: input.rhoIn.toString(),
@@ -91,6 +100,7 @@ export function buildTransferWitness(input: TransferWitnessInput): {
       witness.commitmentOut1 as string,
       witness.commitmentOut2 as string,
       witness.fee as string,
+      witness.extDataHash as string,
     ],
   };
 }
