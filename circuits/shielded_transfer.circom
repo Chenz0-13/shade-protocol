@@ -4,10 +4,12 @@ include "circomlib/circuits/poseidon.circom";
 include "circomlib/circuits/bitify.circom";
 
 // Devnet parameters. These must match src/core/constants.ts:
-//   TREE_DEPTH = 8
+//   TREE_DEPTH = 20
 //   VALUE_BITS = 64
 //   DOMAIN.commitment = 1, DOMAIN.nullifier = 2, DOMAIN.owner = 3
-// A production deployment needs a larger depth and a real multi-party ceremony.
+//   DOMAIN.ext = 5, DOMAIN.rho = 6
+// A production deployment needs a multi-party ceremony. This file is the
+// single-party development circuit.
 
 template MerklePath(depth) {
     signal input leaf;
@@ -54,9 +56,11 @@ template ShieldedTransfer(depth, valueBits) {
     signal input nullifierHash;
     signal input commitmentOut1;
     signal input commitmentOut2;
-    signal input fee;
-    // Poseidon(recipientLo, recipientHi, relayerLo, relayerHi, fee, chainDomain).
-    // Each address is split into 128-bit limbs so a 32-byte key fits in the field.
+    // Amount paid to the recipient. Distinct from the relayer fee.
+    signal input withdrawAmount;
+    signal input relayerFee;
+    // Poseidon over the recipient, the relayer, and a domain binder.
+    // The binder is Poseidon(extDomain, poolLo, poolHi, chainDomain, withdrawAmount, relayerFee).
     signal input extDataHash;
 
     // Private input note.
@@ -69,14 +73,17 @@ template ShieldedTransfer(depth, valueBits) {
     signal input pathIndices[depth];
 
     // Private external data. The contract recomputes extDataHash from the
-    // recipient it actually pays, the relayer, the fee, and its chain domain.
+    // recipient it pays, the relayer, the pool address, both amounts, and chain id.
     signal input recipientLo;
     signal input recipientHi;
     signal input relayerLo;
     signal input relayerHi;
+    signal input poolLo;
+    signal input poolHi;
     signal input chainDomain;
 
     // Private outputs. out2 is the change note (it may be a hidden zero).
+    // rhoOut is not free: it is Poseidon(rhoDomain, input nullifier, output index).
     signal input valueOut1;
     signal input blindingOut1;
     signal input rhoOut1;
@@ -95,11 +102,13 @@ template ShieldedTransfer(depth, valueBits) {
     rangeOut1.value <== valueOut1;
     component rangeOut2 = AssertRange(valueBits);
     rangeOut2.value <== valueOut2;
+    component rangeWithdraw = AssertRange(valueBits);
+    rangeWithdraw.value <== withdrawAmount;
     component rangeFee = AssertRange(valueBits);
-    rangeFee.value <== fee;
+    rangeFee.value <== relayerFee;
 
     // Safe because every term is range-checked into 64 bits.
-    valueIn === valueOut1 + valueOut2 + fee;
+    valueIn === valueOut1 + valueOut2 + withdrawAmount + relayerFee;
     assetIn === assetOut1;
     assetIn === assetOut2;
 
@@ -123,11 +132,34 @@ template ShieldedTransfer(depth, valueBits) {
     }
     membership.root === merkleRoot;
 
-    component nullifier = Poseidon(3);
+    // Leaf index is the integer encoded by the path bits, so a duplicate rho
+    // at two positions cannot share a nullifier.
+    signal indexAcc[depth + 1];
+    indexAcc[0] <== 0;
+    var indexPow = 1;
+    for (var i = 0; i < depth; i++) {
+        indexAcc[i + 1] <== indexAcc[i] + pathIndices[i] * indexPow;
+        indexPow = indexPow + indexPow;
+    }
+
+    component nullifier = Poseidon(4);
     nullifier.inputs[0] <== 2;
     nullifier.inputs[1] <== spendingKey;
-    nullifier.inputs[2] <== rhoIn;
+    nullifier.inputs[2] <== commitIn.out;
+    nullifier.inputs[3] <== indexAcc[depth];
     nullifier.out === nullifierHash;
+
+    component rho1 = Poseidon(3);
+    rho1.inputs[0] <== 6;
+    rho1.inputs[1] <== nullifier.out;
+    rho1.inputs[2] <== 1;
+    rho1.out === rhoOut1;
+
+    component rho2 = Poseidon(3);
+    rho2.inputs[0] <== 6;
+    rho2.inputs[1] <== nullifier.out;
+    rho2.inputs[2] <== 2;
+    rho2.out === rhoOut2;
 
     component commitOut1 = Poseidon(6);
     commitOut1.inputs[0] <== 1;
@@ -147,14 +179,22 @@ template ShieldedTransfer(depth, valueBits) {
     commitOut2.inputs[5] <== assetOut2;
     commitOut2.out === commitmentOut2;
 
+    component binder = Poseidon(6);
+    binder.inputs[0] <== 5;
+    binder.inputs[1] <== poolLo;
+    binder.inputs[2] <== poolHi;
+    binder.inputs[3] <== chainDomain;
+    binder.inputs[4] <== withdrawAmount;
+    binder.inputs[5] <== relayerFee;
+
     component extData = Poseidon(6);
     extData.inputs[0] <== recipientLo;
     extData.inputs[1] <== recipientHi;
     extData.inputs[2] <== relayerLo;
     extData.inputs[3] <== relayerHi;
-    extData.inputs[4] <== fee;
-    extData.inputs[5] <== chainDomain;
+    extData.inputs[4] <== binder.out;
+    extData.inputs[5] <== 0;
     extData.out === extDataHash;
 }
 
-component main {public [merkleRoot, nullifierHash, commitmentOut1, commitmentOut2, fee, extDataHash]} = ShieldedTransfer(8, 64);
+component main {public [merkleRoot, nullifierHash, commitmentOut1, commitmentOut2, withdrawAmount, relayerFee, extDataHash]} = ShieldedTransfer(20, 64);

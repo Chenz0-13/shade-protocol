@@ -61,9 +61,10 @@ export function createOutputNote(params: {
   assetId: bigint;
   recipient: PublicIdentity;
   memo: string;
+  rho?: bigint;
 }): OutputNote {
   const blinding = randomNonZeroField();
-  const rho = randomNonZeroField();
+  const rho = params.rho ?? randomNonZeroField();
   const commitment = noteCommitment({
     value: params.value,
     blinding,

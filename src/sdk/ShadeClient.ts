@@ -6,7 +6,7 @@ import { submitCanton } from "../core/chain/canton.js";
 import { NearTestnetAdapter } from "../core/chain/near.js";
 import { RobinhoodTestnetAdapter } from "../core/chain/robinhood.js";
 import { PublicKey } from "@solana/web3.js";
-import { SolanaDevnetAdapter, type ChainSubmission, type SolanaRpc } from "../core/chain/solana.js";
+import { poolPda, SolanaDevnetAdapter, type ChainSubmission, type SolanaRpc } from "../core/chain/solana.js";
 import { ElysiumTestnetAdapter } from "../core/chain/elysium.js";
 import { extDataHash, limbsFrom32, limbsFromAccount, limbsFromEvmAddress, type ExtDataLimbs } from "../core/proof/extData.js";
 import {
@@ -24,7 +24,7 @@ import {
 } from "../core/compliance/ZKComplianceLayer.js";
 import { generatePrivacyKeys, publicIdentity, type PrivacyKeys, type PublicIdentity } from "../core/crypto/keys.js";
 import { NullifierSet } from "../core/crypto/NullifierSet.js";
-import { noteNullifier } from "../core/crypto/note.js";
+import { deriveOutputRho, noteCommitment, noteNullifier, ownerAddress } from "../core/crypto/note.js";
 import { DarkPool } from "../core/pool/DarkPool.js";
 import { sealOrder, type OrderDraft } from "../core/pool/order.js";
 import { MerkleTree } from "../core/merkle/MerkleTree.js";
@@ -158,7 +158,8 @@ export class ShadeClient {
     rhoIn: bigint;
     assetId: bigint;
     outputs: Array<{ value: bigint; recipient: PublicIdentity }>;
-    fee?: bigint;
+    withdrawAmount?: bigint;
+    relayerFee?: bigint;
     nearRecipient?: string;
     evmRecipient?: `0x${string}`;
     evmRelayer?: `0x${string}`;
@@ -170,13 +171,22 @@ export class ShadeClient {
     const tree = this.requireTree();
     const nullifiers = this.requireNullifiers();
     const prover = this.requireProver();
-    const fee = params.fee ?? 0n;
-    const nullifier = noteNullifier(params.owner.spendingKey, params.rhoIn);
+    const commitmentIn = noteCommitment({
+      value: params.valueIn,
+      blinding: params.blindingIn,
+      rho: params.rhoIn,
+      ownerPub: ownerAddress(params.owner.spendingKey),
+      assetId: params.assetId,
+    });
+    const nullifier = noteNullifier(params.owner.spendingKey, commitmentIn, BigInt(params.inputIndex));
     if (nullifiers.isSpent(nullifier)) throw new DoubleSpendError();
 
-    const outputs = normalizeOutputs(params.outputs, params.assetId, params.owner);
-    if (params.valueIn !== outputs[0].value + outputs[1].value + fee) {
-      throw new Error("input value does not equal outputs plus fee");
+    const outputs = normalizeOutputs(params.outputs, params.assetId, params.owner, nullifier);
+    const relayerFee = params.relayerFee ?? 0n;
+    const withdrawAmount =
+      params.withdrawAmount ?? params.valueIn - outputs[0].value - outputs[1].value - relayerFee;
+    if (params.valueIn !== outputs[0].value + outputs[1].value + withdrawAmount + relayerFee) {
+      throw new Error("input value does not equal outputs plus withdraw amount plus relayer fee");
     }
     const proofPath = tree.getProof(params.inputIndex);
     const ext = this.extLimbs(params.chain, params);
@@ -189,7 +199,8 @@ export class ShadeClient {
       assetIn: params.assetId,
       pathElements: proofPath.pathElements,
       pathIndices: proofPath.pathIndices,
-      fee,
+      withdrawAmount,
+      relayerFee,
       ext,
       out1: {
         value: outputs[0].value,
@@ -220,11 +231,12 @@ export class ShadeClient {
       nullifier: proved.publicSignals[1]!,
       commitmentOut1: proved.publicSignals[2]!,
       commitmentOut2: proved.publicSignals[3]!,
-      fee: proved.publicSignals[4]!,
-      extDataHash: proved.publicSignals[5]!,
+      withdrawAmount: proved.publicSignals[4]!,
+      relayerFee: proved.publicSignals[5]!,
+      extDataHash: proved.publicSignals[6]!,
       proof: proved.proof,
     };
-    if (extDataHash(ext, fee).toString() !== payload.extDataHash) {
+    if (extDataHash(ext, withdrawAmount, relayerFee).toString() !== payload.extDataHash) {
       throw new Error("proof external data hash does not match the recipient");
     }
     const signature = await this.submit(
@@ -258,24 +270,29 @@ export class ShadeClient {
       const recipient = params.solanaRecipient ?? relayer;
       const [recipientLo, recipientHi] = limbsFrom32(recipient);
       const [relayerLo, relayerHi] = limbsFrom32(relayer);
-      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: EXT_DOMAIN.solana };
+      const [poolLo, poolHi] = limbsFrom32(poolPda(this.solana.programId).toBytes());
+      return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain: EXT_DOMAIN.solana };
     }
     if (chain === "near") {
-      if (!params.nearRecipient || !this.config.nearAccountId) {
-        throw new Error("nearRecipient and NEAR_ACCOUNT_ID are required before proving");
+      if (!params.nearRecipient || !this.config.nearAccountId || !this.config.nearContractId) {
+        throw new Error("nearRecipient, NEAR_ACCOUNT_ID, and NEAR_CONTRACT_ID are required before proving");
       }
       const [recipientLo, recipientHi] = limbsFromAccount(params.nearRecipient);
       const [relayerLo, relayerHi] = limbsFromAccount(this.config.nearAccountId);
-      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: EXT_DOMAIN.near };
+      const [poolLo, poolHi] = limbsFromAccount(this.config.nearContractId);
+      return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain: EXT_DOMAIN.near };
     }
     if (chain === "robinhood" || chain === "elysium") {
       if (!params.evmRecipient) throw new Error("evmRecipient is required before proving");
+      const pool = chain === "robinhood" ? this.config.robinhoodPool : this.config.elysiumPool;
+      if (!pool) throw new Error("the pool address is required before proving");
       const [recipientLo, recipientHi] = limbsFromEvmAddress(params.evmRecipient);
       const [relayerLo, relayerHi] = limbsFromEvmAddress(params.evmRelayer ?? zero);
+      const [poolLo, poolHi] = limbsFromEvmAddress(pool);
       const chainDomain = chain === "robinhood" ? BigInt(this.config.robinhoodChainId) : BigInt(this.config.elysiumChainId);
-      return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain };
+      return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain };
     }
-    return { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, chainDomain: 0n };
+    return { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, poolLo: 0n, poolHi: 0n, chainDomain: 0n };
   }
 
   private async submit(
@@ -326,6 +343,7 @@ function normalizeOutputs(
   outputs: Array<{ value: bigint; recipient: PublicIdentity }>,
   assetId: bigint,
   owner: PrivacyKeys,
+  nullifier: bigint,
 ): [OutgoingNote, OutgoingNote] {
   if (outputs.length < 1 || outputs.length > 2) {
     throw new Error("a transfer has one or two outputs");
@@ -335,6 +353,7 @@ function normalizeOutputs(
     assetId,
     recipient: outputs[0]!.recipient,
     spendingKey: outputs[0]!.recipient.ownerPub === owner.ownerPub ? owner.spendingKey : undefined,
+    rho: deriveOutputRho(nullifier, 1n),
   });
   const secondInput = outputs[1];
   const second = secondInput
@@ -343,6 +362,7 @@ function normalizeOutputs(
         assetId,
         recipient: secondInput.recipient,
         spendingKey: secondInput.recipient.ownerPub === owner.ownerPub ? owner.spendingKey : undefined,
+        rho: deriveOutputRho(nullifier, 2n),
       })
     : buildOutgoingNote({
         value: 0n,
@@ -350,6 +370,7 @@ function normalizeOutputs(
         recipient: publicIdentity(owner),
         spendingKey: owner.spendingKey,
         memo: "zero change",
+        rho: deriveOutputRho(nullifier, 2n),
       });
   return [first, second];
 }

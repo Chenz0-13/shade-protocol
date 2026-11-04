@@ -10,11 +10,15 @@ const lite = path.join(root, "node_modules", "poseidon-lite");
 const unstringify = require(path.join(lite, "poseidon", "unstringify.js")).default;
 const poseidon = require(path.join(lite, "poseidon", "index.js"));
 const c2 = unstringify(require(path.join(lite, "constants", "2.js")).default);
+const c3 = unstringify(require(path.join(lite, "constants", "3.js")).default);
+const c4 = unstringify(require(path.join(lite, "constants", "4.js")).default);
 const c6 = unstringify(require(path.join(lite, "constants", "6.js")).default);
 const hash2 = (a, b) => poseidon([a, b], c2);
+const hash3 = (xs) => poseidon(xs, c3);
+const hash4 = (xs) => poseidon(xs, c4);
 const hash6 = (xs) => poseidon(xs, c6);
 
-const DEPTH = 8;
+const DEPTH = 20;
 const zeros = [0n];
 for (let level = 0; level < DEPTH; level += 1) zeros.push(hash2(zeros[level], zeros[level]));
 
@@ -53,6 +57,11 @@ function proof(index) {
 }
 
 const value = 1000n;
+const relayerFee = BigInt(arg("--relayer-fee", "400"));
+const withdraw = BigInt(arg("--withdraw", "600"));
+if (withdraw + relayerFee !== value) {
+  throw new Error("withdraw plus relayer fee must equal the deposited value");
+}
 const blinding = 11n;
 const rho = 13n;
 const spendingKey = 17n;
@@ -61,19 +70,34 @@ const asset = 1n;
 const commitment = hash6([1n, value, blinding, rho, owner, asset]);
 const index = insert(commitment);
 const membership = proof(index);
-const nullifier = poseidon([2n, spendingKey, rho], unstringify(require(path.join(lite, "constants", "3.js")).default));
+let leafIndex = 0n;
+let pow = 1n;
+for (const bit of membership.pathIndices) {
+  leafIndex += BigInt(bit) * pow;
+  pow *= 2n;
+}
+const nullifier = hash4([2n, spendingKey, commitment, leafIndex]);
+const rhoOut1 = hash3([6n, nullifier, 1n]);
+const rhoOut2 = hash3([6n, nullifier, 2n]);
 
-const out1 = { value: 0n, blinding: 19n, rho: 23n, owner, asset };
-const out2 = { value: 0n, blinding: 29n, rho: 31n, owner, asset };
-const fee = value;
-const external = externalData(process.argv.slice(2), fee);
+const out1 = { value: 0n, blinding: 19n, rho: rhoOut1, owner, asset };
+const out2 = { value: 0n, blinding: 29n, rho: rhoOut2, owner, asset };
+const external = externalData();
+const binder = hash6([
+  5n,
+  external.poolLo,
+  external.poolHi,
+  external.domain,
+  withdraw,
+  relayerFee,
+]);
 const extHash = hash6([
   external.recipientLo,
   external.recipientHi,
   external.relayerLo,
   external.relayerHi,
-  fee,
-  external.domain,
+  binder,
+  0n,
 ]);
 const commitmentOut1 = hash6([1n, out1.value, out1.blinding, out1.rho, out1.owner, out1.asset]);
 const commitmentOut2 = hash6([1n, out2.value, out2.blinding, out2.rho, out2.owner, out2.asset]);
@@ -83,12 +107,15 @@ const witness = {
   nullifierHash: nullifier.toString(),
   commitmentOut1: commitmentOut1.toString(),
   commitmentOut2: commitmentOut2.toString(),
-  fee: fee.toString(),
+  withdrawAmount: withdraw.toString(),
+  relayerFee: relayerFee.toString(),
   extDataHash: extHash.toString(),
   recipientLo: external.recipientLo.toString(),
   recipientHi: external.recipientHi.toString(),
   relayerLo: external.relayerLo.toString(),
   relayerHi: external.relayerHi.toString(),
+  poolLo: external.poolLo.toString(),
+  poolHi: external.poolHi.toString(),
   chainDomain: external.domain.toString(),
   valueIn: value.toString(),
   blindingIn: blinding.toString(),
@@ -115,6 +142,8 @@ const { proof: zk, publicSignals } = await groth16.fullProve(witness, wasm, zkey
 
 const payload = {
   value: value.toString(),
+  withdraw: withdraw.toString(),
+  relayerFee: relayerFee.toString(),
   blinding: blinding.toString(),
   rho: rho.toString(),
   owner: owner.toString(),
@@ -161,19 +190,20 @@ function limbsFromAccount(account) {
   return limbsFrom32(createHash("sha256").update(account).digest());
 }
 
-function externalData(argv, fee) {
+function externalData() {
   const domain = BigInt(arg("--domain", "46630"));
   const recipientAccount = arg("--recipient-account", "");
   const relayerAccount = arg("--relayer-account", "");
+  const poolAccount = arg("--pool-account", "");
   const recipientHex = arg("--recipient-hex", "");
   const relayerHex = arg("--relayer-hex", "");
+  const poolHex = arg("--pool", "0x0");
   const [recipientLo, recipientHi] = recipientAccount
     ? limbsFromAccount(recipientAccount)
     : limbsFromHex(recipientHex || "0xBEEF");
   const [relayerLo, relayerHi] = relayerAccount
     ? limbsFromAccount(relayerAccount)
     : limbsFromHex(relayerHex || "0x0");
-  void fee;
-  void argv;
-  return { recipientLo, recipientHi, relayerLo, relayerHi, domain };
+  const [poolLo, poolHi] = poolAccount ? limbsFromAccount(poolAccount) : limbsFromHex(poolHex);
+  return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, domain };
 }

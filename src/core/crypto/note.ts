@@ -41,13 +41,27 @@ export function commitmentOpens(commitment: bigint, parts: NoteParts): boolean {
 }
 
 /**
- * Unique per note for a spending key because rho is a fresh field element
- * committed inside the note. The same opening always reproduces it.
+ * Nullifier = Poseidon(domain, spending key, commitment, leaf index).
+ *
+ * A nullifier that depended only on the spending key and rho would be shared
+ * by two notes that reused rho. Spending one would freeze the other. The
+ * commitment and the leaf index make each tree position distinct.
  */
-export function noteNullifier(spendingKey: bigint, rho: bigint): bigint {
+export function noteNullifier(spendingKey: bigint, commitment: bigint, leafIndex: bigint): bigint {
   assertField("spendingKey", spendingKey);
-  assertField("rho", rho);
-  return poseidon([DOMAIN.nullifier, spendingKey, rho]);
+  assertField("commitment", commitment);
+  assertField("leafIndex", leafIndex);
+  return poseidon([DOMAIN.nullifier, spendingKey, commitment, leafIndex]);
+}
+
+/**
+ * Output rho is derived from the input nullifier, so a spend cannot choose
+ * an output rho. Index 1 is the first output and index 2 is the change note.
+ */
+export function deriveOutputRho(nullifier: bigint, outputIndex: bigint): bigint {
+  assertField("nullifier", nullifier);
+  assertField("outputIndex", outputIndex);
+  return poseidon([DOMAIN.rho, nullifier, outputIndex]);
 }
 
 export function orderBinding(parts: {

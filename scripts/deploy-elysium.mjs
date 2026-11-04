@@ -9,10 +9,6 @@ if (!key) {
   process.stderr.write("Set ELYSIUM_PRIVATE_KEY. Refusing to deploy without a key.\n");
   process.exit(1);
 }
-if (rpc.toLowerCase().includes("mainnet")) {
-  process.stderr.write("Refusing Elysium mainnet. Mainnet is pre-launch.\n");
-  process.exit(1);
-}
 const chain = spawnSync("cast", ["chain-id", "--rpc-url", rpc], { encoding: "utf8" });
 const chainId = Number(chain.stdout.trim());
 if (chainId !== 99801) {

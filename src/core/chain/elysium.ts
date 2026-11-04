@@ -18,8 +18,8 @@ export const elysiumTestnet: Chain = defineChain({
   },
 });
 
-export function assertElysiumTarget(rpcUrl: string, chainId: number): void {
-  if (rpcUrl.toLowerCase().includes("mainnet") || chainId !== ELYSIUM_TESTNET_CHAIN_ID) {
+export function assertElysiumTarget(_rpcUrl: string, chainId: number): void {
+  if (chainId !== ELYSIUM_TESTNET_CHAIN_ID) {
     throw new ConfigError(
       `Refusing Kinetiq Elysium chain id ${chainId}. Only testnet chain id ${ELYSIUM_TESTNET_CHAIN_ID} is supported. Mainnet is pre-launch.`,
     );

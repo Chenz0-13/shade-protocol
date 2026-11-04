@@ -12,7 +12,8 @@ contract Deploy is Script {
         uint256 key = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(key);
         Groth16Verifier verifier = new Groth16Verifier();
-        ShadePool pool = new ShadePool(verifier);
+        uint256 minDeposit = vm.envOr("MIN_DEPOSIT", uint256(1));
+        ShadePool pool = new ShadePool(verifier, minDeposit);
         vm.stopBroadcast();
         console2.log("verifier", address(verifier));
         console2.log("pool", address(pool));

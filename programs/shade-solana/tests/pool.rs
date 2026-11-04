@@ -2,8 +2,8 @@
 //! then reject a reused nullifier and an unknown root.
 
 use shade_solana::{
-    rent_exempt, DEPOSIT_LEN, ERR_EXT_DATA, ERR_NULLIFIER_SPENT, ERR_UNKNOWN_ROOT, IX_INIT, NULLIFIER_SEED, POOL_LEN,
-    POOL_SEED, SOLANA_EXT_DOMAIN, VAULT_SEED, WITHDRAW_LEN,
+    rent_exempt, DEPOSIT_LEN, ERR_EXT_DATA, ERR_NULLIFIER_SPENT, ERR_UNKNOWN_ROOT, ERR_VALUE, INIT_LEN, IX_INIT,
+    NULLIFIER_SEED, POOL_LEN, POOL_SEED, SOLANA_EXT_DOMAIN, VAULT_SEED, WITHDRAW_LEN,
 };
 use solana_address::Address;
 use solana_instruction::{account_meta::AccountMeta, Instruction};
@@ -20,7 +20,7 @@ const FQ: [u8; 32] = [
     0x97, 0x81, 0x6a, 0x91, 0x68, 0x71, 0xca, 0x8d, 0x3c, 0x20, 0x8c, 0x16, 0xd8, 0x7c, 0xfd, 0x47,
 ];
 
-fn fixture(recipient: &Address, relayer: &Address) -> serde_json::Value {
+fn fixture(recipient: &Address, relayer: &Address, pool: &Address) -> serde_json::Value {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let output = std::process::Command::new("node")
         .arg("scripts/evm-proof.mjs")
@@ -28,6 +28,8 @@ fn fixture(recipient: &Address, relayer: &Address) -> serde_json::Value {
         .arg(hex_address(recipient))
         .arg("--relayer-hex")
         .arg(hex_address(relayer))
+        .arg("--pool")
+        .arg(hex_address(pool))
         .arg("--domain")
         .arg(SOLANA_EXT_DOMAIN.to_string())
         .current_dir(&root)
@@ -142,11 +144,11 @@ fn deposit_proves_and_withdraws_once() {
 
     let payer = Keypair::new();
     let recipient = Keypair::new().pubkey();
-    let payload = fixture(&recipient, &payer.pubkey());
+    let (pool, _) = Address::find_program_address(&[POOL_SEED], &program_id);
+    let payload = fixture(&recipient, &payer.pubkey(), &pool);
     svm.airdrop(&payer.pubkey(), 2_000_000_000).unwrap();
     svm.airdrop(&recipient, 1_000_000_000).unwrap();
 
-    let (pool, _) = Address::find_program_address(&[POOL_SEED], &program_id);
     let (vault, _) = Address::find_program_address(&[VAULT_SEED], &program_id);
     let system = system_program::id();
 
@@ -158,7 +160,7 @@ fn deposit_proves_and_withdraws_once() {
             AccountMeta::new(vault, false),
             AccountMeta::new_readonly(system, false),
         ],
-        data: vec![IX_INIT],
+        data: init_data(1),
     };
     expect_ok(send(&mut svm, &payer, &[init]), "initialize");
     let pool_account = svm.get_account(&pool).expect("pool");
@@ -225,21 +227,34 @@ fn deposit_proves_and_withdraws_once() {
     let err = front.expect_err("different recipient must fail").err;
     assert_eq!(custom_code(&err), Some(ERR_EXT_DATA), "{err:?}");
 
+    // Grief: prefund the nullifier PDA with a rent-exempt balance. CreateAccount
+    // rejects an account that already holds lamports and would freeze the note.
+    svm.airdrop(&nullifier_pda, rent_exempt(0)).unwrap();
+    let prefunded = svm.get_account(&nullifier_pda).unwrap();
+    assert_eq!(prefunded.owner, system);
+    assert_eq!(prefunded.data.len(), 0);
+    assert!(prefunded.lamports >= rent_exempt(0));
     let recipient_before = svm.get_account(&recipient).unwrap().lamports;
-    expect_ok(
-        send(
-            &mut svm,
-            &payer,
-            &[Instruction {
-                program_id,
-                accounts: withdraw_accounts.clone(),
-                data: encode_withdraw(&payload),
-            }],
-        ),
-        "withdraw",
+    let payer_before = svm.get_account(&payer.pubkey()).unwrap().lamports;
+    let withdraw_amount: u64 = payload["withdraw"].as_str().unwrap().parse().unwrap();
+    let relayer_fee: u64 = payload["relayerFee"].as_str().unwrap().parse().unwrap();
+    let paid = send(
+        &mut svm,
+        &payer,
+        &[Instruction {
+            program_id,
+            accounts: withdraw_accounts.clone(),
+            data: encode_withdraw(&payload),
+        }],
+    )
+    .unwrap_or_else(|failed| panic!("withdraw after prefund failed: {:?}\n{}", failed.err, failed.meta.pretty_logs()));
+    assert_eq!(svm.get_account(&recipient).unwrap().lamports, recipient_before + withdraw_amount);
+    assert_eq!(
+        svm.get_account(&payer.pubkey()).unwrap().lamports,
+        payer_before + relayer_fee - paid.fee
     );
-    assert_eq!(svm.get_account(&recipient).unwrap().lamports, recipient_before + value);
     assert_eq!(svm.get_account(&vault).unwrap().lamports, vault_before);
+    assert!(withdraw_amount > 0 && relayer_fee > 0 && withdraw_amount != relayer_fee);
     let spent = svm.get_account(&nullifier_pda).expect("nullifier pda");
     assert_eq!(spent.owner, program_id);
     assert_eq!(u64::from_le_bytes(svm.get_account(&pool).unwrap().data[12..20].try_into().unwrap()), 3);
@@ -256,4 +271,61 @@ fn deposit_proves_and_withdraws_once() {
     );
     let err = reused.expect_err("reused nullifier must fail").err;
     assert_eq!(custom_code(&err), Some(ERR_NULLIFIER_SPENT), "{err:?}");
+}
+
+fn init_data(min_deposit: u64) -> Vec<u8> {
+    let mut data = vec![IX_INIT];
+    data.extend(min_deposit.to_le_bytes());
+    assert_eq!(data.len(), INIT_LEN);
+    data
+}
+
+#[test]
+fn deposit_below_the_configured_minimum_is_rejected() {
+    let mut svm = litesvm::LiteSVM::new();
+    let program_id = Keypair::new().pubkey();
+    let so_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("target/deploy/shade_solana.so");
+    svm.add_program_from_file(program_id, &so_path).expect("program");
+    let payer = Keypair::new();
+    svm.airdrop(&payer.pubkey(), 2_000_000_000).unwrap();
+    let (pool, _) = Address::find_program_address(&[POOL_SEED], &program_id);
+    let (vault, _) = Address::find_program_address(&[VAULT_SEED], &program_id);
+    let system = system_program::id();
+    expect_ok(
+        send(
+            &mut svm,
+            &payer,
+            &[Instruction {
+                program_id,
+                accounts: vec![
+                    AccountMeta::new(payer.pubkey(), true),
+                    AccountMeta::new(pool, false),
+                    AccountMeta::new(vault, false),
+                    AccountMeta::new_readonly(system, false),
+                ],
+                data: init_data(5_000),
+            }],
+        ),
+        "initialize",
+    );
+    let mut data = vec![2u8];
+    data.extend([0u8; 96]);
+    data.extend(1u64.to_le_bytes());
+    assert_eq!(data.len(), DEPOSIT_LEN);
+    let rejected = send(
+        &mut svm,
+        &payer,
+        &[Instruction {
+            program_id,
+            accounts: vec![
+                AccountMeta::new(payer.pubkey(), true),
+                AccountMeta::new(pool, false),
+                AccountMeta::new(vault, false),
+                AccountMeta::new_readonly(system, false),
+            ],
+            data,
+        }],
+    );
+    let err = rejected.expect_err("minimum").err;
+    assert_eq!(custom_code(&err), Some(ERR_VALUE), "{err:?}");
 }

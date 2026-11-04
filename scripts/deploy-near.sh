@@ -1,8 +1,18 @@
 #!/bin/sh
 set -eu
 url="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
-case "$url" in
-  *mainnet*) echo "Refusing NEAR mainnet." >&2; exit 1 ;;
+status="$(curl -fsS "$url" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":"shade","method":"status","params":[]}')"
+chain="$(printf '%s' "$status" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const id=JSON.parse(s).result&&JSON.parse(s).result.chain_id; if(!id){process.stderr.write("NEAR status did not include a chain id\n"); process.exit(1)} process.stdout.write(id)})')"
+case "$chain" in
+  testnet|localnet|sandbox) ;;
+  mainnet)
+    echo "Refusing NEAR mainnet chain id." >&2
+    exit 1
+    ;;
+  *)
+    echo "Refusing NEAR chain id $chain." >&2
+    exit 1
+    ;;
 esac
 if [ -z "${NEAR_ACCOUNT_ID:-}" ] || [ -z "${NEAR_PRIVATE_KEY:-}" ]; then
   echo "Set NEAR_ACCOUNT_ID and NEAR_PRIVATE_KEY. Refusing to deploy without a key." >&2

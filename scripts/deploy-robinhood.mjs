@@ -9,10 +9,6 @@ if (!key) {
   process.stderr.write("Set ROBINHOOD_PRIVATE_KEY. Refusing to deploy without a key.\n");
   process.exit(1);
 }
-if (rpc.toLowerCase().includes("mainnet")) {
-  process.stderr.write("Refusing Robinhood Chain mainnet.\n");
-  process.exit(1);
-}
 const chain = spawnSync(
   "cast",
   ["chain-id", "--rpc-url", rpc],

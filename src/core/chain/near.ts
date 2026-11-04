@@ -6,10 +6,27 @@ import type { ChainSubmission } from "./solana.js";
 
 export const NEAR_TESTNET_RPC = "https://rpc.testnet.near.org";
 
+/** NEAR chain ids this repository will sign for. `mainnet` is refused by id, not by URL. */
+export const NEAR_ALLOWED_CHAIN_IDS = ["testnet", "localnet", "sandbox"] as const;
+
+export function assertNearChainId(chainId: string): void {
+  if (chainId === "mainnet") {
+    throw new ConfigError("Refusing NEAR mainnet chain id.");
+  }
+  if (!NEAR_ALLOWED_CHAIN_IDS.includes(chainId as (typeof NEAR_ALLOWED_CHAIN_IDS)[number])) {
+    throw new ConfigError(`Refusing NEAR chain id "${chainId}".`);
+  }
+}
+
 export function assertNearRpc(url: string): void {
-  const lower = url.toLowerCase();
-  if (lower.includes("mainnet") || (lower.includes("rpc.near.org") && !lower.includes("testnet"))) {
-    throw new ConfigError("Refusing NEAR mainnet RPC. Use https://rpc.testnet.near.org or a local sandbox.");
+  let parsed: URL;
+  try {
+    parsed = new URL(url);
+  } catch {
+    throw new ConfigError("NEAR RPC URL is invalid");
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new ConfigError("NEAR RPC URL must be http or https");
   }
 }
 
@@ -25,10 +42,13 @@ export class NearTestnetAdapter {
       accountId?: string;
       contractId?: string;
       secretKey?: Uint8Array;
+      /** Chain id reported by the RPC `status` method. Tests inject this. */
+      chainId?: string;
       send?: (signed: Uint8Array) => Promise<string>;
     },
   ) {
     assertNearRpc(options.rpcUrl);
+    if (options.chainId) assertNearChainId(options.chainId);
   }
 
   async shieldedTransfer(payload: ChainSubmission, recipient: string): Promise<{ hash: string }> {
@@ -38,6 +58,8 @@ export class NearTestnetAdapter {
         "NEAR_ACCOUNT_ID, NEAR_CONTRACT_ID, and NEAR_PRIVATE_KEY are required. Refusing to invent a transaction hash.",
       );
     }
+    const chainId = this.options.chainId ?? (await fetchNearChainId(this.options.rpcUrl));
+    assertNearChainId(chainId);
     const args = Buffer.from(
       JSON.stringify({
         proof_json: JSON.stringify(payload.proof),
@@ -46,7 +68,8 @@ export class NearTestnetAdapter {
           payload.nullifier,
           payload.commitmentOut1,
           payload.commitmentOut2,
-          payload.fee,
+          payload.withdrawAmount,
+          payload.relayerFee,
           payload.extDataHash,
         ],
         recipient,
@@ -113,6 +136,19 @@ export function signFunctionCall(params: {
   ]);
   const signature = ed25519.sign(sha256(tx), params.secretKey);
   return Buffer.concat([tx, Buffer.from([0]), signature]);
+}
+
+export async function fetchNearChainId(rpcUrl: string): Promise<string> {
+  assertNearRpc(rpcUrl);
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: "shade", method: "status", params: [] }),
+  });
+  const parsed = (await response.json()) as { result?: { chain_id?: string } };
+  const chainId = parsed.result?.chain_id;
+  if (!chainId) throw new ConfigError("NEAR RPC status did not include a chain id");
+  return chainId;
 }
 
 function borshString(value: string): Buffer {

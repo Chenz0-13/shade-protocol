@@ -1,5 +1,6 @@
 import { ASSET_BASE, ASSET_QUOTE, TREE_DEPTH } from "../constants.js";
 import { DoubleSpendError } from "../errors.js";
+import { deriveOutputRho } from "../crypto/note.js";
 import { generateCurveKeyPair } from "../crypto/stealth.js";
 import { NullifierSet } from "../crypto/NullifierSet.js";
 import type { MatchResult, ShieldedNote } from "../crypto/primitives.js";
@@ -25,6 +26,7 @@ import { asBuySell, createOutputNote, planExecution, type OutputNote } from "./s
 export class DarkPool {
   private readonly orders = new Map<string, OpenOrder>();
   private readonly reserved = new Set<string>();
+  private readonly commitments = new Set<string>();
 
   private constructor(
     private readonly prover: ShieldedTransferProver,
@@ -62,11 +64,15 @@ export class DarkPool {
     const leafIndex = this.tree.size;
     const order = checkedOrder(draft, leafIndex);
     const key = order.nullifier.toString();
-    if (this.nullifiers.isSpent(key) || this.reserved.has(key)) throw new DoubleSpendError();
+    const commitmentKey = order.commitment.toString();
+    if (this.nullifiers.isSpent(key) || this.reserved.has(key) || this.commitments.has(commitmentKey)) {
+      throw new DoubleSpendError();
+    }
     const inserted = this.tree.insert(order.commitment);
     if (inserted !== leafIndex) throw new Error("commitment index drifted");
     this.orders.set(order.id, order);
     this.reserved.add(key);
+    this.commitments.add(commitmentKey);
     return { orderId: order.id, leafIndex };
   }
 
@@ -103,24 +109,28 @@ export class DarkPool {
       assetId: ASSET_BASE,
       recipient: buy.identity,
       memo: "base fill",
+      rho: deriveOutputRho(sell.nullifier, 1n),
     });
     const sellerChange = createOutputNote({
       value: plan.sellerChange,
       assetId: ASSET_BASE,
       recipient: sell.identity,
       memo: "base change",
+      rho: deriveOutputRho(sell.nullifier, 2n),
     });
     const buyerPayment = createOutputNote({
       value: plan.quotePaid,
       assetId: ASSET_QUOTE,
       recipient: sell.identity,
       memo: "quote fill",
+      rho: deriveOutputRho(buy.nullifier, 1n),
     });
     const buyerChange = createOutputNote({
       value: plan.buyerChange,
       assetId: ASSET_QUOTE,
       recipient: buy.identity,
       memo: "quote change",
+      rho: deriveOutputRho(buy.nullifier, 2n),
     });
 
     const root = this.tree.root();
@@ -172,8 +182,9 @@ export class DarkPool {
       assetIn: order.assetId,
       pathElements: proofData.pathElements,
       pathIndices: proofData.pathIndices,
-      fee: 0n,
-      ext: { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, chainDomain: 0n },
+      withdrawAmount: 0n,
+      relayerFee: 0n,
+      ext: { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, poolLo: 0n, poolHi: 0n, chainDomain: 0n },
       out1: toTransferOutput(out1),
       out2: toTransferOutput(out2),
     });

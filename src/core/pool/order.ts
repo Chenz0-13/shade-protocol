@@ -115,7 +115,7 @@ export function checkedOrder(draft: OrderDraft, leafIndex: number): OpenOrder {
     ownerPub: draft.ownerPub,
     assetId: draft.assetId,
   });
-  const nullifier = noteNullifier(draft.spendingKey, draft.rho);
+  const nullifier = noteNullifier(draft.spendingKey, commitment, BigInt(leafIndex));
   const side = draft.side === "buy" ? SIDE_BUY : SIDE_SELL;
   const binding = orderBinding({
     noteCommitment: commitment,
