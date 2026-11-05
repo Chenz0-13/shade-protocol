@@ -44,10 +44,15 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    continue-on-error: true
-    timeout-minutes: 25
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
       - name: Install circom 2.2.3
         run: |
           curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
@@ -173,9 +178,12 @@ jobs:
           cargo +nightly-2026-10-14 install cargo-fuzz --version 0.13.2 --locked
       - name: Clippy
         run: |
-          cargo clippy --manifest-path contracts/shade-crypto/Cargo.toml --all-targets -- -D warnings
-          cargo clippy --manifest-path contracts/near/Cargo.toml --all-targets -- -D warnings
-          cargo clippy --manifest-path programs/shade-solana/Cargo.toml --all-targets --features insecure-test-setup -- -D warnings
+          # The nightly install above becomes the default toolchain and does not
+          # include clippy. Lint with the pinned stable toolchain.
+          rustup default 1.99.1
+          cargo +1.99.1 clippy --manifest-path contracts/shade-crypto/Cargo.toml --all-targets -- -D warnings
+          cargo +1.99.1 clippy --manifest-path contracts/near/Cargo.toml --all-targets -- -D warnings
+          cargo +1.99.1 clippy --manifest-path programs/shade-solana/Cargo.toml --all-targets --features insecure-test-setup -- -D warnings
       - name: cargo-audit
         run: |
           cargo audit --file contracts/shade-crypto/Cargo.lock --ignore RUSTSEC-2025-0055
@@ -191,13 +199,14 @@ jobs:
         working-directory: contracts/shade-crypto
         env:
           # libfuzzer is C++. Force g++ so the build does not pick a clang
-          # `c++` that cannot see the libstdc++ headers.
+          # `c++` that cannot see the libstdc++ headers. rust-lld needs the
+          # unversioned libstdc++.so, which lives in the GCC library directory.
           CC: gcc
           CXX: g++
-          LIBRARY_PATH: /usr/lib/gcc/x86_64-linux-gnu/13
         run: |
           sudo apt-get update
           sudo apt-get install -y g++
+          export LIBRARY_PATH="$(dirname "$(g++ -print-file-name=libstdc++.so)")"
           cargo +nightly-2026-10-14 fuzz run parse_field -- -max_total_time=20
           cargo +nightly-2026-10-14 fuzz run proof_input -- -max_total_time=20
 
@@ -228,7 +237,9 @@ jobs:
           sudo install -m 755 /tmp/osv-scanner /usr/local/bin/osv-scanner
       - name: OSV-Scanner
         run: |
-          osv-scanner scan source \
+          # --config applies osv-scanner.toml to every lockfile. Without it,
+          # 2.7.0 only honors the file for package-lock.json beside it.
+          osv-scanner scan source --config osv-scanner.toml \
             -L package-lock.json \
             -L contracts/shade-crypto/Cargo.lock \
             -L contracts/near/Cargo.lock \

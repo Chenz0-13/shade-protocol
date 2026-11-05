@@ -30,7 +30,7 @@ Constraint counts at the time of this note:
 
 The malicious-prover run on this tree rejected 63 private mutations of `shielded_transfer`, 103 of `transfer`, 54 of `teleport_out`, and 47 of `allowance_spend`.
 
-Picus is a separate job with `continue-on-error: true` and a 25 minute limit. It always uploads `picus.log`. zkFuzz (`Koukyosyumei/zkFuzz`) has no GitHub release, so it is not pinned. Picus is the under-constraint job. A timeout or an `unknown` result is a log, not a proof that the circuit is safe. `safe` means Picus did not find an under-constrained output. It is not a completeness proof.
+Picus calls `circom` with no library flag, so the job links `circuits/circomlib` and `circuits/lib/circomlib` at `node_modules/circomlib` after `npm ci`. Exit 8 is safe and passes. Exit 9 is unsafe and fails the job. Exit 0 is unknown and is not a safety proof. A per-circuit limit of 600 seconds (exit 124) is recorded the same way: the solver stopped, it did not report an under-constrained output. Compile errors and any other exit code fail the job. The log is always uploaded. zkFuzz (`Koukyosyumei/zkFuzz`) has no GitHub release, so it is not pinned. `safe` means Picus did not find an under-constrained output. It is not a completeness proof.
 
 ## EVM
 
@@ -87,7 +87,7 @@ cargo-fuzz 0.13.2 uses nightly `nightly-2026-10-14`. The targets live in `contra
 
 Semgrep 1.183.0 runs `.semgrep.yml`. The rules forbid `eval`, `new Function`, `tx.origin`, and `delegatecall`. The run on this tree reported no findings. The registry ruleset `p/javascript` is not the CI gate. It is large and the pinned local rules are the ones that match this repository.
 
-OSV-Scanner 2.7.0 (linux amd64 sha256 `160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b`) scans the npm lockfile and the three Cargo lockfiles. `osv-scanner.toml` ignores the ids above. A new id fails the job.
+OSV-Scanner 2.7.0 (linux amd64 sha256 `160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b`) scans the npm lockfile and the three Cargo lockfiles. The command passes `--config osv-scanner.toml`. Without that flag, 2.7.0 applies the file only to `package-lock.json` and still reports the Cargo advisories. The ignore list is the ids above, each with a reason. A new id fails the job.
 
 CodeQL for JavaScript and TypeScript uses `github/codeql-action` commit `33d7b85da1a04171e211befe2c739303b9a4c066` (tag v4.39.3, peeled). Dependabot is `.github/dependabot.yml` and opens weekly updates for npm, the three Cargo directories, and GitHub Actions. Dependabot does not scan inside a workflow run.
 
