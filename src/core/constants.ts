@@ -33,6 +33,8 @@ export const DOMAIN = {
   order: 8n,
   /** Poseidon(chain, chainHome). */
   chain: 9n,
+  /** Poseidon(allowance, cap, expiry), mixed into an allowance-note commitment. */
+  allowance: 10n,
 } as const;
 
 /** Public signals of shielded_transfer.circom, in circom order. */

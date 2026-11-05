@@ -34,6 +34,7 @@ contract ShadePool {
     mapping(uint256 => bool) public nullifiers;
 
     event Deposited(uint256 indexed commitment, uint256 value, uint256 root, uint256 index);
+    event TokenBound(address indexed token, uint256 assetId);
     event Spent(
         uint256 indexed nullifier,
         uint256 out1,
@@ -54,8 +55,17 @@ contract ShadePool {
     error VerifierSet();
     error NotOwner();
     error TokenMode();
+    error Reentrancy();
 
     uint256 internal constant MASK128 = (uint256(1) << 128) - 1;
+    uint256 private entered = 1;
+
+    modifier nonReentrant() {
+        if (entered != 1) revert Reentrancy();
+        entered = 2;
+        _;
+        entered = 1;
+    }
 
     constructor(Groth16Verifier verifier_, uint256 minDeposit_) {
         if (minDeposit_ == 0 || minDeposit_ > type(uint64).max) revert ValueOutOfRange();
@@ -81,6 +91,7 @@ contract ShadePool {
         if (token == address(0) || assetToken != address(0) || nextIndex != 0) revert TokenMode();
         assetToken = token;
         assetId = uint256(uint160(token));
+        emit TokenBound(token, assetId);
     }
 
     function setMessageVerifier(address verifier_) external {
@@ -89,7 +100,7 @@ contract ShadePool {
         messageVerifier = verifier_;
     }
 
-    function deposit(uint256 blinding, uint256 rho, uint256 ownerPub) external payable returns (uint256 commitment) {
+    function deposit(uint256 blinding, uint256 rho, uint256 ownerPub) external payable nonReentrant returns (uint256 commitment) {
         if (assetToken != address(0)) revert TokenMode();
         if (msg.value < minDeposit || msg.value > type(uint64).max) revert ValueOutOfRange();
         _field(blinding);
@@ -110,6 +121,7 @@ contract ShadePool {
 
     function depositToken(uint256 amount, uint256 blinding, uint256 rho, uint256 ownerPub)
         external
+        nonReentrant
         returns (uint256 commitment)
     {
         if (assetToken == address(0)) revert TokenMode();
@@ -132,7 +144,7 @@ contract ShadePool {
     }
 
     /// Mints `commitment` after two transports have attested `(this chain, commitment, nullifier, amount)`.
-    function mintAttested(bytes32 messageId, uint256 commitment, uint256 nullifier, uint256 amount) external {
+    function mintAttested(bytes32 messageId, uint256 commitment, uint256 nullifier, uint256 amount) external nonReentrant {
         if (messageVerifier == address(0)) revert MessageRejected();
         if (amount == 0 || amount > type(uint64).max) revert ValueOutOfRange();
         _field(commitment);
@@ -141,8 +153,8 @@ contract ShadePool {
             revert MessageRejected();
         }
         if (nullifiers[nullifier]) revert NullifierSpent();
-        IMessageVerifier(messageVerifier).consume(messageId);
         nullifiers[nullifier] = true;
+        IMessageVerifier(messageVerifier).consume(messageId);
         uint256 index = nextIndex;
         _insert(commitment);
         emit Deposited(commitment, amount, currentRoot, index);
@@ -156,7 +168,7 @@ contract ShadePool {
         uint256[7] calldata pubSignals,
         address payable recipient,
         address payable relayer
-    ) external {
+    ) external nonReentrant {
         uint256 root = pubSignals[0];
         uint256 nullifier = pubSignals[1];
         uint256 withdrawAmount = pubSignals[4];
