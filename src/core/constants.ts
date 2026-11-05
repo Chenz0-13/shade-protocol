@@ -28,7 +28,11 @@ export const DOMAIN = {
   ext: 5n,
   /** Output rho is Poseidon(rho, input nullifier, output index). */
   rho: 6n,
+  /** Poseidon(asset, assetId), then mixed with the chain tag. */
+  asset: 7n,
   order: 8n,
+  /** Poseidon(chain, chainHome). */
+  chain: 9n,
 } as const;
 
 /** Public signals of shielded_transfer.circom, in circom order. */

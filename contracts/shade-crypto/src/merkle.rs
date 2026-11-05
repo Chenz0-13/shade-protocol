@@ -25,6 +25,12 @@ pub fn domain_ext() -> Fr {
 pub fn domain_rho() -> Fr {
     Fr::from(6u64)
 }
+pub fn domain_asset() -> Fr {
+    Fr::from(7u64)
+}
+pub fn domain_chain() -> Fr {
+    Fr::from(9u64)
+}
 
 /// Accept only a canonical decimal in `0..r`: no sign, no leading zeros except `0`.
 pub fn parse_canonical_field(value: &str) -> Result<Fr, &'static str> {

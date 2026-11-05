@@ -3,15 +3,22 @@ mod merkle;
 
 pub use groth16::{verify_snarkjs, SnarkjsProof, VerifyingKeyJson};
 pub use merkle::{
-    canonical_decimal, domain_commitment, domain_ext, domain_nullifier, domain_owner, domain_rho, field_from_dec,
+    canonical_decimal, domain_asset, domain_chain, domain_commitment, domain_ext, domain_nullifier, domain_owner,
+    domain_rho, field_from_dec,
     fr_from_be, fr_to_dec, fr_to_u128, insert, parse_canonical_field, split_be32, zero_hashes, FIELD_MODULUS_DEC,
     DEPTH,
 };
 
 pub use ark_bn254::Fr;
 
-pub fn commitment(value: Fr, blinding: Fr, rho: Fr, owner: Fr, asset: Fr) -> Fr {
-    merkle::hash6(&[domain_commitment(), value, blinding, rho, owner, asset])
+pub fn asset_chain_tag(asset: Fr, chain_home: Fr) -> Fr {
+    let asset_tag = merkle::hash2(domain_asset(), asset);
+    let chain_tag = merkle::hash2(domain_chain(), chain_home);
+    merkle::hash2(asset_tag, chain_tag)
+}
+
+pub fn commitment(value: Fr, blinding: Fr, rho: Fr, owner: Fr, asset: Fr, chain_home: Fr) -> Fr {
+    merkle::hash6(&[domain_commitment(), value, blinding, rho, owner, asset_chain_tag(asset, chain_home)])
 }
 
 pub fn owner_address(spending_key: Fr) -> Fr {
@@ -60,8 +67,12 @@ mod tests {
         let key = Fr::from(17u64);
         let rho = Fr::from(13u64);
         let owner = owner_address(key);
-        let first = commitment(Fr::from(5u64), Fr::from(11u64), rho, owner, Fr::from(1u64));
-        let second = commitment(Fr::from(5u64), Fr::from(19u64), rho, owner, Fr::from(1u64));
+        let first = commitment(Fr::from(5u64), Fr::from(11u64), rho, owner, Fr::from(1u64), Fr::from(1002u64));
+        let second = commitment(Fr::from(5u64), Fr::from(19u64), rho, owner, Fr::from(1u64), Fr::from(1002u64));
+        assert_ne!(
+            first,
+            commitment(Fr::from(5u64), Fr::from(11u64), rho, owner, Fr::from(1u64), Fr::from(46630u64))
+        );
         let spent = nullifier(key, first, Fr::from(0u64));
         let other = nullifier(key, second, Fr::from(1u64));
         assert_ne!(spent, other);

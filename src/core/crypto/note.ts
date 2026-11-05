@@ -8,6 +8,8 @@ export interface NoteParts {
   rho: bigint;
   ownerPub: bigint;
   assetId: bigint;
+  /** Chain that minted the note. Mixed into the commitment so a note is not fungible across chains. */
+  chainHome: bigint;
 }
 
 /** Public address bound into a note. Hides the spending key. */
@@ -17,22 +19,32 @@ export function ownerAddress(spendingKey: bigint): bigint {
 }
 
 /**
- * Hash commitment. The blinding factor and rho hide the value, asset, and
- * owner, and bind the commitment to that opening.
+ * Domain-tagged asset and chain tag. Poseidon(assetDomain, assetId) and
+ * Poseidon(chainDomain, chainHome) are mixed with one more Poseidon so the
+ * commitment can stay a 6-input hash on every chain.
+ */
+export function assetChainTag(assetId: bigint, chainHome: bigint): bigint {
+  assertField("assetId", assetId);
+  assertField("chainHome", chainHome);
+  return poseidon([poseidon([DOMAIN.asset, assetId]), poseidon([DOMAIN.chain, chainHome])]);
+}
+
+/**
+ * Hash commitment. The blinding factor and rho hide the value, asset, chain,
+ * and owner, and bind the commitment to that opening.
  */
 export function noteCommitment(parts: NoteParts): bigint {
   assertValue("value", parts.value);
   assertField("blinding", parts.blinding);
   assertField("rho", parts.rho);
   assertField("ownerPub", parts.ownerPub);
-  assertField("assetId", parts.assetId);
   return poseidon([
     DOMAIN.commitment,
     parts.value,
     parts.blinding,
     parts.rho,
     parts.ownerPub,
-    parts.assetId,
+    assetChainTag(parts.assetId, parts.chainHome),
   ]);
 }
 

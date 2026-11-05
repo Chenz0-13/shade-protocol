@@ -8,6 +8,7 @@ import { RobinhoodTestnetAdapter } from "../core/chain/robinhood.js";
 import { PublicKey } from "@solana/web3.js";
 import { poolPda, SolanaDevnetAdapter, type ChainSubmission, type SolanaRpc } from "../core/chain/solana.js";
 import { ElysiumTestnetAdapter } from "../core/chain/elysium.js";
+import { EvmTestnetAdapter } from "../core/chain/extraEvm.js";
 import { extDataHash, limbsFrom32, limbsFromAccount, limbsFromEvmAddress, type ExtDataLimbs } from "../core/proof/extData.js";
 import {
   DevnetPermissiveScreen,
@@ -68,6 +69,8 @@ export class ShadeClient {
   private readonly near: NearTestnetAdapter;
   private readonly robinhood: RobinhoodTestnetAdapter;
   private readonly elysium: ElysiumTestnetAdapter;
+  private readonly hyperevm: EvmTestnetAdapter;
+  private readonly base: EvmTestnetAdapter;
   private prover?: ShieldedTransferProver;
   private tree?: MerkleTree;
   private nullifiers?: NullifierSet;
@@ -106,6 +109,24 @@ export class ShadeClient {
       chainId: resolved.config.elysiumChainId,
       pool: resolved.config.elysiumPool as `0x${string}` | undefined,
       privateKey: resolved.elysiumPrivateKey,
+    });
+    this.hyperevm = new EvmTestnetAdapter({
+      name: "HyperEVM Testnet",
+      rpcUrl: resolved.config.hyperevmRpc,
+      chainId: resolved.config.hyperevmChainId,
+      pool: resolved.config.hyperevmPool as `0x${string}` | undefined,
+      privateKey: resolved.hyperevmPrivateKey,
+      missingPool: "HYPEREVM_POOL is required. Refusing to report a transfer.",
+      missingKey: "HYPEREVM_PRIVATE_KEY is required to submit. Refusing to invent a transaction hash.",
+    });
+    this.base = new EvmTestnetAdapter({
+      name: "Base Sepolia",
+      rpcUrl: resolved.config.baseRpc,
+      chainId: resolved.config.baseChainId,
+      pool: resolved.config.basePool as `0x${string}` | undefined,
+      privateKey: resolved.basePrivateKey,
+      missingPool: "BASE_POOL is required. Refusing to report a transfer.",
+      missingKey: "BASE_PRIVATE_KEY is required to submit. Refusing to invent a transaction hash.",
     });
   }
 
@@ -177,6 +198,7 @@ export class ShadeClient {
       rho: params.rhoIn,
       ownerPub: ownerAddress(params.owner.spendingKey),
       assetId: params.assetId,
+      chainHome: 0n,
     });
     const nullifier = noteNullifier(params.owner.spendingKey, commitmentIn, BigInt(params.inputIndex));
     if (nullifiers.isSpent(nullifier)) throw new DoubleSpendError();
@@ -197,6 +219,7 @@ export class ShadeClient {
       blindingIn: params.blindingIn,
       rhoIn: params.rhoIn,
       assetIn: params.assetId,
+      chainHome: 0n,
       pathElements: proofPath.pathElements,
       pathIndices: proofPath.pathIndices,
       withdrawAmount,
@@ -208,6 +231,7 @@ export class ShadeClient {
         rho: outputs[0].rho,
         ownerPub: outputs[0].ownerPub,
         assetId: outputs[0].assetId,
+        chainHome: 0n,
       },
       out2: {
         value: outputs[1].value,
@@ -215,6 +239,7 @@ export class ShadeClient {
         rho: outputs[1].rho,
         ownerPub: outputs[1].ownerPub,
         assetId: outputs[1].assetId,
+        chainHome: 0n,
       },
     });
     if (!(await prover.verify(proved.proof, proved.publicSignals))) {
@@ -282,14 +307,29 @@ export class ShadeClient {
       const [poolLo, poolHi] = limbsFromAccount(this.config.nearContractId);
       return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain: EXT_DOMAIN.near };
     }
-    if (chain === "robinhood" || chain === "elysium") {
+    if (chain === "robinhood" || chain === "elysium" || chain === "hyperevm" || chain === "base") {
       if (!params.evmRecipient) throw new Error("evmRecipient is required before proving");
-      const pool = chain === "robinhood" ? this.config.robinhoodPool : this.config.elysiumPool;
+      const pool =
+        chain === "robinhood"
+          ? this.config.robinhoodPool
+          : chain === "elysium"
+            ? this.config.elysiumPool
+            : chain === "hyperevm"
+              ? this.config.hyperevmPool
+              : this.config.basePool;
       if (!pool) throw new Error("the pool address is required before proving");
       const [recipientLo, recipientHi] = limbsFromEvmAddress(params.evmRecipient);
       const [relayerLo, relayerHi] = limbsFromEvmAddress(params.evmRelayer ?? zero);
       const [poolLo, poolHi] = limbsFromEvmAddress(pool);
-      const chainDomain = chain === "robinhood" ? BigInt(this.config.robinhoodChainId) : BigInt(this.config.elysiumChainId);
+      const chainDomain = BigInt(
+        chain === "robinhood"
+          ? this.config.robinhoodChainId
+          : chain === "elysium"
+            ? this.config.elysiumChainId
+            : chain === "hyperevm"
+              ? this.config.hyperevmChainId
+              : this.config.baseChainId,
+      );
       return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain };
     }
     return { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, poolLo: 0n, poolHi: 0n, chainDomain: 0n };
@@ -318,6 +358,12 @@ export class ShadeClient {
       case "elysium":
         if (!evmRecipient) throw new Error("evmRecipient is required");
         return (await this.elysium.shieldedTransfer(payload, evmRecipient, relayer)).hash;
+      case "hyperevm":
+        if (!evmRecipient) throw new Error("evmRecipient is required");
+        return (await this.hyperevm.shieldedTransfer(payload, evmRecipient, relayer)).hash;
+      case "base":
+        if (!evmRecipient) throw new Error("evmRecipient is required");
+        return (await this.base.shieldedTransfer(payload, evmRecipient, relayer)).hash;
       default:
         throw new Error(`unknown chain ${chain satisfies never}`);
     }

@@ -20,6 +20,7 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
     rho,
     ownerPub: owner.ownerPub,
     assetId: ASSET_BASE,
+    chainHome: 0n,
   });
   const tree = MerkleTree.empty();
   const index = tree.insert(commitment);
@@ -32,6 +33,7 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
     rho: deriveOutputRho(nullifier, 1n),
     ownerPub: recipient.ownerPub,
     assetId: ASSET_BASE,
+    chainHome: 0n,
   };
   const out2: TransferOutput = {
     value: 30n,
@@ -39,6 +41,7 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
     rho: deriveOutputRho(nullifier, 2n),
     ownerPub: owner.ownerPub,
     assetId: ASSET_BASE,
+    chainHome: 0n,
   };
   return {
     commitment,
@@ -49,6 +52,7 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
       blindingIn: blinding,
       rhoIn: rho,
       assetIn: ASSET_BASE,
+      chainHome: 0n,
       pathElements: proof.pathElements,
       pathIndices: proof.pathIndices,
       withdrawAmount: 20n,
@@ -109,6 +113,7 @@ describe("shielded transfer proofs", () => {
       rho: BigInt(unbalanced.witness.rhoOut1 as string),
       ownerPub: BigInt(unbalanced.witness.ownerOut1 as string),
       assetId: ASSET_BASE,
+      chainHome: 0n,
     }).toString();
     await expect(prover.proveCircuit(unbalanced.witness)).rejects.toBeInstanceOf(ProofError);
   });

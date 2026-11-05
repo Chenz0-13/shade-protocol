@@ -9,6 +9,7 @@ export interface TransferOutput {
   rho: bigint;
   ownerPub: bigint;
   assetId: bigint;
+  chainHome: bigint;
 }
 
 export interface TransferWitnessInput {
@@ -18,6 +19,7 @@ export interface TransferWitnessInput {
   blindingIn: bigint;
   rhoIn: bigint;
   assetIn: bigint;
+  chainHome: bigint;
   pathElements: bigint[];
   pathIndices: number[];
   withdrawAmount: bigint;
@@ -47,6 +49,9 @@ export function buildTransferWitness(input: TransferWitnessInput): {
   if (input.assetIn !== input.out1.assetId || input.assetIn !== input.out2.assetId) {
     throw new Error("output asset does not match the input asset");
   }
+  if (input.chainHome !== input.out1.chainHome || input.chainHome !== input.out2.chainHome) {
+    throw new Error("output chain does not match the input chain");
+  }
 
   const commitmentIn = noteCommitment({
     value: input.valueIn,
@@ -54,6 +59,7 @@ export function buildTransferWitness(input: TransferWitnessInput): {
     rho: input.rhoIn,
     ownerPub: ownerAddress(input.spendingKey),
     assetId: input.assetIn,
+    chainHome: input.chainHome,
   });
   const leafIndex = pathIndex(input.pathIndices);
   const nullifier = noteNullifier(input.spendingKey, commitmentIn, leafIndex);
@@ -85,6 +91,7 @@ export function buildTransferWitness(input: TransferWitnessInput): {
     blindingIn: input.blindingIn.toString(),
     rhoIn: input.rhoIn.toString(),
     assetIn: input.assetIn.toString(),
+    chainHome: input.chainHome.toString(),
     spendingKey: input.spendingKey.toString(),
     pathElements: input.pathElements.map((item) => item.toString()),
     pathIndices: input.pathIndices.map((item) => item.toString()),
@@ -134,5 +141,6 @@ function toParts(output: TransferOutput): NoteParts {
     rho: output.rho,
     ownerPub: output.ownerPub,
     assetId: output.assetId,
+    chainHome: output.chainHome,
   };
 }

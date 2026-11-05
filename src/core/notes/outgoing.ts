@@ -29,6 +29,7 @@ export function buildOutgoingNote(params: {
   /** Required to derive the nullifier. Unknown until the note is inserted. */
   leafIndex?: bigint;
   rho?: bigint;
+  chainHome?: bigint;
 }): OutgoingNote {
   const blinding = randomNonZeroField();
   const rho = params.rho ?? randomNonZeroField();
@@ -39,12 +40,14 @@ export function buildOutgoingNote(params: {
     assetId: params.assetId,
     memo: params.memo ?? "",
   };
+  const chainHome = params.chainHome ?? 0n;
   const commitment = noteCommitment({
     value: params.value,
     blinding,
     rho,
     ownerPub: params.recipient.ownerPub,
     assetId: params.assetId,
+    chainHome,
   });
   const stealth = deriveStealthAddress(params.recipient.spendPublicKey, params.recipient.viewPublicKey);
   const encryptedValue = serializeSealed(

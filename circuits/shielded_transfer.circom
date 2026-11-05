@@ -7,7 +7,7 @@ include "circomlib/circuits/bitify.circom";
 //   TREE_DEPTH = 20
 //   VALUE_BITS = 64
 //   DOMAIN.commitment = 1, DOMAIN.nullifier = 2, DOMAIN.owner = 3
-//   DOMAIN.ext = 5, DOMAIN.rho = 6
+//   DOMAIN.ext = 5, DOMAIN.rho = 6, DOMAIN.asset = 7, DOMAIN.chain = 9
 // A production deployment needs a multi-party ceremony. This file is the
 // single-party development circuit.
 
@@ -35,6 +35,22 @@ template MerklePath(depth) {
 }
 
 // Keeps Num2Bits outputs live so the range constraint cannot be optimized away.
+template AssetTag() {
+    signal input assetId;
+    signal input chainHome;
+    signal output out;
+    component asset = Poseidon(2);
+    asset.inputs[0] <== 7;
+    asset.inputs[1] <== assetId;
+    component chain = Poseidon(2);
+    chain.inputs[0] <== 9;
+    chain.inputs[1] <== chainHome;
+    component packed = Poseidon(2);
+    packed.inputs[0] <== asset.out;
+    packed.inputs[1] <== chain.out;
+    out <== packed.out;
+}
+
 template AssertRange(bits) {
     signal input value;
     component bitsOf = Num2Bits(bits);
@@ -68,6 +84,7 @@ template ShieldedTransfer(depth, valueBits) {
     signal input blindingIn;
     signal input rhoIn;
     signal input assetIn;
+    signal input chainHome;
     signal input spendingKey;
     signal input pathElements[depth];
     signal input pathIndices[depth];
@@ -116,13 +133,16 @@ template ShieldedTransfer(depth, valueBits) {
     owner.inputs[0] <== 3;
     owner.inputs[1] <== spendingKey;
 
+    component tagIn = AssetTag();
+    tagIn.assetId <== assetIn;
+    tagIn.chainHome <== chainHome;
     component commitIn = Poseidon(6);
     commitIn.inputs[0] <== 1;
     commitIn.inputs[1] <== valueIn;
     commitIn.inputs[2] <== blindingIn;
     commitIn.inputs[3] <== rhoIn;
     commitIn.inputs[4] <== owner.out;
-    commitIn.inputs[5] <== assetIn;
+    commitIn.inputs[5] <== tagIn.out;
 
     component membership = MerklePath(depth);
     membership.leaf <== commitIn.out;
@@ -161,22 +181,28 @@ template ShieldedTransfer(depth, valueBits) {
     rho2.inputs[2] <== 2;
     rho2.out === rhoOut2;
 
+    component tagOut1 = AssetTag();
+    tagOut1.assetId <== assetOut1;
+    tagOut1.chainHome <== chainHome;
     component commitOut1 = Poseidon(6);
     commitOut1.inputs[0] <== 1;
     commitOut1.inputs[1] <== valueOut1;
     commitOut1.inputs[2] <== blindingOut1;
     commitOut1.inputs[3] <== rhoOut1;
     commitOut1.inputs[4] <== ownerOut1;
-    commitOut1.inputs[5] <== assetOut1;
+    commitOut1.inputs[5] <== tagOut1.out;
     commitOut1.out === commitmentOut1;
 
+    component tagOut2 = AssetTag();
+    tagOut2.assetId <== assetOut2;
+    tagOut2.chainHome <== chainHome;
     component commitOut2 = Poseidon(6);
     commitOut2.inputs[0] <== 1;
     commitOut2.inputs[1] <== valueOut2;
     commitOut2.inputs[2] <== blindingOut2;
     commitOut2.inputs[3] <== rhoOut2;
     commitOut2.inputs[4] <== ownerOut2;
-    commitOut2.inputs[5] <== assetOut2;
+    commitOut2.inputs[5] <== tagOut2.out;
     commitOut2.out === commitmentOut2;
 
     component binder = Poseidon(6);

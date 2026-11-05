@@ -34,6 +34,7 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     });
     const second = noteCommitment({
       value: 50n,
@@ -41,6 +42,7 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     });
     expect(first).not.toBe(second);
     expect(first).not.toBe(50n);
@@ -50,6 +52,7 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     };
     const commitment = noteCommitment(opening);
     expect(commitmentOpens(commitment, opening)).toBe(true);
@@ -60,8 +63,9 @@ describe("commitments and nullifiers", () => {
     const key = randomNonZeroField();
     const rho = randomNonZeroField();
     const owner = randomNonZeroField();
-    const first = noteCommitment({ value: 5n, blinding: 11n, rho, ownerPub: owner, assetId: ASSET_BASE });
-    const second = noteCommitment({ value: 5n, blinding: 19n, rho, ownerPub: owner, assetId: ASSET_BASE });
+    const first = noteCommitment({ value: 5n, blinding: 11n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 46630n });
+    const second = noteCommitment({ value: 5n, blinding: 19n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 46630n });
+    expect(first).not.toBe(noteCommitment({ value: 5n, blinding: 11n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 99801n }));
     const spent = noteNullifier(key, first, 0n);
     const other = noteNullifier(key, second, 1n);
     expect(spent).toBe(noteNullifier(key, first, 0n));

@@ -65,6 +65,7 @@ impl Pool {
             field_from_dec(&rho),
             field_from_dec(&owner),
             field_from_dec("1"),
+            Fr::from(NEAR_EXT_DOMAIN),
         );
         self.push_leaf(leaf);
         fr_to_dec(leaf)

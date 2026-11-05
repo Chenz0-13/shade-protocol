@@ -110,6 +110,7 @@ export class DarkPool {
       recipient: buy.identity,
       memo: "base fill",
       rho: deriveOutputRho(sell.nullifier, 1n),
+      chainHome: sell.chainHome,
     });
     const sellerChange = createOutputNote({
       value: plan.sellerChange,
@@ -117,6 +118,7 @@ export class DarkPool {
       recipient: sell.identity,
       memo: "base change",
       rho: deriveOutputRho(sell.nullifier, 2n),
+      chainHome: sell.chainHome,
     });
     const buyerPayment = createOutputNote({
       value: plan.quotePaid,
@@ -124,6 +126,7 @@ export class DarkPool {
       recipient: sell.identity,
       memo: "quote fill",
       rho: deriveOutputRho(buy.nullifier, 1n),
+      chainHome: buy.chainHome,
     });
     const buyerChange = createOutputNote({
       value: plan.buyerChange,
@@ -131,6 +134,7 @@ export class DarkPool {
       recipient: buy.identity,
       memo: "quote change",
       rho: deriveOutputRho(buy.nullifier, 2n),
+      chainHome: buy.chainHome,
     });
 
     const root = this.tree.root();
@@ -180,6 +184,7 @@ export class DarkPool {
       blindingIn: order.blinding,
       rhoIn: order.rho,
       assetIn: order.assetId,
+      chainHome: order.chainHome,
       pathElements: proofData.pathElements,
       pathIndices: proofData.pathIndices,
       withdrawAmount: 0n,
@@ -198,6 +203,7 @@ function toTransferOutput(note: OutputNote): TransferOutput {
     rho: note.rho,
     ownerPub: note.ownerPub,
     assetId: note.assetId,
+    chainHome: note.chainHome,
   };
 }
 

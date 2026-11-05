@@ -8,7 +8,10 @@ import {ShadePool} from "../src/ShadePool.sol";
 contract Deploy is Script {
     function run() external {
         uint256 chainId = block.chainid;
-        require(chainId == 46630 || chainId == 99801 || chainId == 31337, "testnet or anvil only");
+        require(
+            chainId == 46630 || chainId == 99801 || chainId == 998 || chainId == 84532 || chainId == 31337,
+            "testnet or anvil only"
+        );
         uint256 key = vm.envUint("DEPLOYER_PRIVATE_KEY");
         vm.startBroadcast(key);
         Groth16Verifier verifier = new Groth16Verifier();

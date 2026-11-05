@@ -14,6 +14,7 @@ export interface OrderDraft {
   blinding: bigint;
   rho: bigint;
   assetId: bigint;
+  chainHome: bigint;
   spendingKey: bigint;
   ownerPub: bigint;
   viewPublicKey: Uint8Array;
@@ -36,6 +37,7 @@ export function sealOrder(operatorViewPublicKey: Uint8Array, draft: OrderDraft):
     JSON.stringify({
       amount: draft.amount.toString(),
       assetId: draft.assetId.toString(),
+      chainHome: draft.chainHome.toString(),
       blinding: draft.blinding.toString(),
       ownerPub: draft.ownerPub.toString(),
       priceMax: draft.priceMax.toString(),
@@ -56,6 +58,7 @@ export function openOrder(operatorViewPrivateKey: Uint8Array, sealed: Uint8Array
   const parsed = JSON.parse(Buffer.from(bytes).toString("utf8")) as {
     amount: string;
     assetId: string;
+    chainHome: string;
     blinding: string;
     ownerPub: string;
     priceMax: string;
@@ -79,6 +82,7 @@ export function openOrder(operatorViewPrivateKey: Uint8Array, sealed: Uint8Array
     blinding: BigInt(parsed.blinding),
     rho: BigInt(parsed.rho),
     assetId: BigInt(parsed.assetId),
+    chainHome: BigInt(parsed.chainHome),
     spendingKey: BigInt(parsed.spendingKey),
     ownerPub: BigInt(parsed.ownerPub),
     viewPublicKey: Buffer.from(parsed.viewPublicKey, "hex"),
@@ -114,6 +118,7 @@ export function checkedOrder(draft: OrderDraft, leafIndex: number): OpenOrder {
     rho: draft.rho,
     ownerPub: draft.ownerPub,
     assetId: draft.assetId,
+    chainHome: draft.chainHome,
   });
   const nullifier = noteNullifier(draft.spendingKey, commitment, BigInt(leafIndex));
   const side = draft.side === "buy" ? SIDE_BUY : SIDE_SELL;
