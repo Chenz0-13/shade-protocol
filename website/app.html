@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Testnet app · Shader Protocol</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="index.html">Shader Protocol</a>
+  <nav><a href="ceremony.html">Ceremony</a> <a href="terms.html">Terms</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet only. Not audited. No real funds. Development proving keys are not a ceremony and are not served from this site.</p>
+<h1>Testnet app</h1>
+<label>Chain <select id="chain"></select></label>
+<p id="deployState">Loading deployments.json</p>
+<p><a id="faucet" href="#">Faucet</a></p>
+<div class="row">
+  <button id="connectEvm" type="button">Connect EVM wallet</button>
+  <button id="connectSol" type="button">Connect Phantom</button>
+  <button id="connectNear" type="button">Connect NEAR testnet</button>
+</div>
+<p id="account">Not connected.</p>
+<div class="card">
+  <h2>Deposit</h2>
+  <p>Native deposit calls ShadePool.deposit when an address is published. Otherwise the button explains that the chain is not deployed.</p>
+  <input id="amount" value="0.001" />
+  <button id="deposit" type="button">Deposit</button>
+</div>
+<div class="card">
+  <h2>Private transfer and withdraw</h2>
+  <p>In-browser proving looks for <code>/artifacts/shielded_transfer.wasm</code> and <code>/artifacts/shielded_transfer_final.zkey</code>. Those files are not published. Proving will fail until a frozen circuit has a ceremony and the artifacts are hosted on purpose.</p>
+  <button id="prove" type="button">Try to prove</button>
+  <pre id="proveOut"></pre>
+</div>
+<div class="card">
+  <h2>Note backup</h2>
+  <button id="backup" type="button">Export a local note backup</button>
+  <pre id="backupOut"></pre>
+</div>
+<div class="card">
+  <h2>Disclosure receipt</h2>
+  <p>This signs a statement with the connected EVM wallet. Expiry is a date in the statement. A verifier can refuse an expired receipt. A copy made before expiry still verifies, and nothing here can claw it back. This is not a Groth16 proof.</p>
+  <input id="receiptAmount" value="1" />
+  <button id="receipt" type="button">Sign receipt</button>
+  <pre id="receiptOut"></pre>
+</div>
+</main>
+<script type="module">
+const $ = (id) => document.querySelector(id);
+const deployments = await (await fetch("deployments.json")).json();
+const select = $("#chain");
+for (const [name, row] of Object.entries(deployments.chains)) {
+  const option = document.createElement("option");
+  option.value = name;
+  option.textContent = name;
+  select.append(option);
+}
+let account = null;
+function current() { return deployments.chains[select.value]; }
+function render() {
+  const row = current();
+  const address = row.pool || row.programId || row.contractId || "";
+  $("#deployState").textContent = address
+    ? `Deployed at ${address}`
+    : "Not deployed yet on this chain";
+  $("#faucet").href = row.faucet;
+  $("#faucet").textContent = `Faucet for ${select.value}`;
+}
+select.addEventListener("change", render);
+render();
+
+$("#connectEvm").onclick = async () => {
+  const eth = window.ethereum;
+  if (!eth) { $("#account").textContent = "No injected EVM wallet."; return; }
+  const row = current();
+  if (!row.chainId) { $("#account").textContent = "Pick an EVM chain."; return; }
+  await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0x" + row.chainId.toString(16) }] }).catch(async () => {
+    await eth.request({ method: "wallet_addEthereumChain", params: [{ chainId: "0x" + row.chainId.toString(16), chainName: select.value, rpcUrls: [row.rpc], nativeCurrency: { name: "ETH", symbol: "ETH", decimals: 18 } }] });
+  });
+  const accounts = await eth.request({ method: "eth_requestAccounts" });
+  account = accounts[0];
+  $("#account").textContent = `EVM ${account}`;
+};
+$("#connectSol").onclick = async () => {
+  const provider = window.phantom?.solana || window.solana;
+  if (!provider?.isPhantom) { $("#account").textContent = "Phantom is not installed."; return; }
+  const response = await provider.connect();
+  account = response.publicKey.toString();
+  $("#account").textContent = `Solana devnet ${account}`;
+};
+$("#connectNear").onclick = async () => {
+  try {
+    const { setupWalletSelector } = await import("https://esm.sh/@near-wallet-selector/core@8.10.0");
+    const { setupMyNearWallet } = await import("https://esm.sh/@near-wallet-selector/my-near-wallet@8.10.0");
+    const selector = await setupWalletSelector({ network: "testnet", modules: [setupMyNearWallet()] });
+    const wallet = await selector.wallet("my-near-wallet");
+    await wallet.signIn({ contractId: current().contractId || "shade.testnet" });
+    $("#account").textContent = "NEAR sign-in opened. Finish it in the wallet window.";
+  } catch (error) {
+    $("#account").textContent = `NEAR wallet selector did not load (${error.message}). Use https://testnet.mynearwallet.com.`;
+  }
+};
+$("#deposit").onclick = () => {
+  const row = current();
+  if (!(row.pool || row.programId || row.contractId)) {
+    $("#proveOut").textContent = "Not deployed yet on this chain.";
+    return;
+  }
+  $("#proveOut").textContent = "A pool address is set, but this page does not broadcast a deposit without a published verifier and a ceremony. Refusing to send value.";
+};
+$("#prove").onclick = async () => {
+  const wasm = await fetch("artifacts/shielded_transfer.wasm");
+  const zkey = await fetch("artifacts/shielded_transfer_final.zkey");
+  if (!wasm.ok || !zkey.ok) {
+    $("#proveOut").textContent = "Proving artifacts are not on this site. Ceremony not started. Refusing to pretend a proof was created.";
+    return;
+  }
+  $("#proveOut").textContent = "Artifacts exist, but this page still refuses to prove with unpublished development keys.";
+};
+$("#backup").onclick = () => {
+  const note = { version: 2, chain: select.value, created: new Date().toISOString(), warning: "Local backup only. Not a deposit.", spendingKey: crypto.getRandomValues(new Uint8Array(32)) };
+  const bytes = new Uint8Array(note.spendingKey);
+  note.spendingKey = [...bytes].map((b) => b.toString(16).padStart(2, "0")).join("");
+  const blob = new Blob([JSON.stringify(note, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "shader-note-backup.json";
+  link.click();
+  $("#backupOut").textContent = "Downloaded a local backup. It is not on a chain.";
+};
+$("#receipt").onclick = async () => {
+  if (!window.ethereum || !account) { $("#receiptOut").textContent = "Connect an EVM wallet first."; return; }
+  const receipt = {
+    type: "shade.disclosure.v1",
+    account,
+    chainId: current().chainId || null,
+    amount: $("#receiptAmount").value,
+    expires: new Date(Date.now() + 86400000).toISOString(),
+    note: "Expiry is enforced by whoever checks this receipt. A copy made before expiry still verifies."
+  };
+  const signature = await window.ethereum.request({ method: "personal_sign", params: [JSON.stringify(receipt), account] });
+  $("#receiptOut").textContent = JSON.stringify({ receipt, signature }, null, 2);
+};
+</script>
+</body>
+</html>

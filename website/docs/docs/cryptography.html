@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Cryptography · Shader Protocol</title>
+<meta name="description" content="Poseidon commitments, nullifiers, extDataHash, secp256k1 stealth keys, and a single-party Groth16 setup.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Cryptography</h1>
+  <p>Parameters below match the current devnet design. They can change. Nothing here has had an independent audit.</p>
+  <h2>Notes</h2>
+  <p>A commitment is a Poseidon hash of the note opening, so the value, the asset, and the owner are not written in the clear. The nullifier is bound to that commitment and to the leaf index. Spending the same leaf twice produces the same nullifier, and the pool rejects the second one.</p>
+  <h2>External data</h2>
+  <p><code>extDataHash</code> is a public input. It binds the recipient, the relayer, the fee, the chain, and the pool. The contract recomputes the hash from the call it is actually executing. A proof that was built for a different recipient, fee, chain, or pool does not verify against that call.</p>
+  <p>The public inputs are canonical field elements. Callers do not pass raw byte strings into the verifier and hope the encoding matches.</p>
+  <h2>Roots</h2>
+  <p>The commitment tree is a Poseidon Merkle tree. The devnet depth is small on purpose so tests can run. Pools keep a root history. A proof must name a root that is still in that history, not an arbitrary hash.</p>
+  <h2>Stealth and regulator keys</h2>
+  <p>Stealth addresses are secp256k1. The sender uses the recipient's spend and view public keys to derive a one-time address. The view key recognizes that address and opens the ciphertext. It cannot derive the spending key the circuit checks. Poseidon is not homomorphic, so the curve key and the circuit spending key stay separate.</p>
+  <p>A regulator capability is an issuer-signed secp256k1 encryption key plus a scope. Notes sealed to it use associated data bound to that scope. A key for one scope does not open another scope. An expired capability fails.</p>
+  <h2>Proofs</h2>
+  <p>Proofs are Groth16. The keys in the repository come from a single-party development setup. They are not the output of a multi-party ceremony. Anyone who kept the intermediate parameters can forge proofs. Do not protect real value with them. A ceremony is planned, and it has not been run.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>

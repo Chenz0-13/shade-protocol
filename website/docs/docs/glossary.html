@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Glossary · Shader Protocol</title>
+<meta name="description" content="Short definitions for Shader Protocol terms, including what is not implemented.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Glossary</h1>
+  <p><strong>Commitment.</strong> A Poseidon hash of a note opening. The value is not written in the clear.</p>
+  <p><strong>Nullifier.</strong> A value bound to the commitment and the leaf index. The pool stores it to reject a second spend.</p>
+  <p><strong>extDataHash.</strong> A public input binding the recipient, relayer, fee, chain, and pool. The contract recomputes it.</p>
+  <p><strong>Root history.</strong> Recent Merkle roots kept by a pool. A proof must cite one of them.</p>
+  <p><strong>Canonical field inputs.</strong> Public inputs encoded as field elements in a fixed order.</p>
+  <p><strong>Stealth address.</strong> A one-time secp256k1 address. The view key recognizes it. The view key does not spend.</p>
+  <p><strong>Regulator key.</strong> An issuer-signed secp256k1 encryption key with a scope.</p>
+  <p><strong>ShadeClient.</strong> The current class name of the TypeScript client. The product name is Shader Protocol. The class name has not changed.</p>
+  <p><strong>Dark pool.</strong> The operator matcher in this repository. The operator can read sealed orders. It is a devnet tool.</p>
+  <p><strong>Canton attestation.</strong> A 2-of-N record by named attestors. Not a Groth16 verifier.</p>
+  <p><strong>KYC proof.</strong> Not implemented. Planned at most.</p>
+  <p><strong>Devnet / testnet.</strong> Networks with valueless test assets. This software targets those only.</p>
+  <p><strong>Guarded beta.</strong> A possible later step with caps, after a ceremony and an independent audit. Not available now. Not a mainnet.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>

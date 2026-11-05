@@ -20,16 +20,15 @@ export const ANVIL_CHAIN_ID = 31337;
 
 export const shadePoolAbi = parseAbi([
   "function deposit(uint256 blinding, uint256 rho, uint256 ownerPub) payable returns (uint256)",
-  "function shieldedTransfer(uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[6] pubSignals, address recipient, address relayer) external",
+  "function shieldedTransfer(uint256[2] pA, uint256[2][2] pB, uint256[2] pC, uint256[7] pubSignals, address recipient, address relayer) external",
   "function currentRoot() view returns (uint256)",
   "function nullifiers(uint256) view returns (bool)",
 ]);
 
-export function assertRobinhoodTarget(rpcUrl: string, chainId: number): void {
-  const lower = rpcUrl.toLowerCase();
-  if (chainId === ROBINHOOD_MAINNET_CHAIN_ID || lower.includes("mainnet")) {
+export function assertRobinhoodTarget(_rpcUrl: string, chainId: number): void {
+  if (chainId === ROBINHOOD_MAINNET_CHAIN_ID) {
     throw new ConfigError(
-      "Refusing Robinhood Chain mainnet (chain id 4663). Use the testnet RPC and chain id 46630, or a local anvil chain.",
+      "Refusing Robinhood Chain mainnet (chain id 4663). Use chain id 46630, or a local anvil chain.",
     );
   }
   const local = chainId === ANVIL_CHAIN_ID || chainId === 1337;
@@ -42,16 +41,17 @@ export function solidityProof(payload: ChainSubmission): {
   pA: [bigint, bigint];
   pB: [[bigint, bigint], [bigint, bigint]];
   pC: [bigint, bigint];
-  pubSignals: [bigint, bigint, bigint, bigint, bigint, bigint];
+  pubSignals: [bigint, bigint, bigint, bigint, bigint, bigint, bigint];
 } {
   const pub = [
     payload.merkleRoot,
     payload.nullifier,
     payload.commitmentOut1,
     payload.commitmentOut2,
-    payload.fee,
+    payload.withdrawAmount,
+    payload.relayerFee,
     payload.extDataHash,
-  ].map((value) => BigInt(value)) as [bigint, bigint, bigint, bigint, bigint, bigint];
+  ].map((value) => BigInt(value)) as [bigint, bigint, bigint, bigint, bigint, bigint, bigint];
   return {
     pA: [BigInt(payload.proof.pi_a[0]!), BigInt(payload.proof.pi_a[1]!)],
     pB: [

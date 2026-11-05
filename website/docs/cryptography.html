@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cryptography · Shader Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shader Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Cryptography</h1>
+<h2>1. Notation and primitives</h2>
+<p>| Symbol | Meaning |</p>
+<p>|---|---|</p>
+<p>| $\mathbb{F}_p$ | BN254 scalar field, $p = 21888242871839275222246405745257275088548364400416034343698204186575808495617$ |</p>
+<p>| $H(\cdot)$ | Poseidon hash over $\mathbb{F}_p$ (circomlib parameters), arity = number of inputs |</p>
+<p>| $\mathsf{DOM}_x$ | A fixed domain-separation constant in $\mathbb{F}_p$ for purpose $x$ |</p>
+<p>| $\mathbb{G}$, $B$, $\ell$ | Baby Jubjub twisted Edwards curve (embedded in BN254), base point $B$, prime subgroup order $\ell$ |</p>
+<p>| $\xleftarrow{\$}$ | Sampled uniformly at random from a CSPRNG |</p>
+<p>| $\mathsf{HKDF}$ | HKDF-SHA256 (RFC 5869) |</p>
+<p>| $\mathsf{AEAD}$ | AES-256-GCM, 96-bit nonce, 128-bit tag |</p>
+<p>Why these choices: Poseidon and Baby Jubjub are cheap inside a BN254 arithmetic circuit; BN254 pairings are available natively on Solana (alt_bn128 syscalls), NEAR (alt_bn128 host functions) and EVM chains (precompiles 0x06-0x08). Symmetric encryption happens outside the circuit, so standard AES-GCM and HKDF are used there.</p>
+<p>Every hash includes a distinct domain tag so a value computed for one purpose can never be reused as another.</p>
+<h2>2. Keys and addresses</h2>
+<p>A user&#x27;s key material is derived from one random seed.</p>
+<p>$$</p>
+<p>\begin{aligned}</p>
+<p>sk &amp;\xleftarrow{\$} \mathbb{F}_p &amp;&amp; \text{spending key (never leaves the device)}\\</p>
+<p>pk &amp;= H(\mathsf{DOM}_{pk},\ sk) &amp;&amp; \text{spend public key}\\</p>
+<p>v &amp;\xleftarrow{\$} \mathbb{Z}_\ell,\quad V = v \cdot B &amp;&amp; \text{viewing key pair}\\</p>
+<p>\mathsf{addr} &amp;= (pk,\ V) &amp;&amp; \text{shielded address (shareable)}</p>
+<p>\end{aligned}</p>
+<p>$$</p>
+<ul>
+<li>Knowing $sk$ lets you <strong>spend</strong>. Knowing $v$ lets you <strong>see</strong> (decrypt incoming notes) but not spend.</li>
+<li>The shielded address is published or shared once; it never appears on-chain.</li>
+</ul>
+<h2>3. Stealth addressing (one-time owners)</h2>
+<p>To pay $\mathsf{addr} = (pk, V)$, the sender derives a fresh, unlinkable owner value for each output note using ECDH on Baby Jubjub:</p>
+<p>$$</p>
+<p>\begin{aligned}</p>
+<p>e &amp;\xleftarrow{\$} \mathbb{Z}_\ell,\qquad E = e\cdot B &amp;&amp; \text{ephemeral key (published with the note)}\\</p>
+<p>S &amp;= e\cdot V = v\cdot E &amp;&amp; \text{shared point}\\</p>
+<p>s &amp;= S.x &amp;&amp; \text{shared secret}\\</p>
+<p>\tau &amp;= H(\mathsf{DOM}_{tag},\ s) &amp;&amp; \text{stealth tweak}\\</p>
+<p>\mathsf{owner} &amp;= H(\mathsf{DOM}_{own},\ pk,\ \tau) &amp;&amp; \text{one-time owner}</p>
+<p>\end{aligned}</p>
+<p>$$</p>
+<p>Properties:</p>
+<ul>
+<li>Different payments to the same address produce unrelated $E$ and $\mathsf{owner}$ values.</li>
+<li>The recipient recovers $s$ from $E$ with $v$, recomputes $\tau$ and $\mathsf{owner}$, and confirms the note is theirs.</li>
+<li>The <strong>sender</strong> knows $\tau$ and $pk$ but <strong>not</strong> $sk$, so they can recognise the note but can never spend it or compute its nullifier.</li>
+<li>Implementations must reject $E$ not in the prime-order subgroup (small-subgroup attacks) and must never reuse $e$.</li>
+</ul>
+<p><strong>View tag (scanning optimisation).</strong> Each note also publishes $\mathsf{vt} = \mathrm{SHA256}(\texttt{&quot;shade/v1/view-tag&quot;} \,\|\, s)[0]$ (one byte). Recipients compute $s$ and compare $\mathsf{vt}$ before attempting decryption, discarding ~255/256 of foreign notes cheaply. This leaks 8 bits that let a viewing-key holder filter quickly; it leaks nothing to anyone else.</p>
+<h2>4. Notes and commitments</h2>
+<p>A note is the tuple</p>
+<p>$$</p>
+<p>\mathsf{note} = (\mathsf{asset},\ \mathsf{value},\ \mathsf{owner},\ r),\qquad 0 \le \mathsf{value} &lt; 2^{64},\quad r \xleftarrow{\$} \mathbb{F}_p</p>
+<p>$$</p>
+<p>Its commitment, the only part stored on-chain, is</p>
+<p>$$</p>
+<p>C = H(\mathsf{DOM}_{note},\ \mathsf{asset},\ \mathsf{value},\ \mathsf{owner},\ r)</p>
+<p>$$</p>
+<ul>
+<li><strong>Hiding.</strong> Because $r$ is uniformly random and fresh per note, $C$ reveals nothing about asset, value or owner (modelling Poseidon as a random oracle).</li>
+<li><strong>Binding.</strong> Opening $C$ to a different tuple requires a Poseidon collision.</li>
+<li>The blinding $r$ must be generated fresh by a CSPRNG for every note; never derive it from the value or reuse it.</li>
+</ul>
+<p>&gt; Earlier scaffold code used <code>value + blinding</code> and a sum of character codes as &quot;commitments&quot;. Those are neither hiding nor binding and have been replaced.</p>
+<h2>5. Nullifiers</h2>
+<p>When a note at leaf index $i$ is spent, the spender reveals</p>
+<p>$$</p>
+<p>\mathsf{nf} = H(\mathsf{DOM}_{nf},\ sk,\ C,\ i)</p>
+<p>$$</p>
+<ul>
+<li><strong>Deterministic:</strong> the same note always yields the same $\mathsf{nf}$, so a second spend is caught by the on-chain nullifier set.</li>
+<li><strong>Unique per note:</strong> including $C$ and $i$ means two notes never share a nullifier, even if the same user owns many notes with equal values.</li>
+<li><strong>Unlinkable:</strong> without $sk$, $\mathsf{nf}$ cannot be linked to $C$ or $i$.</li>
+<li><strong>Owner-only:</strong> requires $sk$, which the sender of a note never learns.</li>
+</ul>
+<p>The circuit proves $\mathsf{nf}$ was computed correctly from the same $sk$ that controls $\mathsf{owner}$.</p>
+<h2>6. Commitment Merkle tree</h2>
+<p>All commitments are appended to a binary, incremental Poseidon Merkle tree of depth $D$ (target $D = 20$, i.e. $2^{20} \approx 1.05$ million notes per pool).</p>
+<p>$$</p>
+<p>\begin{aligned}</p>
+<p>Z_0 &amp;= H(\mathsf{DOM}_{zero}) &amp;&amp; \text{empty leaf}\\</p>
+<p>Z_{k+1} &amp;= H(Z_k,\ Z_k) &amp;&amp; \text{empty subtree of height } k+1\\</p>
+<p>\mathsf{node}_{k+1} &amp;= H(\mathsf{left}_k,\ \mathsf{right}_k)</p>
+<p>\end{aligned}</p>
+<p>$$</p>
+<p>A membership proof for leaf $C$ at index $i$ is the list of sibling hashes $(\sigma_0,\dots,\sigma_{D-1})$ and the bits of $i$, $b_k = \lfloor i / 2^k \rfloor \bmod 2$:</p>
+<p>$$</p>
+<p>h_0 = C,\qquad</p>
+<p>h_{k+1} = \begin{cases} H(h_k,\ \sigma_k) &amp; b_k = 0\\ H(\sigma_k,\ h_k) &amp; b_k = 1\end{cases},\qquad</p>
+<p>h_D \stackrel{?}{=} \mathsf{root}</p>
+<p>$$</p>
+<ul>
+<li>The incremental tree stores only $D$ &quot;filled subtree&quot; hashes on-chain, so inserts cost $O(D)$ hashes.</li>
+<li>The contract keeps a ring buffer of recent roots (target: 100). A proof is accepted if it references any root in the buffer.</li>
+<li>Off-chain clients rebuild the full tree from <code>NoteCommitted</code> events.</li>
+</ul>
+<h2>7. Note encryption</h2>
+<p>Each output note is encrypted so only its recipient (and, if the pool requires it, a designated auditor ,  see <a href="compliance.html">compliance.md</a>) can read it.</p>
+<p>$$</p>
+<p>\begin{aligned}</p>
+<p>k_{enc} &amp;= \mathsf{HKDF}\big(\mathsf{ikm}=s,\ \mathsf{salt}=\mathrm{enc}(E),\ \mathsf{info}=\texttt{&quot;shade/v1/note-enc&quot;},\ L=32\big)\\</p>
+<p>\eta &amp;\xleftarrow{\$} \{0,1\}^{96}\\</p>
+<p>\mathsf{ct} &amp;= \mathsf{AEAD.Enc}\big(k_{enc},\ \eta,\ \mathsf{pt}=(\mathsf{asset},\mathsf{value},r,\mathsf{memo}),\ \mathsf{aad}=C\big)</p>
+<p>\end{aligned}</p>
+<p>$$</p>
+<p>Published per output: $(C,\ E,\ \mathsf{vt},\ \eta,\ \mathsf{ct})$.</p>
+<ul>
+<li>The key comes from ECDH + HKDF, never from raw secrets. (The earlier scaffold used the first 32 bytes of the sender&#x27;s secret as an AES key; that is replaced.)</li>
+<li>Binding $C$ as associated data stops ciphertexts being transplanted onto other commitments.</li>
+<li>After decryption, the recipient recomputes $\mathsf{owner}$ and $C$ and <strong>discards the note unless $C$ matches</strong> ,  so a malicious sender cannot make a recipient believe in a note that does not exist on-chain.</li>
+<li>A fresh $e$ per note means a fresh $k_{enc}$, so nonce reuse across notes is not catastrophic; nonces are still random.</li>
+</ul>
+<h2>8. Zero-knowledge proofs</h2>
+<p>Shade uses <strong>Groth16</strong> over BN254 (via Circom + snarkjs). For a relation $\mathcal{R}$ with public inputs $x$ and private witness $w$, the prover outputs $\pi = (A, B, C) \in \mathbb{G}_1 \times \mathbb{G}_2 \times \mathbb{G}_1$ (~256 bytes compressed). The verifier checks one pairing equation:</p>
+<p>$$</p>
+<p>e(A, B) = e(\alpha, \beta)\cdot e\Big(\textstyle\sum_{j} x_j \cdot \mathrm{IC}_j,\ \gamma\Big)\cdot e(C, \delta)</p>
+<p>$$</p>
+<ul>
+<li><strong>Succinct:</strong> constant-size proof, constant-time verification ,  cheap on-chain.</li>
+<li><strong>Zero-knowledge:</strong> $\pi$ reveals nothing about $w$ beyond the truth of the statement.</li>
+<li><strong>Trusted setup:</strong> $(\alpha,\beta,\gamma,\delta)$ and the proving key come from a setup ceremony. Whoever knows the setup &quot;toxic waste&quot; can forge proofs. The current keys come from a <strong>single-party development setup and must be considered compromised.</strong> A public multi-party ceremony (Powers of Tau phase 1 + circuit-specific phase 2) is a hard prerequisite for mainnet. See <a href="security.html">security.md</a>.</li>
+</ul>
+<p>The statement proved is specified in <a href="circuits.html">circuits.md</a>.</p>
+<h2>9. Domain tags (target)</h2>
+<p>| Tag | Use |</p>
+<p>|---|---|</p>
+<p>| $\mathsf{DOM}_{pk}$ | spend public key |</p>
+<p>| $\mathsf{DOM}_{tag}$ | stealth tweak |</p>
+<p>| $\mathsf{DOM}_{own}$ | one-time owner |</p>
+<p>| $\mathsf{DOM}_{note}$ | note commitment |</p>
+<p>| $\mathsf{DOM}_{nf}$ | nullifier |</p>
+<p>| $\mathsf{DOM}_{zero}$ | empty Merkle leaf |</p>
+<p>| $\mathsf{DOM}_{ext}$ | external-data hash |</p>
+<p>| $\mathsf{DOM}_{cred}$ | KYC credential commitment |</p>
+<h2>10. Security notes</h2>
+<ul>
+<li>BN254 is estimated at roughly 100-128 bits of classical security. None of these primitives are post-quantum; a large quantum computer could break ECDH (privacy of past notes) and Groth16 soundness.</li>
+<li>All randomness ($sk$, $v$, $e$, $r$, $\eta$) must come from a CSPRNG. Weak randomness breaks privacy.</li>
+<li>Poseidon parameters must match exactly between circuit, SDK and contracts; mismatches cause un-spendable notes, not theft, but are still severe.</li>
+</ul>
+</main>
+</body>
+</html>

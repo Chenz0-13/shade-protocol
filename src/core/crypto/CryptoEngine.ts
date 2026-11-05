@@ -17,8 +17,8 @@ export class CryptoEngine {
     return noteCommitment(parts);
   }
 
-  nullifier(spendingKey: bigint, rho: bigint): bigint {
-    return noteNullifier(spendingKey, rho);
+  nullifier(spendingKey: bigint, commitment: bigint, leafIndex: bigint): bigint {
+    return noteNullifier(spendingKey, commitment, leafIndex);
   }
 
   buildNote(params: {

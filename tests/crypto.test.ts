@@ -5,7 +5,10 @@ import { describe, expect, it } from "vitest";
 import { noteAad, openWithSecretKey, parseSealed } from "../src/core/crypto/encryption.js";
 import { randomNonZeroField } from "../src/core/crypto/field.js";
 import { generatePrivacyKeys } from "../src/core/crypto/keys.js";
-import { commitmentOpens, noteCommitment, noteNullifier } from "../src/core/crypto/note.js";
+import { commitmentOpens, deriveOutputRho, noteCommitment, noteNullifier } from "../src/core/crypto/note.js";
+import { ASSET_BASE, DOMAIN } from "../src/core/constants.js";
+import { poseidon } from "../src/core/crypto/poseidon.js";
+import { extDataHash } from "../src/core/proof/extData.js";
 import {
   issueRegulatorCapability,
   openAsRegulator,
@@ -19,7 +22,6 @@ import {
   sharedSecret,
 } from "../src/core/crypto/stealth.js";
 import { buildOutgoingNote, readNote } from "../src/core/notes/outgoing.js";
-import { ASSET_BASE } from "../src/core/constants.js";
 import { DecryptionError } from "../src/core/errors.js";
 
 describe("commitments and nullifiers", () => {
@@ -32,6 +34,7 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     });
     const second = noteCommitment({
       value: 50n,
@@ -39,6 +42,7 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     });
     expect(first).not.toBe(second);
     expect(first).not.toBe(50n);
@@ -48,18 +52,46 @@ describe("commitments and nullifiers", () => {
       rho,
       ownerPub: owner,
       assetId: ASSET_BASE,
+      chainHome: 0n,
     };
     const commitment = noteCommitment(opening);
     expect(commitmentOpens(commitment, opening)).toBe(true);
     expect(commitmentOpens(commitment, { ...opening, value: 51n })).toBe(false);
   });
 
-  it("derives a nullifier unique to the note", () => {
+  it("does not let a duplicated rho freeze a second note", () => {
     const key = randomNonZeroField();
     const rho = randomNonZeroField();
-    expect(noteNullifier(key, rho)).toBe(noteNullifier(key, rho));
-    expect(noteNullifier(key, rho)).not.toBe(noteNullifier(key, randomNonZeroField()));
-    expect(noteNullifier(key, rho)).not.toBe(noteNullifier(randomNonZeroField(), rho));
+    const owner = randomNonZeroField();
+    const first = noteCommitment({ value: 5n, blinding: 11n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 46630n });
+    const second = noteCommitment({ value: 5n, blinding: 19n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 46630n });
+    expect(first).not.toBe(noteCommitment({ value: 5n, blinding: 11n, rho, ownerPub: owner, assetId: ASSET_BASE, chainHome: 99801n }));
+    const spent = noteNullifier(key, first, 0n);
+    const other = noteNullifier(key, second, 1n);
+    expect(spent).toBe(noteNullifier(key, first, 0n));
+    expect(spent).not.toBe(other);
+    expect(noteNullifier(key, first, 0n)).not.toBe(noteNullifier(key, first, 1n));
+    const old = poseidon([DOMAIN.nullifier, key, rho]);
+    expect(old).toBe(poseidon([DOMAIN.nullifier, key, rho]));
+    expect(spent).not.toBe(old);
+    expect(deriveOutputRho(spent, 1n)).not.toBe(deriveOutputRho(spent, 2n));
+    expect(deriveOutputRho(spent, 1n)).toBe(deriveOutputRho(spent, 1n));
+  });
+
+  it("separates the withdraw amount, the relayer fee, and the pool address", () => {
+    const limbs = {
+      recipientLo: 1n,
+      recipientHi: 0n,
+      relayerLo: 2n,
+      relayerHi: 0n,
+      poolLo: 3n,
+      poolHi: 0n,
+      chainDomain: 46630n,
+    };
+    const bound = extDataHash(limbs, 600n, 400n);
+    expect(bound).not.toBe(extDataHash(limbs, 400n, 600n));
+    expect(bound).not.toBe(extDataHash({ ...limbs, poolLo: 9n }, 600n, 400n));
+    expect(bound).not.toBe(extDataHash({ ...limbs, chainDomain: 99801n }, 600n, 400n));
   });
 });
 

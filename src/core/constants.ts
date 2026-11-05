@@ -3,10 +3,10 @@
  * `circuits/shielded_transfer.circom`. The circuit hardcodes TREE_DEPTH,
  * VALUE_BITS, and the domain tags below; tests fail if they drift.
  *
- * Depth 8 (256 leaves) is a devnet parameter so CI can compile the circuit
- * and run a single-party development setup. It is not a production tree size.
+ * Depth 20 (about 1 million leaves) is still a devnet parameter. The circuit
+ * keys come from a single-party development setup. It is not a production tree.
  */
-export const TREE_DEPTH = 8;
+export const TREE_DEPTH = 20;
 export const VALUE_BITS = 64;
 
 /** BN128 scalar field, the Poseidon / Groth16 field. */
@@ -24,7 +24,29 @@ export const DOMAIN = {
   nullifier: 2n,
   owner: 3n,
   credential: 4n,
+  /** Mixed into the extDataHash binder with the pool address and chain id. */
+  ext: 5n,
+  /** Output rho is Poseidon(rho, input nullifier, output index). */
+  rho: 6n,
+  /** Poseidon(asset, assetId), then mixed with the chain tag. */
+  asset: 7n,
   order: 8n,
+  /** Poseidon(chain, chainHome). */
+  chain: 9n,
+  /** Poseidon(allowance, cap, expiry), mixed into an allowance-note commitment. */
+  allowance: 10n,
+} as const;
+
+/** Public signals of shielded_transfer.circom, in circom order. */
+export const PUBLIC_INPUTS = {
+  merkleRoot: 0,
+  nullifier: 1,
+  commitmentOut1: 2,
+  commitmentOut2: 3,
+  withdrawAmount: 4,
+  relayerFee: 5,
+  extDataHash: 6,
+  count: 7,
 } as const;
 
 export const ASSET_BASE = 1n;

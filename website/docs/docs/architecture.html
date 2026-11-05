@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Architecture · Shader Protocol</title>
+<meta name="description" content="Shader Protocol architecture: Groth16 pool, Poseidon notes, extDataHash, and testnet adapters that are not deployed.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Architecture</h1>
+  <p>Shader Protocol is a Groth16 shielded pool with a TypeScript client and thin chain adapters. The pieces below are in the repository. They are not deployed.</p>
+  <h2>Transfer shape</h2>
+  <ul>
+    <li>One input note, two output notes, and a fee: <code>value in = value out 1 + value out 2 + fee</code>.</li>
+    <li>Commitments are Poseidon hashes of the note opening.</li>
+    <li>The nullifier is bound to the commitment and the leaf index.</li>
+    <li><code>extDataHash</code> binds the recipient, the relayer, the fee, the chain, and the pool.</li>
+    <li>Public inputs are canonical field elements, in a fixed order.</li>
+    <li>Each pool keeps a root history. A proof must cite a root that history still holds.</li>
+  </ul>
+  <h2>Keys</h2>
+  <p>Stealth addresses and regulator keys are secp256k1. The view key recognizes and decrypts. It does not derive the spending key used inside the circuit. The client class is still named <code>ShadeClient</code> until the code is renamed. The repository URL is still <a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a>.</p>
+  <h2>Chains</h2>
+  <table>
+    <thead><tr><th>Chain</th><th>Role</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Solana devnet</td><td>Pool program: frontier, nullifiers, root history, extDataHash</td><td>In development, not deployed</td></tr>
+      <tr><td>Robinhood Chain testnet (46630)</td><td>EVM pool, same proof shape</td><td>In development, not deployed</td></tr>
+      <tr><td>Kinetiq Elysium testnet (99801)</td><td>EVM pool, same bytecode shape</td><td>In development, not deployed</td></tr>
+      <tr><td>NEAR testnet</td><td>Contract with the same proof shape</td><td>In development, not deployed</td></tr>
+      <tr><td>Canton</td><td>2-of-N attestation</td><td>Not a verifier. Not deployed</td></tr>
+    </tbody>
+  </table>
+  <h2>Canton trust assumption</h2>
+  <p>Canton does not check a Groth16 proof. A record is accepted only when two named attestors authorize it. Those attestors are expected to report a spend that a pool already accepted. If two attestors sign a result that never happened, Canton stores it. That is an attestation, not a proof check. The TypeScript adapter does not submit.</p>
+  <h2>Not in this build</h2>
+  <p>HyperEVM testnet, Base Sepolia, a v2 universal note format, private cross-chain teleport (two transports must agree, with per-epoch caps), disclosure receipts, agent allowance notes, private payroll, a multi-party ceremony, and a CI security toolchain are in development. They are not shipped.</p>
+  <p>See also <a href="cryptography.html">cryptography</a>, <a href="circuits.html">circuits</a>, and <a href="security.html">security</a>.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>

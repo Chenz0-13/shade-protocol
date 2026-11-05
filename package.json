@@ -1,6 +1,7 @@
 {
   "name": "shade-protocol",
   "version": "0.1.0",
+  "description": "Shader Protocol devnet SDK for shielded notes. The npm package name is still shade-protocol.",
   "private": true,
   "type": "module",
   "engines": {
@@ -11,7 +12,10 @@
     "test": "vitest run",
     "lint": "eslint .",
     "circuit:setup": "node scripts/setup-circuit.mjs",
-    "audit": "npm audit --audit-level=high"
+    "audit": "npm audit --audit-level=high",
+    "security:circomspect": "node scripts/security/circomspect.mjs",
+    "security:constraints": "node scripts/security/constraints.mjs",
+    "security:prover": "node scripts/malicious-prover.mjs"
   },
   "dependencies": {
     "@noble/curves": "^2.4.0",
@@ -27,6 +31,7 @@
     "@eslint/js": "^10.0.1",
     "@types/node": "^22.19.0",
     "eslint": "^10.13.0",
+    "fast-check": "^4.5.3",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.72.1",
     "vitest": "^5.0.5"

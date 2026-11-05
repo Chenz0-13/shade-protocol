@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { ConfigError } from "../src/core/errors.js";
 import {
   ROBINHOOD_MAINNET_CHAIN_ID,
   ROBINHOOD_TESTNET_CHAIN_ID,
@@ -12,15 +11,16 @@ import type { ChainSubmission } from "../src/core/chain/solana.js";
 describe("Robinhood Chain adapter", () => {
   it("rejects mainnet and swaps snarkjs Fq2 limbs for the Solidity verifier", async () => {
     expect(() =>
-      assertRobinhoodTarget("https://rpc.mainnet.chain.robinhood.com", ROBINHOOD_MAINNET_CHAIN_ID),
-    ).toThrow(ConfigError);
-    expect(() => assertRobinhoodTarget("https://rpc.testnet.chain.robinhood.com", ROBINHOOD_TESTNET_CHAIN_ID)).not.toThrow();
+      assertRobinhoodTarget("https://rpc.testnet.chain.robinhood.com", ROBINHOOD_MAINNET_CHAIN_ID),
+    ).toThrow(/4663/);
+    expect(() => assertRobinhoodTarget("https://rpc.mainnet.chain.robinhood.com", ROBINHOOD_TESTNET_CHAIN_ID)).not.toThrow();
     const payload: ChainSubmission = {
       merkleRoot: "1",
       nullifier: "2",
       commitmentOut1: "3",
       commitmentOut2: "4",
-      fee: "5",
+      withdrawAmount: "5",
+      relayerFee: "8",
       extDataHash: "6",
       proof: {
         pi_a: ["9", "8", "1"],
@@ -37,6 +37,8 @@ describe("Robinhood Chain adapter", () => {
     const encoded = solidityProof(payload);
     expect(encoded.pB[0]).toEqual([10n, 11n]);
     expect(encoded.pubSignals[4]).toBe(5n);
+    expect(encoded.pubSignals[5]).toBe(8n);
+    expect(encoded.pubSignals).toHaveLength(7);
     await expect(
       new RobinhoodTestnetAdapter({
         rpcUrl: "https://rpc.testnet.chain.robinhood.com",

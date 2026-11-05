@@ -26,9 +26,13 @@ export function buildOutgoingNote(params: {
   memo?: string;
   /** Set when the sender knows the spending key (a note they themselves can spend). */
   spendingKey?: bigint;
+  /** Required to derive the nullifier. Unknown until the note is inserted. */
+  leafIndex?: bigint;
+  rho?: bigint;
+  chainHome?: bigint;
 }): OutgoingNote {
   const blinding = randomNonZeroField();
-  const rho = randomNonZeroField();
+  const rho = params.rho ?? randomNonZeroField();
   const plaintext: NotePlaintext = {
     value: params.value,
     blinding,
@@ -36,12 +40,14 @@ export function buildOutgoingNote(params: {
     assetId: params.assetId,
     memo: params.memo ?? "",
   };
+  const chainHome = params.chainHome ?? 0n;
   const commitment = noteCommitment({
     value: params.value,
     blinding,
     rho,
     ownerPub: params.recipient.ownerPub,
     assetId: params.assetId,
+    chainHome,
   });
   const stealth = deriveStealthAddress(params.recipient.spendPublicKey, params.recipient.viewPublicKey);
   const encryptedValue = serializeSealed(
@@ -52,7 +58,10 @@ export function buildOutgoingNote(params: {
   );
   return {
     commitment,
-    nullifier: params.spendingKey === undefined ? null : noteNullifier(params.spendingKey, rho),
+    nullifier:
+      params.spendingKey === undefined || params.leafIndex === undefined
+        ? null
+        : noteNullifier(params.spendingKey, commitment, params.leafIndex),
     encryptedValue,
     stealthAddress: Buffer.from(stealth.stealthPublicKey).toString("hex"),
     ephemeralPublicKey: stealth.ephemeralPublicKey,

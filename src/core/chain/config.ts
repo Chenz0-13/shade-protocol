@@ -1,14 +1,22 @@
 import bs58 from "bs58";
 import { ConfigError } from "../errors.js";
 import { SOLANA_DEVNET_RPC } from "../constants.js";
-import { NEAR_TESTNET_RPC, assertNearRpc } from "./near.js";
+import { NEAR_TESTNET_RPC, assertNearChainId, assertNearRpc } from "./near.js";
 import { SHADE_LOCAL_PROGRAM_ID } from "./solana.js";
 import { ROBINHOOD_TESTNET_CHAIN_ID, ROBINHOOD_TESTNET_RPC, assertRobinhoodTarget } from "./robinhood.js";
 import { ELYSIUM_TESTNET_CHAIN_ID, ELYSIUM_TESTNET_RPC, assertElysiumTarget } from "./elysium.js";
+import {
+  BASE_SEPOLIA_CHAIN_ID,
+  BASE_SEPOLIA_RPC,
+  HYPEREVM_TESTNET_CHAIN_ID,
+  HYPEREVM_TESTNET_RPC,
+  assertBaseSepoliaTarget,
+  assertHyperEvmTarget,
+} from "./extraEvm.js";
 
-export type SupportedChain = "solana" | "near" | "canton" | "robinhood" | "elysium";
+export type SupportedChain = "solana" | "near" | "canton" | "robinhood" | "elysium" | "hyperevm" | "base";
 
-const CHAINS: readonly SupportedChain[] = ["solana", "near", "canton", "robinhood", "elysium"];
+const CHAINS: readonly SupportedChain[] = ["solana", "near", "canton", "robinhood", "elysium", "hyperevm", "base"];
 
 export interface ShadeConfig {
   chains: SupportedChain[];
@@ -25,6 +33,12 @@ export interface ShadeConfig {
   elysiumRpc: string;
   elysiumChainId: number;
   elysiumPool?: string;
+  hyperevmRpc: string;
+  hyperevmChainId: number;
+  hyperevmPool?: string;
+  baseRpc: string;
+  baseChainId: number;
+  basePool?: string;
 }
 
 export interface ResolvedConfig {
@@ -33,9 +47,9 @@ export interface ResolvedConfig {
   nearSecretKey?: Uint8Array;
   robinhoodPrivateKey?: `0x${string}`;
   elysiumPrivateKey?: `0x${string}`;
+  hyperevmPrivateKey?: `0x${string}`;
+  basePrivateKey?: `0x${string}`;
 }
-
-const MAINNET = /(^|[./:_-])mainnet(-beta)?([./:_-]|$)/i;
 
 export function resolveConfig(
   overrides: Partial<ShadeConfig> = {},
@@ -57,6 +71,12 @@ export function resolveConfig(
     elysiumRpc: overrides.elysiumRpc ?? env.ELYSIUM_RPC_URL ?? ELYSIUM_TESTNET_RPC,
     elysiumChainId: overrides.elysiumChainId ?? numberEnv(env.ELYSIUM_CHAIN_ID, ELYSIUM_TESTNET_CHAIN_ID, "ELYSIUM_CHAIN_ID"),
     elysiumPool: overrides.elysiumPool ?? env.ELYSIUM_POOL,
+    hyperevmRpc: overrides.hyperevmRpc ?? env.HYPEREVM_RPC_URL ?? HYPEREVM_TESTNET_RPC,
+    hyperevmChainId: overrides.hyperevmChainId ?? numberEnv(env.HYPEREVM_CHAIN_ID, HYPEREVM_TESTNET_CHAIN_ID, "HYPEREVM_CHAIN_ID"),
+    hyperevmPool: overrides.hyperevmPool ?? env.HYPEREVM_POOL,
+    baseRpc: overrides.baseRpc ?? env.BASE_RPC_URL ?? BASE_SEPOLIA_RPC,
+    baseChainId: overrides.baseChainId ?? numberEnv(env.BASE_CHAIN_ID, BASE_SEPOLIA_CHAIN_ID, "BASE_CHAIN_ID"),
+    basePool: overrides.basePool ?? env.BASE_POOL,
   };
   validateConfig(config);
   const secret = solanaSecretKey ?? parseOptionalSolanaSecret(env.SOLANA_KEYPAIR);
@@ -66,6 +86,8 @@ export function resolveConfig(
     nearSecretKey: parseOptionalNearSecret(env.NEAR_PRIVATE_KEY),
     robinhoodPrivateKey: parseRobinhoodKey(env.ROBINHOOD_PRIVATE_KEY, "ROBINHOOD_PRIVATE_KEY"),
     elysiumPrivateKey: parseRobinhoodKey(env.ELYSIUM_PRIVATE_KEY, "ELYSIUM_PRIVATE_KEY"),
+    hyperevmPrivateKey: parseRobinhoodKey(env.HYPEREVM_PRIVATE_KEY, "HYPEREVM_PRIVATE_KEY"),
+    basePrivateKey: parseRobinhoodKey(env.BASE_PRIVATE_KEY, "BASE_PRIVATE_KEY"),
   };
 }
 
@@ -78,7 +100,11 @@ export function validateConfig(config: ShadeConfig): void {
   assertNearRpc(config.nearRpc);
   assertRobinhoodTarget(config.robinhoodRpc, config.robinhoodChainId);
   assertElysiumTarget(config.elysiumRpc, config.elysiumChainId);
-  if (!["testnet", "localnet", "sandbox"].includes(config.nearNetwork)) {
+  assertHyperEvmTarget(config.hyperevmRpc, config.hyperevmChainId);
+  assertBaseSepoliaTarget(config.baseRpc, config.baseChainId);
+  try {
+    assertNearChainId(config.nearNetwork);
+  } catch {
     throw new ConfigError(
       `NEAR network must be testnet, localnet, or sandbox. Refusing "${config.nearNetwork}".`,
     );
@@ -93,22 +119,8 @@ export function assertSolanaRpc(url: string): void {
   } catch {
     throw new ConfigError("Solana RPC URL is invalid");
   }
-  if (MAINNET.test(url) || MAINNET.test(parsed.hostname) || MAINNET.test(parsed.pathname)) {
-    throw new ConfigError(
-      `Refusing Solana mainnet RPC ${parsed.origin}. Configure a devnet, testnet, or localhost endpoint.`,
-    );
-  }
-  const host = parsed.hostname;
-  const allowed =
-    host === "localhost" ||
-    host === "127.0.0.1" ||
-    host === "::1" ||
-    url.toLowerCase().includes("devnet") ||
-    url.toLowerCase().includes("testnet");
-  if (!allowed) {
-    throw new ConfigError(
-      "Solana RPC must be an explicit devnet, testnet, or localhost endpoint.",
-    );
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new ConfigError("Solana RPC URL must be http or https");
   }
 }
 
@@ -119,7 +131,6 @@ function assertLoopback(value: string): void {
   } catch {
     throw new ConfigError("Canton host is invalid");
   }
-  if (MAINNET.test(value)) throw new ConfigError("Refusing a mainnet Canton host");
   if (parsed.hostname !== "localhost" && parsed.hostname !== "127.0.0.1" && parsed.hostname !== "::1") {
     throw new ConfigError("Canton host must be loopback. Network submission is not implemented.");
   }

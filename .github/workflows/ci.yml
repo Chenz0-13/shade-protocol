@@ -4,18 +4,22 @@ on:
   push:
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
-      - name: Install circom
+      - name: Install circom 2.2.3
         run: |
           curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
+          echo "85342c7ff332d948df7c0c50ecf201e6129349aef550ce873f3c811b79fe53a3  /tmp/circom" | sha256sum -c
           sudo install -m 755 /tmp/circom /usr/local/bin/circom
           circom --version
       - name: Install dependencies
@@ -24,25 +28,32 @@ jobs:
         run: npm run build
       - name: Lint
         run: npm run lint
-      - uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
         with:
+          toolchain: 1.99.1
           targets: wasm32-unknown-unknown
-      - name: Install Foundry
+      - name: Install Foundry 1.9.0
         run: |
-          export FOUNDRY_DIR="$HOME/.foundry"
-          curl -L https://foundry.paradigm.xyz | bash
-          "$FOUNDRY_DIR/bin/foundryup"
-          echo "$FOUNDRY_DIR/bin" >> "$GITHUB_PATH"
+          curl -fsSL -L https://github.com/foundry-rs/foundry/releases/download/v1.9.0/foundry_v1.9.0_linux_amd64.tar.gz -o /tmp/foundry.tar.gz
+          echo "8d17599b42e3139f1a9c171be3798c4ed8e743ae17b84cc3435e57bf2a51ae99  /tmp/foundry.tar.gz" | sha256sum -c
+          mkdir -p "$HOME/.foundry/bin"
+          tar -xzf /tmp/foundry.tar.gz -C "$HOME/.foundry/bin"
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+          "$HOME/.foundry/bin/forge" --version
       - name: Compile circuit and run the devnet setup
         run: npm run circuit:setup
+      - name: Check the dev verifier matches the verification key
+        run: node scripts/ceremony/check-vkey.mjs
       - name: Forge tests
         run: |
           cd contracts/evm
           forge install foundry-rs/forge-std --no-git
           forge test
-      - name: Install Solana
+      - name: Install Agave 4.4.0
         run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/stable/install)"
+          curl -fsSL -o /tmp/anza-install.sh https://release.anza.xyz/v4.4.0/install
+          echo "0569f5dbd72c9439fe654c7309dc9e50e048379dead79e8c7bc47eafdac4adb7  /tmp/anza-install.sh" | sha256sum -c
+          sh /tmp/anza-install.sh v4.4.0
           echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
       - name: Rust contract tests
         run: |
@@ -56,9 +67,10 @@ jobs:
           cargo test --features insecure-test-setup
       - name: Canton attestation tests
         run: |
-          # The packages pin sdk-version 3.6.4. The installer defaults to latest,
-          # which does not satisfy that pin.
-          curl -fsSL https://get.digitalasset.com/install/install.sh | sh -s 3.6.4
+          # The packages pin sdk-version 3.6.4. The installer script is checksummed.
+          curl -fsSL https://get.digitalasset.com/install/install.sh -o /tmp/dpm-install.sh
+          echo "e5f20449dffefcf3b90f9b4941ce42d37832b300c6a6142b9a92b1cd5db9b139  /tmp/dpm-install.sh" | sha256sum -c
+          sh /tmp/dpm-install.sh 3.6.4
           echo "$HOME/.dpm/bin" >> "$GITHUB_PATH"
           export PATH="$HOME/.dpm/bin:$PATH"
           cd contracts/canton

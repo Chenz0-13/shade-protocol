@@ -19,6 +19,7 @@ function draft(keys: PrivacyKeys, side: "buy" | "sell", amount: bigint, priceMin
     blinding: randomNonZeroField(),
     rho: randomNonZeroField(),
     assetId: side === "sell" ? ASSET_BASE : ASSET_QUOTE,
+    chainHome: 0n,
     spendingKey: keys.spendingKey,
     ownerPub: keys.ownerPub,
     viewPublicKey: keys.viewPublicKey,

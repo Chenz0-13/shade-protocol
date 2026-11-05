@@ -1,4 +1,6 @@
-# Shade Protocol
+# Shader Protocol
+
+The product name is Shader Protocol. Repository paths, the npm package `shade-protocol`, contract names such as `ShadePool`, and the `ShadeClient` SDK class are unchanged.
 
 TypeScript SDK and Circom circuit for a devnet shielded-note pool: Poseidon
 commitments, nullifiers, ECDH stealth addresses, Groth16 transfers, an
@@ -83,17 +85,17 @@ Groth16 KYC proof.
 
 ## Chains
 
-Every adapter defaults to a devnet or testnet and rejects mainnet. Nothing
+Every adapter defaults to a devnet or testnet. Mainnet is refused by chain id or genesis hash, not by the URL string. Nothing
 here has been broadcast to a live network: this environment has no funded
 deploy key. The deploy scripts refuse mainnet and read keys from the
 environment.
 
 | Chain | What is implemented | How it was tested | Live deploy |
 | --- | --- | --- | --- |
-| Robinhood Chain testnet (chain id 46630, Arbitrum Orbit) | `contracts/evm` ShadePool: Poseidon frontier, nullifier map, Groth16, and an `extDataHash` public input binding recipient, relayer, fee, and `block.chainid`. TS adapter in `src/core/chain/robinhood.ts`. | `forge test` deposits, withdraws, rejects a second spend, and rejects the same proof paid to a different recipient. | Not deployed. `node scripts/deploy-robinhood.mjs` reads `ROBINHOOD_PRIVATE_KEY` from the environment and does not put it on the forge argv. |
+| Robinhood Chain testnet (chain id 46630, Arbitrum Orbit) | `contracts/evm` ShadePool: depth-20 Poseidon frontier, nullifier map, Groth16, and an `extDataHash` that binds recipient, relayer, withdraw amount, relayer fee, pool address, and `block.chainid`. TS adapter in `src/core/chain/robinhood.ts`. | `forge test` deposits, pays the recipient and relayer separately, rejects a second spend, rejects the same proof on another pool, and rejects the same proof paid to a different recipient. | Not deployed. `node scripts/deploy-robinhood.mjs` reads `ROBINHOOD_PRIVATE_KEY` from the environment and refuses any chain id other than 46630 or anvil. |
 | Kinetiq Elysium testnet (chain id 99801, Arbitrum Orbit settling to HyperEVM testnet) | The same ShadePool bytecode. Gas token is HYPE (18 decimals). The viem chain is `defineChain` in `src/core/chain/elysium.ts`. viem's `elysiumTestnet` export is chain id 1338 and is not used. | The EVM pool tests cover the bytecode. The adapter test checks chain id 99801. | Not deployed. `node scripts/deploy-elysium.mjs` accepts only chain id 99801 and reads `ELYSIUM_PRIVATE_KEY` from the environment. Mainnet is pre-launch and is not configured. RPC `https://testnet-rpc.elysium.kinetiq.xyz`, explorer `https://elysium.kinetiq.xyz/testnet-explorer`, faucet `https://elysium.kinetiq.xyz/testnet-faucet`, Blockscout verify API `https://elysium.kinetiq.xyz/api`. |
-| NEAR testnet | `contracts/near` (near-sdk 5.11): frontier tree, canonical nullifier and root keys, Groth16, and the same `extDataHash`. The verification key is set in `#[init]` and a later set fails. | `cargo test` rejects `n+r`, `+n`, and `-(r-n)` for nullifiers and roots, rejects a second key write and a non-owner write, and rejects a real proof paid to a different account. | Not deployed. There is no funded testnet account in this environment. |
-| Solana devnet | `programs/shade-solana` is a pool: Poseidon frontier and root history, nullifier PDAs, a SOL vault, and an `extDataHash` check over the recipient and fee payer. | LiteSVM: deposit, real proof, withdraw, reused nullifier, unknown root, and the same proof with a different recipient. | Not deployed. `scripts/deploy-solana.sh` needs `SOLANA_KEYPAIR` with devnet SOL and refuses mainnet. |
+| NEAR testnet | `contracts/near` (near-sdk 5.11): depth-20 frontier, canonical nullifier and root keys, Groth16, the same `extDataHash`, and a payout callback. A failed transfer records a refundable claim and leaves the nullifier spent. The verification key is set in `#[init]` and a later set fails. Minimum deposit is set at init. | `cargo test` rejects `n+r`, `+n`, and `-(r-n)` for nullifiers and roots, rejects a second key write and a non-owner write, rejects a real proof paid to a different account, and records a claim when the payout promise fails. | Not deployed. There is no funded testnet account in this environment. `scripts/deploy-near.sh` reads the RPC `status.chain_id` and refuses `mainnet`. |
+| Solana devnet | `programs/shade-solana` is a pool: depth-20 Poseidon frontier and root history, nullifier PDAs created with allocate, assign, and transfer, a SOL vault, and an `extDataHash` check over the recipient, fee payer, and pool. | LiteSVM: deposit, real proof, withdraw that pays the recipient and the relayer separately, prefunded nullifier PDA, reused nullifier, unknown root, minimum deposit, and the same proof with a different recipient. | Not deployed. `scripts/deploy-solana.sh` needs `SOLANA_KEYPAIR` with devnet SOL and refuses the mainnet genesis hash. |
 | Canton | Not a verifier. `contracts/canton` records a result only when two named attestors authorize it, with a contract key on `(sourceChain, nullifier)`. There is no proof field. The trust assumption is the attestors, who are expected to report a Groth16 result already accepted by the Robinhood pool. The TS adapter still throws. | `dpm test` in `contracts/canton` (Daml SDK 3.6.4). See `docs/canton-attestation.md`. | No. DevNet needs a Super Validator sponsor and an IP allowlist. This environment has no participant. |
 
 `ROBINHOOD_API_KEY` is gone. Robinhood configuration is `ROBINHOOD_RPC_URL` (default `https://rpc.testnet.chain.robinhood.com`) and `ROBINHOOD_CHAIN_ID` (default `46630`). Chain id `4663` is mainnet and is rejected.
@@ -132,7 +134,7 @@ and does not print raw key bytes. Do not put secrets in the log message string.
 
 - The development setup is not a trusted ceremony. Forged proofs are possible
   for anyone who sees the intermediate parameters.
-- Tree depth 8 is a devnet limit.
+- Tree depth 20 is still a devnet parameter. The keys are a single-party setup.
 - No external cryptographic audit has been done.
 - The EVM verifier, NEAR wasm, and Solana SBF program have not been broadcast.
   The Solana verifying key is the insecure test setup. The generated key file

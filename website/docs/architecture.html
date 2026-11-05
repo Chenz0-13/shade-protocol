@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Architecture · Shader Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shader Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Architecture</h1>
+<p>&gt; <strong>Status:</strong> devnet/testnet only · unaudited · development trusted setup · API and parameters subject to change. This page describes the <strong>target architecture</strong> that the codebase is being rewritten towards. Where this page and the code disagree, the code in <a href="https://github.com/Chenz0-13/shade-protocol">the repository</a> is authoritative ,  please open an issue.</p>
+<h2>1. Design goals</h2>
+<ul>
+<li>1. <strong>Funds safety comes from proofs, not operators.</strong> Any state change to the shielded pool must carry a valid zero-knowledge proof that the on-chain verifier accepts.</li>
+<li>2. <strong>Privacy by default, disclosure by choice.</strong> Amounts, owners and order details are hidden unless a user (or an explicitly configured pool policy) discloses them.</li>
+<li>3. <strong>Chain-agnostic core, thin adapters.</strong> Protocol logic is written once; adapters only translate it to chain-native verification, storage and custody.</li>
+<li>4. <strong>Policy separated from execution.</strong> Compliance tooling sits at the boundary (deposit, withdraw, order admission) and never inside the core state-transition rules.</li>
+<li>5. <strong>Backend-agnostic proofs.</strong> Groth16 is the first proving system; interfaces are designed so another backend (e.g. PLONK or Halo2) can be swapped in later.</li>
+</ul>
+<h2>2. Components</h2>
+<pre><code>
+flowchart TB
+  subgraph Client[&quot;Client (user device)&quot;]
+    SDK[ShadeClient SDK]
+    KS[Key manager&lt;br/&gt;spend key / view key]
+    PR[Prover&lt;br/&gt;circuit WASM + zkey]
+    SC[Note scanner&lt;br/&gt;trial decryption]
+  end
+  subgraph Core[&quot;Protocol core&quot;]
+    NT[Note + commitment logic]
+    MT[Poseidon incremental Merkle tree]
+    NF[Nullifier registry]
+    DP[Dark-pool matcher + settlement builder]
+    CL[Compliance layer&lt;br/&gt;KYC verifier · view keys · screening hook]
+  end
+  subgraph Adapters[&quot;Chain adapters&quot;]
+    SOL[Solana program ,  devnet]
+    NEAR[NEAR contract ,  testnet, in progress]
+    CAN[Canton / Daml ,  in progress]
+    RH[Robinhood ,  in progress]
+  end
+  SDK --&gt; KS
+  SDK --&gt; PR
+  SDK --&gt; SC
+  SDK --&gt; NT
+  SDK --&gt; DP
+  SDK --&gt; CL
+  NT --&gt; MT
+  NT --&gt; NF
+  DP --&gt; NT
+  MT --&gt; SOL
+  NF --&gt; SOL
+  MT --&gt; NEAR
+  MT --&gt; CAN
+  MT --&gt; RH
+</code></pre>
+<p>| Component | Responsibility | Trust |</p>
+<p>|---|---|---|</p>
+<p>| **ShadeClient SDK** | Key management, note scanning, proof generation, transaction building | Runs on the user&#x27;s device; holds secrets |</p>
+<p>| **Prover** | Generates Groth16 proofs from the Circom circuit (`.wasm` witness generator + `.zkey`) | Local; never sends private inputs anywhere |</p>
+<p>| **Note scanner** | Watches new commitments/ciphertexts and trial-decrypts with the view key | Local |</p>
+<p>| **Merkle tree** | Append-only Poseidon tree of note commitments; root history | Mirrored on-chain (roots) and off-chain (full tree, rebuildable from events) |</p>
+<p>| **Nullifier registry** | Set of spent nullifiers; rejects duplicates | On-chain, authoritative |</p>
+<p>| **Dark-pool matcher** | Decrypts admitted orders, matches crossing orders in batches, builds settlement witnesses | Trusted for order confidentiality, liveness and fairness ,  **not** for funds |</p>
+<p>| **Compliance layer** | Verifies KYC proofs, manages viewing-key disclosure and optional auditor ciphertexts, calls screening hooks | Policy is per pool and public |</p>
+<p>| **Chain adapter** | Verifies proofs, stores roots and nullifiers, custodies pooled tokens, emits events | Inherits the host chain&#x27;s security |</p>
+<p>| **Relayer** *(optional)* | Submits a user&#x27;s transaction so the user&#x27;s public wallet does not pay gas | Can censor, cannot steal (fee and recipient are bound into the proof) |</p>
+<h2>3. State</h2>
+<p>On-chain, per pool and per asset:</p>
+<ul>
+<li><code>roots[]</code> ,  a ring buffer of the most recent Merkle roots (target: 100). Proofs may reference any root in the buffer, so a proof built a few blocks ago still verifies after new deposits.</li>
+<li><code>nullifiers</code> ,  a set of spent nullifiers.</li>
+<li><code>nextLeafIndex</code> ,  position for the next commitment.</li>
+<li><code>vault</code> ,  the pooled tokens backing all notes.</li>
+<li>Events: <code>NoteCommitted(leafIndex, commitment, ciphertext, ephemeralPubKey, viewTag)</code>, <code>NullifierSpent(nullifier)</code>.</li>
+</ul>
+<p>Off-chain, per user: spending key, viewing key, the list of owned notes (value, blinding, leaf index), and a local copy of the tree (or a trusted indexer&#x27;s).</p>
+<h2>4. Transaction lifecycle</h2>
+<h3>Deposit (shield)</h3>
+<ul>
+<li>1. Client creates a note for its own shielded address and computes its commitment.</li>
+<li>2. Optional: compliance layer checks the depositing public address (screening hook) and/or a KYC proof, as required by the pool policy.</li>
+<li>3. Client generates a proof with <code>publicAmount = +v</code> and no real inputs.</li>
+<li>4. Adapter verifies the proof, pulls <code>v</code> tokens from the depositor into the vault, appends the commitment and emits the ciphertext.</li>
+</ul>
+<h3>Transfer (shielded → shielded)</h3>
+<ul>
+<li>1. Client selects up to two input notes, fetches Merkle paths against a recent root.</li>
+<li>2. Builds up to two output notes (recipient + change), each encrypted to its owner via a stealth address.</li>
+<li>3. Generates a proof that inputs exist and are owned, nullifiers are correct, outputs are well-formed and <code>Σin = Σout + fee</code>.</li>
+<li>4. Adapter verifies the proof, checks the root is known and nullifiers are unused, records nullifiers, appends output commitments.</li>
+</ul>
+<h3>Withdraw (unshield)</h3>
+<p>As a transfer, with <code>publicAmount = −v</code> and a public recipient address bound into the proof via <code>extDataHash</code>. Screening hook may apply to the recipient.</p>
+<h3>Dark-pool trade</h3>
+<p>See <a href="dark-pool.html">dark-pool.md</a>.</p>
+<pre><code>
+sequenceDiagram
+  participant U as User (SDK)
+  participant R as Relayer (optional)
+  participant A as Chain adapter
+  participant I as Indexer / scanner
+  U-&gt;&gt;U: select notes, build outputs, encrypt
+  U-&gt;&gt;U: generate Groth16 proof (local)
+  U-&gt;&gt;R: tx = proof + public inputs + ciphertexts
+  R-&gt;&gt;A: submit
+  A-&gt;&gt;A: verify proof, check root &amp; nullifiers
+  A-&gt;&gt;A: store nullifiers, append commitments
+  A--&gt;&gt;I: events (commitments, ciphertexts)
+  I--&gt;&gt;U: recipient trial-decrypts and finds note
+</code></pre>
+<h2>5. Repository layout (target)</h2>
+<pre><code>
+shade-protocol/
+├── circuits/          # Circom sources, build scripts, dev trusted-setup scripts
+├── src/core/          # crypto, Merkle tree, notes, nullifiers, dark pool, compliance
+├── src/sdk/           # ShadeClient
+├── chains/solana/     # Solana program + client adapter (devnet)
+├── chains/near/       # NEAR contract (in progress)
+├── chains/canton/     # Daml templates (in progress)
+├── chains/robinhood/  # adapter (in progress)
+├── tests/             # unit, circuit and integration tests
+└── .github/workflows/ # CI
+</code></pre>
+<h2>6. Chain adapter notes</h2>
+<ul>
+<li><strong>Solana (devnet)</strong> ,  first target; Groth16 verification via the alt_bn128 syscalls.</li>
+<li><strong>NEAR (testnet)</strong> ,  in progress; verification via alt_bn128 host functions.</li>
+<li><strong>Canton</strong> ,  in progress / research; Daml templates for settlement workflows. Proof verification is likely to sit with a participant node rather than on-ledger.</li>
+</ul>
+<p>Shader Protocol has no partnership, endorsement or affiliation with any of these networks or companies.</p>
+<h2>7. Non-goals (current scope)</h2>
+<ul>
+<li>Cross-chain shielded transfers or bridging.</li>
+<li>A governance system or token.</li>
+<li>Hiding network-level metadata (use Tor/VPN and a relayer if this matters to you).</li>
+<li>Guaranteeing any regulatory status for any deployment.</li>
+</ul>
+</main>
+</body>
+</html>

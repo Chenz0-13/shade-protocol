@@ -1,0 +1,45 @@
+{
+  "note": "Placeholder until a testnet deploy writes real addresses. Empty pool means not deployed.",
+  "chains": {
+    "robinhood": {
+      "chainId": 46630,
+      "rpc": "https://rpc.testnet.chain.robinhood.com",
+      "pool": "",
+      "verifier": "",
+      "faucet": "https://docs.robinhood.com/chain/"
+    },
+    "elysium": {
+      "chainId": 99801,
+      "rpc": "https://testnet-rpc.elysium.kinetiq.xyz",
+      "pool": "",
+      "verifier": "",
+      "faucet": "https://elysium.kinetiq.xyz/testnet-faucet"
+    },
+    "hyperevm": {
+      "chainId": 998,
+      "rpc": "https://rpc.hyperliquid-testnet.xyz/evm",
+      "pool": "",
+      "verifier": "",
+      "faucet": "https://app.hyperliquid-testnet.xyz/drip"
+    },
+    "base": {
+      "chainId": 84532,
+      "rpc": "https://sepolia.base.org",
+      "pool": "",
+      "verifier": "",
+      "faucet": "https://www.alchemy.com/faucets/base-sepolia"
+    },
+    "solana": {
+      "cluster": "devnet",
+      "rpc": "https://api.devnet.solana.com",
+      "programId": "",
+      "faucet": "https://faucet.solana.com"
+    },
+    "near": {
+      "network": "testnet",
+      "rpc": "https://rpc.testnet.near.org",
+      "contractId": "",
+      "faucet": "https://near-faucet.io/"
+    }
+  }
+}

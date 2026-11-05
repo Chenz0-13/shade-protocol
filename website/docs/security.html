@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Security · Shader Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shader Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Security</h1>
+<p>&gt; <strong>Status: experimental, unaudited, devnet/testnet only.</strong> Do not use Shader Protocol with real funds. The Groth16 proving keys come from a <strong>development trusted setup</strong> and must be treated as compromised.</p>
+<h2>1. Security goals</h2>
+<p>| Goal | Meaning |</p>
+<p>|---|---|</p>
+<p>| **Soundness / no inflation** | Nobody can create value or spend a note they don&#x27;t own |</p>
+<p>| **No double-spend** | Each note can be spent once |</p>
+<p>| **Transaction privacy** | Observers learn nothing about sender, recipient, amount or asset beyond public amounts at deposit/withdraw |</p>
+<p>| **Order privacy** | The public learns nothing about dark-pool orders beyond their existence |</p>
+<p>| **Spend/view separation** | Viewing keys and disclosure bundles never allow spending |</p>
+<p>| **Non-custodial** | No operator, relayer or matcher can move user funds |</p>
+<h2>2. Threat model</h2>
+<p>| Adversary | Capabilities assumed | Protected? |</p>
+<p>|---|---|---|</p>
+<p>| Passive chain observer | Reads all on-chain data and mempool | Amounts, owners, links between notes, order contents |</p>
+<p>| Front-runner / MEV searcher | Reorders, inserts transactions | Nothing to act on: orders and settlements are opaque |</p>
+<p>| Malicious relayer | Sees submitted txs, can delay or drop | Cannot change recipient, fee or outputs (bound by `extDataHash`); can censor |</p>
+<p>| Malicious sender | Crafts bad ciphertexts | Recipient verifies commitment before accepting a note; cannot spend recipient&#x27;s note |</p>
+<p>| Dark-pool matcher | Decrypts orders and learns spending keys | Can spend escrowed notes, leak orders, censor, or reorder |</p>
+<p>| Compromised viewing key | Decrypts that user&#x27;s notes | Cannot spend |</p>
+<p>| Compromised spending key | Full control of that user&#x27;s notes | **Not protected** |</p>
+<p>| Trusted-setup participant(s) | If all collude / keep toxic waste | **Not protected** ,  could forge proofs and mint value |</p>
+<p>| Network observer | Sees IP addresses and timing | **Not protected** by the protocol ,  use a relayer and Tor/VPN |</p>
+<h2>3. Trust assumptions</h2>
+<ul>
+<li>1. Poseidon, BN254 pairings, Baby Jubjub ECDH, HKDF-SHA256 and AES-256-GCM are secure as standardly assumed.</li>
+<li>2. At least one participant in the Groth16 setup ceremony was honest. <strong>Currently false by design</strong> (single-party dev setup).</li>
+<li>3. The circuits are fully constrained and the on-chain verifier and contract logic are correct.</li>
+<li>4. The host chain is live, finalises transactions and does not censor indefinitely.</li>
+<li>5. The dark-pool matcher learns spending keys. Confidentiality of orders against the operator is not a property of this build.</li>
+<li>6. KYC issuers, where used, perform their checks honestly; Shade cannot verify this.</li>
+<li>7. Users&#x27; devices are not compromised and generate good randomness.</li>
+</ul>
+<h2>4. Known limitations</h2>
+<ul>
+<li><strong>Unaudited.</strong> No independent security audit has been performed.</li>
+<li><strong>Development trusted setup.</strong> Proofs from current keys are not secure.</li>
+<li><strong>Small anonymity set.</strong> On devnet, few users means little real privacy; statistical analysis of timing and amounts can link deposits and withdrawals.</li>
+<li><strong>Deposit/withdraw linkage.</strong> Public amounts and timing at the edges are visible.</li>
+<li><strong>Matcher trust.</strong> See <a href="dark-pool.md#3-trust-model">dark-pool.md</a>.</li>
+<li><strong>Auditor ciphertexts not yet circuit-enforced</strong> (see <a href="compliance.md#43-regulator--auditor-view-keys-pool-policy">compliance.md</a>).</li>
+<li><strong>Screening hook is advisory</strong> in the SDK and can be bypassed by custom clients unless pool policy enforces an on-chain attestation (planned).</li>
+<li><strong>Not post-quantum.</strong> A future quantum computer could break ECDH (exposing past note contents) and Groth16 soundness.</li>
+<li><strong>Adapters beyond Solana</strong> may be incomplete; behaviour on those chains is untested.</li>
+<li><strong>Key loss is final.</strong> There is no recovery mechanism for lost spending keys.</li>
+</ul>
+<h2>5. History: issues fixed from the original scaffold</h2>
+<p>The first scaffold (commit <code>fd76e28</code>) was a prototype and should not be used. Issues identified in review and addressed by the rewrite include:</p>
+<ul>
+<li>Merkle tree used XOR instead of a hash; membership proofs always returned true.</li>
+<li>Circuit membership and commitment constraints were placeholders (<code>valid &lt;== 1</code>, <code>value + blinding</code>).</li>
+<li>Proofs were mocked; chain submissions returned fake transaction hashes.</li>
+<li>Note encryption keyed AES directly with the sender&#x27;s secret.</li>
+<li>Nullifiers were derived from value rather than the note, risking collisions.</li>
+<li>Dark-pool matching ignored order side, could match one order repeatedly and produced no output notes.</li>
+<li>KYC &quot;proofs&quot; were constant values; regulator &quot;view keys&quot; were base64 strings.</li>
+</ul>
+<h2>6. Responsible disclosure</h2>
+<p>If you find a vulnerability, please <strong>do not</strong> open a public issue. Use <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">GitHub private vulnerability reporting</a>.</p>
+<ul>
+<li>Please include: affected component and commit, reproduction steps, impact, and whether it has been disclosed elsewhere.</li>
+</ul>
+<p>Because the protocol is devnet-only, there are no user funds at risk today; we still treat reports seriously and will credit reporters who wish to be named.</p>
+<h2>7. Before any mainnet</h2>
+<p>All of the following are required, in order:</p>
+<ul>
+<li>1. Feature-complete code with full unit, circuit (including negative) and integration tests in CI.</li>
+<li>2. Independent audit(s) of circuits, cryptography, contracts and SDK; findings fixed and reports published.</li>
+<li>3. Public multi-party trusted-setup ceremony with published transcripts.</li>
+<li>4. Staged rollout with conservative deposit caps.</li>
+</ul>
+</main>
+</body>
+</html>

@@ -23,6 +23,7 @@ export interface OutputNote {
   blinding: bigint;
   rho: bigint;
   ownerPub: bigint;
+  chainHome: bigint;
   recipient: PublicIdentity;
 }
 
@@ -61,15 +62,18 @@ export function createOutputNote(params: {
   assetId: bigint;
   recipient: PublicIdentity;
   memo: string;
+  rho?: bigint;
+  chainHome: bigint;
 }): OutputNote {
   const blinding = randomNonZeroField();
-  const rho = randomNonZeroField();
+  const rho = params.rho ?? randomNonZeroField();
   const commitment = noteCommitment({
     value: params.value,
     blinding,
     rho,
     ownerPub: params.recipient.ownerPub,
     assetId: params.assetId,
+    chainHome: params.chainHome,
   });
   const stealth = deriveStealthAddress(params.recipient.spendPublicKey, params.recipient.viewPublicKey);
   const plaintext = encodeNotePlaintext({
@@ -94,6 +98,7 @@ export function createOutputNote(params: {
     blinding,
     rho,
     ownerPub: params.recipient.ownerPub,
+    chainHome: params.chainHome,
     recipient: params.recipient,
   };
 }
