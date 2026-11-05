@@ -177,6 +177,11 @@ jobs:
           cargo install cargo-deny --version 0.20.2 --locked
           cargo +nightly-2026-10-14 install cargo-fuzz --version 0.13.2 --locked
       - name: Clippy
+        env:
+          # The Solana build script needs circuits/build/verification_key.json.
+          # This job does not run the devnet setup. The flag writes a zero key
+          # so clippy can typecheck. It is not used by the proof tests.
+          SHADE_CLIPPY_STUB_VKEY: "1"
         run: |
           # The nightly install above becomes the default toolchain and does not
           # include clippy. Lint with the pinned stable toolchain.
