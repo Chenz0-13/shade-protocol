@@ -7,7 +7,7 @@ This directory of scripts is the tooling a later ceremony would use. Running it 
 ## What has to be true first
 
 1. The circuit source is frozen. A change after the first contribution throws the ceremony away.
-2. The Powers of Tau file is large enough. The pinned Hermez file is `powersOfTau28_hez_final_16.ptau` (2^16 constraints). The current largest circuit, `transfer.circom`, is under that cap. If a later circuit grows past it, start over with a larger file.
+2. The Powers of Tau file is large enough. The pinned Hermez file is `powersOfTau28_hez_final_16.ptau` (2^16 constraints). The current largest circuit, `transfer.circom`, is under that cap. `allowance_spend.circom` is smaller and is not part of this setup. Tests check it with the witness calculator. If a later circuit grows past the cap, start over with a larger file.
 3. At least one contributor is honest and destroys their entropy. The result is safe if one contributor is honest. It is not safe if every contributor colludes or leaks entropy.
 
 ## How a contribution works

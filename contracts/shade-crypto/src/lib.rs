@@ -1,7 +1,7 @@
 mod groth16;
 mod merkle;
 
-pub use groth16::{verify_snarkjs, SnarkjsProof, VerifyingKeyJson};
+pub use groth16::{screen_proof_json, verify_snarkjs, SnarkjsProof, VerifyingKeyJson};
 pub use merkle::{
     canonical_decimal, domain_asset, domain_chain, domain_commitment, domain_ext, domain_nullifier, domain_owner,
     domain_rho, field_from_dec,
@@ -36,6 +36,8 @@ pub fn derive_output_rho(nullifier_hash: Fr, output_index: u64) -> Fr {
 }
 
 /// Recipient and relayer limbs, bound to a domain that includes the pool address.
+/// The argument list matches the circuit public preimage and is not collapsed.
+#[allow(clippy::too_many_arguments)]
 pub fn ext_data_hash(
     recipient_lo: Fr,
     recipient_hi: Fr,

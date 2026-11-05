@@ -1,0 +1,235 @@
+name: Security
+
+on:
+  push:
+  pull_request:
+
+# Every job is read-only unless it says otherwise. The SARIF upload job is the
+# only one with security-events: write, and that permission exists so GitHub
+# can accept the Slither and Aderyn reports.
+permissions:
+  contents: read
+
+jobs:
+  circuits:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install circom 2.2.3
+        run: |
+          curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
+          echo "85342c7ff332d948df7c0c50ecf201e6129349aef550ce873f3c811b79fe53a3  /tmp/circom" | sha256sum -c
+          sudo install -m 755 /tmp/circom /usr/local/bin/circom
+      - name: Install dependencies
+        run: npm ci
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.99.1
+      - name: Install circomspect 0.9.0
+        run: cargo install circomspect --version 0.9.0 --locked
+      - name: Circomspect
+        run: npm run security:circomspect
+      - name: Constraint snapshot
+        run: npm run security:constraints
+      - name: Malicious prover
+        run: npm run security:prover
+
+  picus:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    continue-on-error: true
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Install circom 2.2.3
+        run: |
+          curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
+          echo "85342c7ff332d948df7c0c50ecf201e6129349aef550ce873f3c811b79fe53a3  /tmp/circom" | sha256sum -c
+          sudo install -m 755 /tmp/circom /usr/local/bin/circom
+      - name: Install Racket 8.18
+        run: |
+          curl -fsSL -o /tmp/racket.sh https://download.racket-lang.org/installers/8.18/racket-8.18-x86_64-linux-cs.sh
+          echo "72dfa7602edfe5bd2761af246709ebe93e0fd7f3a0fe98e39bd00418ab7abc70  /tmp/racket.sh" | sha256sum -c
+          sudo sh /tmp/racket.sh --unix-style --dest /usr/local --create-dir
+      - name: Install Z3 4.13.4
+        run: |
+          curl -fsSL -L -o /tmp/z3.zip https://github.com/Z3Prover/z3/releases/download/z3-4.13.4/z3-4.13.4-x64-glibc-2.35.zip
+          echo "93f91f9c6f4a00a041c19fc7a74adc1f441c8244ce70d486e19abcd89c6a014b  /tmp/z3.zip" | sha256sum -c
+          sudo unzip -q /tmp/z3.zip -d /opt
+          sudo ln -sf /opt/z3-4.13.4-x64-glibc-2.35/bin/z3 /usr/local/bin/z3
+          z3 --version
+      - name: Install Picus 138b151
+        run: |
+          git clone https://github.com/Veridise/Picus.git /tmp/picus
+          git -C /tmp/picus checkout 138b151d3a388e5b6c040c163e0a1db04f2ceda6
+          cd /tmp/picus && raco pkg install --batch --auto
+      - name: Run Picus
+        env:
+          PICUS_HOME: /tmp/picus
+          PICUS_LOG: picus.log
+        run: sh scripts/security/picus.sh
+      - name: Upload Picus log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: picus-log
+          path: picus.log
+          if-no-files-found: warn
+
+  evm:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install circom 2.2.3
+        run: |
+          curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
+          echo "85342c7ff332d948df7c0c50ecf201e6129349aef550ce873f3c811b79fe53a3  /tmp/circom" | sha256sum -c
+          sudo install -m 755 /tmp/circom /usr/local/bin/circom
+      - name: Install dependencies and the devnet verifier
+        run: |
+          npm ci
+          npm run circuit:setup
+      - name: Install Foundry 1.9.0
+        run: |
+          curl -fsSL -L https://github.com/foundry-rs/foundry/releases/download/v1.9.0/foundry_v1.9.0_linux_amd64.tar.gz -o /tmp/foundry.tar.gz
+          echo "8d17599b42e3139f1a9c171be3798c4ed8e743ae17b84cc3435e57bf2a51ae99  /tmp/foundry.tar.gz" | sha256sum -c
+          mkdir -p "$HOME/.foundry/bin"
+          tar -xzf /tmp/foundry.tar.gz -C "$HOME/.foundry/bin"
+          echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
+      - name: Install Slither 0.11.6 and crytic-compile 0.4.2
+        run: python3 -m pip install --user 'slither-analyzer==0.11.6' 'crytic-compile==0.4.2'
+      - name: Install Aderyn 0.6.8
+        run: |
+          curl -fsSL -L -o /tmp/aderyn.tar.xz https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-x86_64-unknown-linux-gnu.tar.xz
+          echo "ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46  /tmp/aderyn.tar.xz" | sha256sum -c
+          tar -xJf /tmp/aderyn.tar.xz -C /tmp
+          sudo install -m 755 /tmp/aderyn-x86_64-unknown-linux-gnu/aderyn /usr/local/bin/aderyn
+      - name: Install Medusa 1.5.1
+        run: |
+          curl -fsSL -L -o /tmp/medusa.tar.gz https://github.com/crytic/medusa/releases/download/v1.5.1/medusa-linux-x64.tar.gz
+          echo "ddfe1517ae9028ef9fc331b00f5a6a9d5406f3fcd11a715d60c6b6fb3e4546d3  /tmp/medusa.tar.gz" | sha256sum -c
+          tar -xzf /tmp/medusa.tar.gz -C /tmp
+          sudo install -m 755 /tmp/medusa /usr/local/bin/medusa
+      - name: Slither
+        working-directory: contracts/evm
+        run: slither . --sarif slither.sarif
+      - name: Aderyn
+        working-directory: contracts/evm
+        run: |
+          aderyn . -o aderyn.sarif -x 'Verifier.sol,PoseidonT3.sol,PoseidonT7.sol'
+          node ../../scripts/security/aderyn-check.mjs aderyn.sarif
+      - name: Medusa
+        working-directory: contracts/evm
+        run: |
+          forge install foundry-rs/forge-std --no-git
+          medusa fuzz --config medusa.json
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: contracts/evm/slither.sarif
+        continue-on-error: true
+      - name: Upload analyzer reports
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: evm-sarif
+          path: |
+            contracts/evm/slither.sarif
+            contracts/evm/aderyn.sarif
+
+  rust:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.99.1
+          components: clippy
+      - name: Install nightly for cargo-fuzz
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: nightly-2026-10-14
+      - name: Install cargo-audit, cargo-deny, and cargo-fuzz
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo install cargo-deny --version 0.20.2 --locked
+          cargo +nightly-2026-10-14 install cargo-fuzz --version 0.13.2 --locked
+      - name: Clippy
+        run: |
+          cargo clippy --manifest-path contracts/shade-crypto/Cargo.toml --all-targets -- -D warnings
+          cargo clippy --manifest-path contracts/near/Cargo.toml --all-targets -- -D warnings
+          cargo clippy --manifest-path programs/shade-solana/Cargo.toml --all-targets --features insecure-test-setup -- -D warnings
+      - name: cargo-audit
+        run: |
+          cargo audit --file contracts/shade-crypto/Cargo.lock --ignore RUSTSEC-2025-0055
+          cargo audit --file contracts/near/Cargo.lock --ignore RUSTSEC-2025-0055
+          cargo audit --file programs/shade-solana/Cargo.lock
+      - name: cargo-deny
+        run: |
+          cargo deny --manifest-path contracts/shade-crypto/Cargo.toml check
+          cargo deny --manifest-path contracts/near/Cargo.toml check
+          cargo deny --manifest-path programs/shade-solana/Cargo.toml check
+          cargo deny --manifest-path contracts/shade-crypto/fuzz/Cargo.toml check
+      - name: cargo-fuzz
+        working-directory: contracts/shade-crypto
+        env:
+          # libfuzzer is C++. Force g++ so the build does not pick a clang
+          # `c++` that cannot see the libstdc++ headers.
+          CC: gcc
+          CXX: g++
+          LIBRARY_PATH: /usr/lib/gcc/x86_64-linux-gnu/13
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++
+          cargo +nightly-2026-10-14 fuzz run parse_field -- -max_total_time=20
+          cargo +nightly-2026-10-14 fuzz run proof_input -- -max_total_time=20
+
+  node:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: npm audit
+        run: npm audit --audit-level=high
+      - name: Property tests
+        run: npx vitest run tests/properties.test.ts
+      - name: Install Semgrep 1.183.0
+        run: python3 -m pip install --user 'semgrep==1.183.0'
+      - name: Semgrep
+        run: semgrep --config .semgrep.yml --error --metrics=off .
+      - name: Install OSV-Scanner 2.7.0
+        run: |
+          curl -fsSL -L -o /tmp/osv-scanner https://github.com/google/osv-scanner/releases/download/v2.7.0/osv-scanner_linux_amd64
+          echo "160c6253e2922e9e0a6a9771c5c4c40a4b3c6090b34a3cdd5e80c96cc2e4218b  /tmp/osv-scanner" | sha256sum -c
+          sudo install -m 755 /tmp/osv-scanner /usr/local/bin/osv-scanner
+      - name: OSV-Scanner
+        run: |
+          osv-scanner scan source \
+            -L package-lock.json \
+            -L contracts/shade-crypto/Cargo.lock \
+            -L contracts/near/Cargo.lock \
+            -L programs/shade-solana/Cargo.lock

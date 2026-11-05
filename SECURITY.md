@@ -77,6 +77,12 @@ fields whose names look like secrets, and it does not print raw key bytes.
 Log messages themselves must not contain secrets. Deploy keys are read from
 the environment and are not written into the repository.
 
+## Tooling
+
+`docs/security-tooling.md` lists the scanners that run in CI, the versions
+they are pinned to, and every finding that is still open. The tooling is not
+an audit.
+
 ## Dependencies
 
 `circomlib` and `snarkjs` are GPL-3.0. The original code in this repository

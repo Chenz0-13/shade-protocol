@@ -1,0 +1,37 @@
+[advisories]
+version = 2
+yanked = "warn"
+# cargo-deny 0.20 has no warn level for these. "none" keeps the build green.
+# The crates are transitive (arkworks, near-sdk, Solana) and are listed in
+# docs/security-tooling.md. A real vulnerability still fails this check.
+unmaintained = "none"
+unsound = "none"
+ignore = [
+    { id = "RUSTSEC-2025-0055", reason = "ark-ff 0.5 depends on tracing-subscriber 0.2.25. Shader Protocol does not log through it. The fixed 0.3 line is not usable without replacing arkworks." },
+]
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MPL-2.0",
+    "Unicode-3.0",
+    "Zlib",
+    "CC0-1.0",
+    "Unlicense",
+    "NCSA",
+]
+confidence-threshold = 0.8
+
+[bans]
+multiple-versions = "warn"
+wildcards = "allow"
+
+[sources]
+unknown-registry = "deny"
+unknown-git = "deny"
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]

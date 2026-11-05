@@ -20,4 +20,12 @@ programs/shade-solana/target/
 programs/shade-solana/src/verifying_key.rs
 **/.daml/
 contracts/canton/**/log/
+contracts/evm/medusa-corpus/
+contracts/evm/crytic-export/
+contracts/evm/slither.sarif
+contracts/evm/aderyn.sarif
+picus.log
+contracts/shade-crypto/fuzz/target/
+contracts/shade-crypto/fuzz/artifacts/
+contracts/shade-crypto/fuzz/corpus/
 

@@ -125,7 +125,7 @@ pub fn insert(filled: &mut [Fr], zeros: &[Fr], next_index: u64, leaf: Fr) -> (Fr
     let mut index = next_index;
     let mut current = leaf;
     for level in 0..DEPTH {
-        if index % 2 == 0 {
+        if index.is_multiple_of(2) {
             filled[level] = current;
             current = hash2(current, zeros[level]);
         } else {

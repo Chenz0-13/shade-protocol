@@ -33,6 +33,7 @@ use pinocchio::{
 };
 use solana_poseidon::{hashv, Endianness, Parameters};
 
+#[allow(dead_code)]
 mod verifying_key;
 
 entrypoint!(process_instruction);
@@ -314,7 +315,7 @@ fn insert(data: &mut [u8], leaf: &[u8; 32]) -> ProgramResult {
     let mut index = next;
     let mut current = *leaf;
     for level in 0..DEPTH {
-        if index % 2 == 0 {
+        if index.is_multiple_of(2) {
             write32(data, FILLED_OFFSET + level * 32, &current);
             let zero = read32(data, ZEROS_OFFSET + level * 32);
             current = poseidon(&[&current, &zero])?;
@@ -443,6 +444,7 @@ fn system_signed(account: &AccountView, system: &AccountView, data: &[u8], seeds
     invoke_signed::<1>(&instruction, &[account], &[signer])
 }
 
+#[allow(clippy::too_many_arguments)]
 fn create_pda(
     payer: &AccountView,
     account: &AccountView,

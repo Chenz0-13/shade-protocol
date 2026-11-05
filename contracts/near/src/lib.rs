@@ -38,9 +38,11 @@ impl Pool {
     #[init]
     pub fn new(vk_json: String, min_deposit: u128) -> Self {
         assert!(min_deposit > 0, "minimum deposit");
-        let mut pool = Self::default();
-        pool.owner = env::predecessor_account_id();
-        pool.min_deposit = min_deposit;
+        let mut pool = Self {
+            owner: env::predecessor_account_id(),
+            min_deposit,
+            ..Self::default()
+        };
         pool.install_key(vk_json);
         pool
     }
@@ -262,6 +264,52 @@ fn account_limbs(account: &str) -> (Fr, Fr) {
     let digest = env::sha256(account.as_bytes());
     let bytes: [u8; 32] = digest.try_into().expect("sha256");
     split_be32(&bytes)
+}
+
+#[cfg(test)]
+fn real_vk() -> String {
+    std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../circuits/build/verification_key.json"
+    ))
+    .expect("verification key")
+}
+
+#[cfg(test)]
+fn funded_fixture() -> (String, Vec<String>, String, String, String) {
+    use std::sync::OnceLock;
+    static FIXTURE: OnceLock<serde_json::Value> = OnceLock::new();
+    let fixture = FIXTURE.get_or_init(|| {
+        let output = std::process::Command::new("node")
+            .arg("scripts/evm-proof.mjs")
+            .arg("--recipient-account")
+            .arg("recipient.testnet")
+            .arg("--relayer-account")
+            .arg("relayer.testnet")
+            .arg("--pool-account")
+            .arg("pool.testnet")
+            .arg("--domain")
+            .arg("1002")
+            .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
+            .output()
+            .expect("node");
+        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+        serde_json::from_slice(&output.stdout).expect("json")
+    });
+    let proof = serde_json::to_string(&fixture["snarkjs"]).unwrap();
+    let inputs = fixture["pub"]
+        .as_array()
+        .unwrap()
+        .iter()
+        .map(|item| item.as_str().unwrap().to_string())
+        .collect();
+    (
+        proof,
+        inputs,
+        fixture["blinding"].as_str().unwrap().to_string(),
+        fixture["rho"].as_str().unwrap().to_string(),
+        fixture["owner"].as_str().unwrap().to_string(),
+    )
 }
 
 #[cfg(test)]
@@ -492,50 +540,4 @@ mod tests {
         pool.shielded_transfer(proof.clone(), inputs.clone(), "recipient.testnet".to_string());
         pool.shielded_transfer(proof, inputs, "recipient.testnet".to_string());
     }
-}
-
-#[cfg(test)]
-fn real_vk() -> String {
-    std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../circuits/build/verification_key.json"
-    ))
-    .expect("verification key")
-}
-
-#[cfg(test)]
-fn funded_fixture() -> (String, Vec<String>, String, String, String) {
-    use std::sync::OnceLock;
-    static FIXTURE: OnceLock<serde_json::Value> = OnceLock::new();
-    let fixture = FIXTURE.get_or_init(|| {
-        let output = std::process::Command::new("node")
-            .arg("scripts/evm-proof.mjs")
-            .arg("--recipient-account")
-            .arg("recipient.testnet")
-            .arg("--relayer-account")
-            .arg("relayer.testnet")
-            .arg("--pool-account")
-            .arg("pool.testnet")
-            .arg("--domain")
-            .arg("1002")
-            .current_dir(concat!(env!("CARGO_MANIFEST_DIR"), "/../.."))
-            .output()
-            .expect("node");
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        serde_json::from_slice(&output.stdout).expect("json")
-    });
-    let proof = serde_json::to_string(&fixture["snarkjs"]).unwrap();
-    let inputs = fixture["pub"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|item| item.as_str().unwrap().to_string())
-        .collect();
-    (
-        proof,
-        inputs,
-        fixture["blinding"].as_str().unwrap().to_string(),
-        fixture["rho"].as_str().unwrap().to_string(),
-        fixture["owner"].as_str().unwrap().to_string(),
-    )
 }

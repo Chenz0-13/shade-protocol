@@ -115,6 +115,7 @@ fn encode_withdraw(payload: &serde_json::Value) -> Vec<u8> {
     data
 }
 
+#[allow(clippy::result_large_err)]
 fn send(svm: &mut litesvm::LiteSVM, payer: &Keypair, instructions: &[Instruction]) -> Result<litesvm::types::TransactionMetadata, litesvm::types::FailedTransactionMetadata> {
     let message = Message::new_with_blockhash(instructions, Some(&payer.pubkey()), &svm.latest_blockhash());
     let transaction = Transaction::new(&[payer], message, svm.latest_blockhash());
