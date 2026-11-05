@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Dark pool · Shade Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shade Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Dark pool</h1>
+<p>&gt; <strong>Status:</strong> devnet/testnet only · <strong>unaudited</strong> · matching engine operated by a single known party on devnet · parameters subject to change.</p>
+<p>The dark pool lets holders of shielded notes trade with each other without exposing orders to the public mempool or an on-chain order book. It is designed to remove the public information that front-running and sandwich attacks rely on.</p>
+<h2>1. Order lifecycle</h2>
+<pre><code>
+sequenceDiagram
+  participant T as Trader (SDK)
+  participant A as Chain adapter
+  participant M as Matcher
+  T-&gt;&gt;T: build order, lock input note, encrypt order to matcher
+  T-&gt;&gt;A: submitOrder(orderCommitment, lockNullifier, ct, proof)
+  A-&gt;&gt;A: verify proof, record order commitment
+  A--&gt;&gt;M: OrderSubmitted event (opaque)
+  M-&gt;&gt;M: decrypt, batch, match crossing orders
+  M-&gt;&gt;A: settle(match, settlement proof)
+  A-&gt;&gt;A: verify, spend nullifiers, append output notes
+  A--&gt;&gt;T: output notes (encrypted to each trader)
+</code></pre>
+<h3>1.1 Order structure</h3>
+<p>An order opens to:</p>
+<p>$$</p>
+<p>\mathsf{order} = (\mathsf{pair},\ \mathsf{side} \in \{\text{buy},\text{sell}\},\ \mathsf{size},\ \mathsf{limitPrice},\ \mathsf{expiry},\ \mathsf{noteRef},\ \rho)</p>
+<p>$$</p>
+<p>where <code>noteRef</code> identifies the input note that funds the order and $\rho$ is a random order secret. On-chain the adapter stores only</p>
+<p>$$</p>
+<p>O = H(\mathsf{DOM}_{order},\ \mathsf{pair},\ \mathsf{side},\ \mathsf{size},\ \mathsf{limitPrice},\ \mathsf{expiry},\ C_{in},\ \rho)</p>
+<p>$$</p>
+<p>together with an AEAD ciphertext of the order encrypted to the matcher&#x27;s public key (ECDH + HKDF + AES-256-GCM, as for notes).</p>
+<h3>1.2 Submission</h3>
+<p>The trader submits $O$, the ciphertext and a proof that:</p>
+<ul>
+<li>the funding note $C_{in}$ is in the commitment tree and owned by the trader;</li>
+<li>it holds at least the required amount of the correct asset (<code>size</code> of base for a sell; <code>size × limitPrice</code> of quote for a buy);</li>
+<li>$O$ is correctly formed.</li>
+</ul>
+<p>Optionally, pool policy may require a KYC proof at submission (see <a href="compliance.html">compliance.md</a>).</p>
+<h3>1.3 Matching</h3>
+<p>The matcher runs in <strong>discrete batches</strong> (target: one batch every few seconds on devnet; configurable).</p>
+<p>Rules (fixing bugs in the original scaffold, which matched any two overlapping orders regardless of side, could match one order many times, and produced no output notes):</p>
+<ul>
+<li>1. Only <strong>buy vs sell</strong> on the <strong>same pair</strong> can match.</li>
+<li>2. Orders cross if $\text{limit}_{buy} \ge \text{limit}_{sell}$.</li>
+<li>3. <strong>Price-time priority:</strong> best price first; within a price level, earliest submission first.</li>
+<li>5. <strong>Each order is consumed at most once per batch.</strong> A partial fill produces a remainder order (fresh commitment, same limit) that carries into the next batch.</li>
+<li>6. Expired orders are dropped and their funding notes unlocked.</li>
+</ul>
+<h3>1.4 Settlement</h3>
+<p>Each match produces one settlement transaction carrying a Groth16 proof from the <a href="circuits.md#3-settlement-circuit-dark-pool">settlement circuit</a>. On success the adapter:</p>
+<ul>
+<li>spends both funding-note nullifiers;</li>
+<li>appends four output commitments ,  buyer&#x27;s base, buyer&#x27;s quote change, seller&#x27;s quote, seller&#x27;s base change ,  each encrypted to its owner&#x27;s stealth address;</li>
+<li>emits a <code>Settled(matchId)</code> event with no amounts, prices or identities.</li>
+</ul>
+<p>If settlement fails (e.g. a note was spent elsewhere), the match is discarded and the other side&#x27;s order returns to the book.</p>
+<h3>1.5 Cancellation</h3>
+<p>A trader can cancel by proving knowledge of $\rho$ and ownership of $C_{in}$; the order commitment is marked cancelled and the funding note unlocked.</p>
+<h2>2. What is public</h2>
+<p>| Data | Visible to public | Visible to matcher | Visible to counterparty |</p>
+<p>|---|---|---|---|</p>
+<p>| That an order was submitted | Yes (opaque commitment, timestamp) | Yes | ,  |</p>
+<p>| Pair, side, size, limit | No | **Yes** | No (only what they receive) |</p>
+<p>| Trader identity / wallet | No (if submitted via relayer) | No | No |</p>
+<p>| Execution price and fill size | No | Yes | Implied by their own output notes |</p>
+<p>| That a settlement occurred | Yes | Yes | Yes |</p>
+<h2>3. Trust model</h2>
+<p>| The matcher **cannot** | The matcher **can** |</p>
+<p>|---|---|</p>
+<p>| Steal funds or create value ,  every settlement needs a valid proof | See the contents of orders it receives |</p>
+<p>| Settle a trade outside your limit price or above your size | Delay or refuse to match orders (censorship / liveness) |</p>
+<p>| Spend your notes without a matching order | Choose between equally valid matches (fairness) |</p>
+<p>| Link your order to your public wallet (if you use a relayer) | Leak order information it has seen |</p>
+<p>So: pool transfers are proof-checked. The dark-pool operator is not a funds-safety boundary, because it learns spending keys.</p>
+<h3>Roadmap to reduce matcher trust (research, not implemented)</h3>
+<ul>
+<li>Threshold decryption of orders across several independent matchers after a batch closes.</li>
+<li>Matching inside MPC or a TEE, with remote attestation.</li>
+<li>Public, verifiable batch-clearing rules so that unfair ordering is detectable.</li>
+</ul>
+<h2>4. MEV considerations</h2>
+<ul>
+<li>Orders are not visible in the public mempool; a searcher sees an opaque commitment.</li>
+<li>Settlement transactions reveal no price or size, so there is nothing to sandwich.</li>
+<li>Remaining leakage: the timing and count of orders and settlements, and the moment a trader deposits into or withdraws from the shielded pool. Users who care should deposit well in advance and withdraw with a delay.</li>
+</ul>
+</main>
+</body>
+</html>

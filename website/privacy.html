@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Privacy · Shade Protocol</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="index.html">Shade Protocol</a>
+  <nav><a href="app.html">Testnet app</a> <a href="terms.html">Terms</a></nav>
+</div></header>
+<main class="shell">
+<h1>Privacy</h1>
+<p>This static site does not run an account system. The testnet app talks to your wallet in the browser. Notes you export stay in your browser unless you download them.</p>
+<p>A wallet connection reveals your address to the page and to the chain you use. A deposit is public. A shielded spend publishes a nullifier, two commitments, amounts, and a proof. It does not publish the spending key. The DarkPool operator path in the repository is different: that process decrypts orders and learns spending keys.</p>
+<p>Loading snarkjs or a wallet library from a CDN sends your IP address to that CDN. The ceremony page does this. The marketing pages use fonts stored on this site.</p>
+<p>There is no analytics pixel in these pages. GitHub Pages, which may host the site, has its own logs.</p>
+<p>To report a vulnerability, use <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">GitHub private vulnerability reporting</a>.</p>
+</main>
+</body>
+</html>

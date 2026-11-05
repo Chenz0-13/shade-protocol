@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Compliance tools · Shade Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shade Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Compliance tooling</h1>
+<p>&gt; <strong>Status:</strong> devnet/testnet only · <strong>unaudited</strong> · interfaces subject to change.</p>
+<p>&gt;</p>
+<p>&gt; <strong>Important.</strong> The features on this page are <strong>tools for selective disclosure and policy enforcement</strong>. Using them does not, by itself, make any deployment, operator or user compliant with any law or regulation. Shade Protocol has not been reviewed or approved by any regulator. Operators should obtain their own legal advice.</p>
+<h2>1. Principles</h2>
+<ul>
+<li>1. <strong>Private by default.</strong> Without a deliberate disclosure, notes and orders reveal nothing beyond what is described in <a href="security.html">security.md</a>.</li>
+<li>2. <strong>Disclosure is explicit and scoped.</strong> Users choose what to reveal, to whom, and for which period.</li>
+<li>3. <strong>Pool policy is public.</strong> Any requirement (KYC proofs, auditor ciphertexts, screening) is fixed at pool creation and readable on-chain, so users know the rules before depositing.</li>
+<li>4. <strong>Policy at the edges, not in the core.</strong> Compliance checks happen at deposit, withdrawal and order admission. The core state transition (proofs, nullifiers, tree) is identical for every pool.</li>
+</ul>
+<h2>2. Pool policy</h2>
+<pre><code>
+// Illustrative ,  see the SDK for the canonical type.
+interface PoolPolicy {
+  requireKycProof?: { issuerSetRoot: bigint; minLevel: 1 | 2 | 3; jurisdictionSetRoot: bigint };
+  auditor?: { publicKey: BabyJubPoint; label: string };   // enables auditor ciphertexts
+  screening?: { onDeposit: boolean; onWithdraw: boolean; hookId: string };
+}
+</code></pre>
+<p>A pool with no policy is fully permissionless. Policies are immutable once a pool is created; changing policy means creating a new pool.</p>
+<h2>3. Zero-knowledge KYC credentials</h2>
+<h3>Roles</h3>
+<ul>
+<li><strong>Holder</strong> ,  the user.</li>
+<li><strong>Verifier</strong> ,  a pool (via its policy) or any third party that checks the proof.</li>
+</ul>
+<h3>Credential</h3>
+<p>$$</p>
+<p>\mathsf{cred} = H(\mathsf{DOM}_{cred},\ pk,\ \mathsf{level},\ \mathsf{jurisdiction},\ \mathsf{expiry},\ \mathsf{nonce})</p>
+<p>$$</p>
+<p>The issuer signs $\mathsf{cred}$ with an EdDSA-Poseidon key on Baby Jubjub and gives the holder the opening and signature. Nothing is published on-chain at issuance. Accepted issuer public keys are collected in a Merkle tree with root <code>issuerSetRoot</code>; allowed jurisdiction codes in a tree with root <code>jurisdictionSetRoot</code>.</p>
+<h3>Proof</h3>
+<p>The <a href="circuits.md#4-kyc-credential-circuit">KYC circuit</a> proves:</p>
+<ul>
+<li>the signature on $\mathsf{cred}$ verifies under an issuer key in <code>issuerSetRoot</code>;</li>
+<li>$\mathsf{level} \ge$ <code>minLevel</code>;</li>
+<li>$\mathsf{expiry} &gt;$ <code>currentTime</code> (supplied by the contract from the chain clock);</li>
+<li>$\mathsf{jurisdiction} \in$ <code>jurisdictionSetRoot</code>;</li>
+<li>the credential is bound to the same $pk$ that spends the note (so credentials cannot be lent to other keys).</li>
+</ul>
+<p>Revealed: only that the statement is true, plus an optional per-scope nullifier $H(\mathsf{DOM}_{cred\text{-}nf}, sk, \mathsf{scope})$ that lets a pool rate-limit or revoke without linking the user across pools.</p>
+<p><strong>Revocation.</strong> Issuers may publish a revocation list as a sparse Merkle tree; the circuit then additionally proves non-membership. *Planned, not yet implemented.*</p>
+<p>&gt; The original scaffold &quot;proved&quot; KYC with hard-coded dummy proof values and identified users by summing character codes. That code has been replaced; treat any build that still contains it as insecure.</p>
+<h2>4. Viewing keys and disclosure</h2>
+<h3>4.1 Full viewing key</h3>
+<p>The viewing key $v$ (see <a href="cryptography.md#2-keys-and-addresses">cryptography.md §2</a>) decrypts <strong>all</strong> notes ever sent to the user&#x27;s address. It cannot spend. Sharing it is irrevocable for the past and ongoing for the future (until the user moves to a new address).</p>
+<h3>4.2 Scoped disclosure bundles (recommended)</h3>
+<p>For most audits, the user should not share $v$. Instead the SDK produces a <strong>disclosure bundle</strong> for a chosen scope (time range, asset, or specific notes):</p>
+<p>$$</p>
+<p>\mathsf{bundle} = \big\{\,(i,\ C_i,\ \mathsf{asset}_i,\ \mathsf{value}_i,\ \mathsf{owner}_i,\ r_i,\ \mathsf{nf}_i?)\,\big\}_{i \in \text{scope}}</p>
+<p>$$</p>
+<p>The recipient (auditor, accountant, regulator) can verify each entry independently by recomputing $C_i$ and checking it is in the on-chain tree at index $i$, and (if included) that $\mathsf{nf}_i$ appears in the nullifier set ,  proving the note was spent. A bundle reveals nothing outside its scope. Bundles can be encrypted to the auditor&#x27;s public key.</p>
+<h3>4.3 Regulator / auditor view keys (pool policy)</h3>
+<p>If a pool sets <code>auditor.publicKey</code> $= Q$, every output note in that pool also carries an <strong>auditor ciphertext</strong>: the note opening encrypted to $Q$ with a separate ephemeral key, using a Poseidon-based stream cipher so it can be checked inside the circuit.</p>
+<p>$$</p>
+<p>E_a = e_a \cdot B,\quad s_a = (e_a \cdot Q).x,\quad \mathsf{ct}_a = (\mathsf{asset},\mathsf{value},\mathsf{owner}) + \mathsf{PoseidonKeystream}(s_a)</p>
+<p>$$</p>
+<ul>
+<li>The holder of the auditor key can decrypt amounts and one-time owners for that pool only. They <strong>cannot spend</strong>.</li>
+<li>Counterparty linkage still requires the users&#x27; own disclosure, because one-time owners do not reveal shielded addresses.</li>
+<li>This is visible pool policy, not a hidden backdoor. Pools without an auditor key do not produce auditor ciphertexts.</li>
+<li>Key custody for the auditor key (e.g. threshold-split between several parties, time-limited rotation) is the operator&#x27;s responsibility.</li>
+</ul>
+<p>&gt; The scaffold&#x27;s <code>generateRegulatoryViewKey</code> produced a base64 string of the regulator ID and wallet range ,  not a key at all. It has been replaced by the mechanisms above.</p>
+<h2>5. Sanctions-screening hook</h2>
+<p>Deposits and withdrawals are the points where public addresses meet the shielded pool. The SDK and relayer expose a pluggable hook:</p>
+<pre><code>
+// Illustrative
+interface ScreeningProvider {
+  id: string;
+  check(input: { chain: string; address: string; direction: &quot;deposit&quot; | &quot;withdraw&quot;; amount?: bigint })
+    : Promise&lt;{ allow: boolean; reason?: string; reference?: string }&gt;;
+}
+client.compliance.registerScreeningProvider(myProvider);
+</code></pre>
+<ul>
+<li>Shade ships the <strong>interface and a no-op default</strong>; it does <strong>not</strong> ship, maintain or endorse any sanctions list or screening vendor.</li>
+<li>Where enforced: in the SDK/relayer (advisory, bypassable by a user running their own client), and optionally on-chain via an allow/deny attestation required by pool policy (*planned*).</li>
+<li>Results are not written on-chain by default, to avoid publishing personal data.</li>
+</ul>
+<h2>6. What these tools do not do</h2>
+<ul>
+<li>They do not identify users to anyone without the user&#x27;s (or the pool policy&#x27;s) explicit disclosure.</li>
+<li>They do not guarantee that an issuer&#x27;s checks were adequate.</li>
+<li>They do not make the protocol, any pool or any user &quot;compliant&quot; or &quot;approved&quot;.</li>
+</ul>
+</main>
+</body>
+</html>

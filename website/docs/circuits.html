@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Circuits · Shade Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shade Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Circuits</h1>
+<p>&gt; <strong>Status:</strong> devnet/testnet only · <strong>unaudited</strong> · <strong>development trusted setup ,  proofs from these keys are not secure</strong> · interfaces subject to change. Circuit sources live in <a href="https://github.com/Chenz0-13/shade-protocol/tree/main/circuits"><code>circuits/</code></a>. Notation follows <a href="cryptography.html">cryptography.md</a>.</p>
+<h2>1. Overview</h2>
+<p>| Circuit | Purpose | Used by |</p>
+<p>|---|---|---|</p>
+<p>| `transaction` (2-in / 2-out) | Deposits, transfers and withdrawals: membership, ownership, nullifiers, output well-formedness, conservation, range checks | Shielded pool |</p>
+<p>| `settlement` | Atomically settles one matched dark-pool trade between two parties | Dark pool |</p>
+<p>| `kyc_credential` | Proves properties of an issuer-signed credential without revealing it | Compliance layer |</p>
+<p>All circuits are written in Circom 2, use circomlib&#x27;s <code>Poseidon</code>, <code>Num2Bits</code>, <code>BabyAdd</code>/<code>EscalarMulAny</code> and <code>EdDSAPoseidonVerifier</code>, and are proved with Groth16 on BN254.</p>
+<h2>2. Transaction circuit</h2>
+<p>A &quot;join-split&quot; with two input slots and two output slots. Unused input slots carry zero-value dummy notes; unused output slots carry zero-value notes to the sender. This keeps every transaction the same shape, so a deposit, a transfer and a withdrawal look alike to observers apart from <code>publicAmount</code>.</p>
+<h3>Public inputs</h3>
+<p>| Name | Meaning |</p>
+<p>|---|---|</p>
+<p>| `root` | A Merkle root from the contract&#x27;s recent-roots buffer |</p>
+<p>| `nf[2]` | Nullifiers of the two inputs |</p>
+<p>| `cOut[2]` | Commitments of the two outputs |</p>
+<p>| `publicAmount` | Net value entering (+) or leaving (−) the pool, encoded in $\mathbb{F}_p$ as $(\text{amount} \bmod p)$ |</p>
+<p>| `asset` | Asset identifier for this pool |</p>
+<p>| `extDataHash` | $H(\mathsf{DOM}_{ext}, \text{recipient}, \text{relayer}, \text{fee}, H(\text{ciphertexts}))$ ,  binds off-circuit data |</p>
+<h3>Private inputs</h3>
+<p>Per input $j$: <code>value</code>, <code>r</code>, <code>pk</code>-derivation secret <code>sk</code>, stealth tweak <code>tau</code>, <code>leafIndex</code>, <code>path[D]</code>. Per output $k$: <code>value</code>, <code>r</code>, <code>owner</code>.</p>
+<h3>Constraints</h3>
+<p>For each input $j \in \{0,1\}$:</p>
+<ul>
+<li>1. <strong>Ownership.</strong> $pk_j = H(\mathsf{DOM}_{pk}, sk)$ and $\mathsf{owner}_j = H(\mathsf{DOM}_{own}, pk_j, \tau_j)$.</li>
+<li>2. <strong>Commitment.</strong> $C_j = H(\mathsf{DOM}_{note}, \mathsf{asset}, \mathsf{value}_j, \mathsf{owner}_j, r_j)$.</li>
+<li>3. <strong>Membership.</strong> Recompute the Merkle root from $C_j$, <code>leafIndex_j</code> and <code>path_j</code> (index bits via <code>Num2Bits(D)</code>); require it equals <code>root</code> <strong>unless</strong> $\mathsf{value}_j = 0$ (dummy input). Enforced as $(\text{computedRoot}_j - \text{root}) \cdot \mathsf{value}_j = 0$.</li>
+<li>4. <strong>Nullifier.</strong> $\mathsf{nf}_j = H(\mathsf{DOM}_{nf}, sk, C_j, \text{leafIndex}_j)$.</li>
+</ul>
+<p>For each output $k \in \{0,1\}$:</p>
+<ul>
+<li>5. <strong>Well-formed output.</strong> $\mathsf{cOut}_k = H(\mathsf{DOM}_{note}, \mathsf{asset}, \mathsf{value}&#x27;_k, \mathsf{owner}&#x27;_k, r&#x27;_k)$.</li>
+<li>6. <strong>Range.</strong> $\mathsf{value}&#x27;_k &lt; 2^{64}$ via <code>Num2Bits(64)</code>. Inputs are range-checked the same way.</li>
+</ul>
+<p>Across the transaction:</p>
+<ul>
+<li>7. <strong>Conservation.</strong> $\mathsf{value}_0 + \mathsf{value}_1 + \mathsf{publicAmount} = \mathsf{value}&#x27;_0 + \mathsf{value}&#x27;_1$ (the fee is paid from <code>publicAmount</code> on withdrawal, and is bound via <code>extDataHash</code>).</li>
+<li>8. <strong>Distinct nullifiers.</strong> $\mathsf{nf}_0 \neq \mathsf{nf}_1$ (enforced in-circuit with an inverse witness, and again by the contract).</li>
+<li>9. <strong>Binding external data.</strong> <code>extDataHash</code> is a public input; a dummy square constraint ensures it is part of the proof, so a relayer cannot change recipient, fee or ciphertexts without invalidating it.</li>
+</ul>
+<p>Range checks matter: all arithmetic is modulo $p$, so without them a negative &quot;value&quot; such as $p-1$ could be used to mint funds. With every value below $2^{64}$ and at most four terms per side, sums cannot wrap.</p>
+<p>The contract additionally checks: <code>root</code> is in the buffer, neither nullifier is already spent, <code>publicAmount</code> matches the actual token movement, and <code>asset</code> matches the pool.</p>
+<h3>Sketch</h3>
+<pre><code>
+pragma circom 2.1.6;
+include &quot;circomlib/circuits/poseidon.circom&quot;;
+include &quot;circomlib/circuits/bitify.circom&quot;;
+
+template Transaction(D) {
+    signal input root, nf[2], cOut[2], publicAmount, asset, extDataHash;   // public
+    signal input sk, inValue[2], inR[2], inTau[2], inIndex[2], inPath[2][D];
+    signal input outValue[2], outR[2], outOwner[2];
+
+    // pk and per-input owner, commitment, Merkle root, nullifier ...
+    // range checks: Num2Bits(64) on every value
+    // conservation:
+    inValue[0] + inValue[1] + publicAmount === outValue[0] + outValue[1];
+}
+component main { public [root, nf, cOut, publicAmount, asset, extDataHash] } = Transaction(20);
+</code></pre>
+<p>This sketch is illustrative; the repository&#x27;s circuit is canonical.</p>
+<h2>3. Settlement circuit (dark pool)</h2>
+<p>Settles one match between a buyer (pays quote asset $Q$, receives base asset $B$) and a seller (the reverse), at execution price $P$ for base quantity $q$.</p>
+<p><strong>Public:</strong> <code>root</code>, <code>nfBuy</code>, <code>nfSell</code>, the output commitments (buyer receives base + quote change; seller receives quote + base change), <code>matchId</code>, <code>extDataHash</code>.</p>
+<p><strong>Private:</strong> both input notes and their membership paths, both order openings (side, limit price, size, order secret), the execution price $P$ and fill quantity $q$, output openings.</p>
+<p><strong>Constraints:</strong></p>
+<ul>
+<li>1. Both input notes are members of the tree and their nullifiers are correctly derived (as in §2).</li>
+<li>2. Both orders are opened against their on-chain order commitments (see <a href="dark-pool.html">dark-pool.md</a>) and are <strong>opposite sides</strong> of the <strong>same pair</strong>.</li>
+<li>3. <strong>Price compatibility:</strong> $P \le \text{limit}_{buy}$ and $P \ge \text{limit}_{sell}$.</li>
+<li>4. <strong>Size:</strong> $q \le \text{size}_{buy}$ and $q \le \text{size}_{sell}$, and $q &gt; 0$.</li>
+<li>5. <strong>Conservation per asset:</strong></li>
+</ul>
+<p>   - Buyer: $\mathsf{in}^Q_{buy} = q \cdot P / 10^{d} + \mathsf{change}^Q_{buy}$ and receives $q$ of $B$.</p>
+<p>   - Seller: $\mathsf{in}^B_{sell} = q + \mathsf{change}^B_{sell}$ and receives $q \cdot P / 10^{d}$ of $Q$.</p>
+<p>   Division is implemented as a multiplication check with a range-checked remainder; $d$ is the fixed price-decimals constant. Rounding is always against the taker of the rounding, never creating value.</p>
+<ul>
+<li>6. All values and the remainder are range-checked to 64 bits.</li>
+</ul>
+<p>The circuit proves <strong>validity</strong> of a match. It does not prove the match was the <strong>best</strong> available one ,  that is a matcher fairness assumption (see <a href="dark-pool.md#trust-model">dark-pool.md</a>).</p>
+<h2>4. KYC credential circuit</h2>
+<p>Proves, without revealing the credential: &quot;I hold a credential, signed by an accepted issuer, bound to my spend key, of level ≥ L, not expired at time T, with a jurisdiction in the allowed set.&quot; Full details in <a href="compliance.html">compliance.md</a>.</p>
+<p><strong>Public:</strong> <code>issuerSetRoot</code>, <code>requiredLevel</code>, <code>currentTime</code>, <code>jurisdictionSetRoot</code>, <code>credNullifier</code> (optional, per-scope), <code>bindingHash</code>.</p>
+<p><strong>Constraints:</strong> EdDSA-Poseidon signature verification of the credential commitment against an issuer key that is a member of <code>issuerSetRoot</code>; <code>level ≥ requiredLevel</code> (range-checked comparison); <code>expiry &gt; currentTime</code>; jurisdiction code is a leaf of <code>jurisdictionSetRoot</code>; <code>bindingHash = H(pk, scope)</code> ties the proof to the holder.</p>
+<h2>5. Building and the trusted setup</h2>
+<p>Typical development flow (exact scripts in the repository):</p>
+<pre><code>
+circom circuits/transaction.circom --r1cs --wasm --sym -o build/
+snarkjs groth16 setup build/transaction.r1cs pot_dev.ptau build/transaction_0000.zkey
+snarkjs zkey contribute build/transaction_0000.zkey build/transaction_dev.zkey --name=&quot;dev&quot;
+snarkjs zkey export verificationkey build/transaction_dev.zkey build/transaction_vkey.json
+</code></pre>
+<p>&gt; <strong>Development setup only.</strong> A single contributor means that contributor could forge proofs. These artefacts are for devnet/testnet. Production keys require a public multi-party ceremony with published transcripts and an attestation from each participant; at least one honest participant is then sufficient.</p>
+<h2>6. Testing</h2>
+</main>
+</body>
+</html>

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#07080a">
+<meta name="robots" content="noindex">
+<script>
+/* GitHub Pages serves this file at the missing URL, so relative assets must
+   resolve from the site root (apex custom domain, or /shade-protocol/ on github.io). */
+(function () {
+  if (location.protocol === "file:") return;
+  var base = "/";
+  if (/\.github\.io$/i.test(location.hostname)) {
+    var first = location.pathname.split("/").filter(Boolean)[0];
+    if (first === "shade-protocol") base = "/shade-protocol/";
+  }
+  document.write('<base href="' + base + '">');
+})();
+</script>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='0' y2='1'%3E%3Cstop offset='0' stop-color='%23E6FF7A'/%3E%3Cstop offset='1' stop-color='%237FA61A'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='url(%23g)'/%3E%3C/svg%3E">
+<title>Page not found · Shade Protocol</title>
+<style>
+  @font-face{font-family:"Inter";font-style:normal;font-weight:300 600;font-display:swap;src:url(assets/fonts/Inter.woff2) format("woff2")}
+  @font-face{font-family:"Oswald";font-style:normal;font-weight:500 600;font-display:swap;src:url(assets/fonts/Oswald.woff2) format("woff2")}
+  @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 500;font-display:swap;src:url(assets/fonts/JetBrainsMono.woff2) format("woff2")}
+  :root{
+    --bg:#07080a;
+    --ink:#E9ECEF;
+    --head:#F2F4F6;
+    --muted:#9AA1AA;
+    --dim:#80878f;
+    --line:#262a30;
+    --line-hi:#3a3f46;
+    --lime:#C6F432;
+    --display:"Oswald","Arial Narrow","Roboto Condensed",Impact,sans-serif;
+    --sans:"Inter",ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,Arial,sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    --nav-h:68px;
+    --gl:max(20px, env(safe-area-inset-left, 0px));
+    --gr:max(20px, env(safe-area-inset-right, 0px));
+    --max:1240px;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  html{
+    background-color:var(--bg);
+    background-image:
+      radial-gradient(ellipse 70% 40% at 85% 8%, rgba(120,128,138,.10), transparent 70%),
+      radial-gradient(ellipse 60% 35% at 10% 55%, rgba(110,118,128,.07), transparent 70%),
+      radial-gradient(ellipse 70% 35% at 80% 92%, rgba(198,244,50,.035), transparent 70%);
+    background-attachment:fixed;
+    min-height:100%;
+  }
+  body{
+    margin:0;min-height:100vh;display:flex;flex-direction:column;color:var(--muted);
+    font:400 16px/1.65 var(--sans);
+    -webkit-font-smoothing:antialiased;
+  }
+  body::after{
+    content:"";position:fixed;inset:0;z-index:80;pointer-events:none;opacity:.6;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 .05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  a{color:inherit;text-decoration:none}
+  em{font-style:normal;color:var(--lime)}
+  :focus-visible{outline:2px solid var(--lime);outline-offset:3px}
+  ::selection{background:var(--lime);color:var(--bg)}
+  .shell{max-width:var(--max);margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+  .nav{
+    position:sticky;top:0;z-index:60;
+    background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,.35));
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    border-bottom:1px solid rgba(255,255,255,.06);
+    padding-top:env(safe-area-inset-top,0px);
+  }
+  .nav-in{display:flex;align-items:center;height:var(--nav-h)}
+  .brand{display:flex;align-items:center;gap:12px;font:500 1.05rem var(--display);letter-spacing:.18em;color:var(--ink);text-transform:uppercase;white-space:nowrap}
+  .brand svg{flex:none;display:block}
+  main{flex:1;display:flex;align-items:center}
+  .panel{padding:clamp(48px,8vw,96px) 0;max-width:40rem}
+  .eyebrow{
+    margin:0;display:flex;align-items:center;gap:14px;
+    font:500 12px var(--sans);letter-spacing:.24em;text-transform:uppercase;color:var(--lime);
+  }
+  .eyebrow::before{content:"";width:38px;height:1px;background:var(--lime);flex:none}
+  h1{
+    margin:18px 0 16px;font:600 clamp(3rem,10vw,5.4rem)/.98 var(--display);
+    text-transform:uppercase;letter-spacing:-.005em;color:var(--head);
+  }
+  p{margin:0;max-width:46ch;color:#AEB4BC;font:300 1.05rem/1.6 var(--sans)}
+  .path{
+    margin-top:18px;font:500 .95rem/1.4 var(--mono);color:var(--dim);
+    overflow-wrap:anywhere;
+  }
+  .path b{color:var(--lime);font-weight:500}
+  .actions{display:flex;flex-wrap:wrap;align-items:center;gap:16px 18px;margin-top:32px}
+  .btn{
+    display:inline-flex;align-items:center;justify-content:center;
+    padding:15px 26px;border:1px solid var(--lime);border-radius:0;
+    background:var(--lime);color:#0a0b0c;
+    font:600 12.5px var(--sans);letter-spacing:.14em;text-transform:uppercase;
+  }
+  .btn:hover{background:#d8ff5c;border-color:#d8ff5c}
+  .btn.line{background:transparent;border-color:#4a4f56;color:var(--ink)}
+  .btn.line:hover{border-color:var(--lime);color:var(--lime);background:transparent}
+  footer{border-top:1px solid var(--line);padding:22px 0 calc(22px + env(safe-area-inset-bottom,0px));font:400 13px/1.5 var(--sans);color:var(--dim)}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="shell nav-in">
+    <a class="brand" href="./" aria-label="Shade Protocol, home">
+      <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg>
+      <span>Shade Protocol</span>
+    </a>
+  </div>
+</header>
+<main>
+  <div class="shell">
+    <div class="panel">
+      <p class="eyebrow">04 // Not found</p>
+      <h1>This page <em>isn't here.</em></h1>
+      <p>That path isn't part of the Shade Protocol site. The litepaper and the docs are linked from the home page.</p>
+      <p class="path" id="missing"><b>404</b> <span id="path"></span></p>
+      <div class="actions">
+        <a class="btn" href="./">Back home</a>
+        <a class="btn line" href="docs/litepaper.html">Read the litepaper</a>
+      </div>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="shell">© <span id="year"></span> Shade Protocol. Private by default, verifiable by design.</div>
+</footer>
+<script>
+(function () {
+  document.getElementById("year").textContent = new Date().getFullYear();
+  var path = location.pathname + location.search;
+  document.getElementById("path").textContent = path;
+})();
+</script>
+</body>
+</html>

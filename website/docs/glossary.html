@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Glossary · Shade Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shade Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Glossary</h1>
+<p><strong>Adapter (chain adapter)</strong> ,  The thin, chain-specific component that verifies proofs, stores roots and nullifiers, and holds pooled tokens on one blockchain.</p>
+<p><strong>AEAD / AES-256-GCM</strong> ,  Authenticated encryption: encrypts data and detects any tampering. Used for note and order ciphertexts.</p>
+<p><strong>Anonymity set</strong> ,  The group of users or notes among which a given transaction could plausibly belong. Bigger is more private.</p>
+<p><strong>Auditor ciphertext</strong> ,  An optional extra encryption of a note&#x27;s details to a designated auditor key, enabled only by visible pool policy.</p>
+<p><strong>Baby Jubjub</strong> ,  An elliptic curve designed to be efficient inside BN254 zero-knowledge circuits. Used for viewing keys, ECDH and EdDSA signatures.</p>
+<p><strong>Batch (matching batch)</strong> ,  A short time window after which the dark-pool matcher processes all collected orders together.</p>
+<p><strong>BN254 (alt_bn128)</strong> ,  The pairing-friendly elliptic curve used by Groth16 here; natively supported on Solana, NEAR and EVM chains.</p>
+<p><strong>Circom</strong> ,  A language for writing arithmetic circuits for zero-knowledge proofs.</p>
+<p><strong>Commitment</strong> ,  A public fingerprint of a note that hides its contents (*hiding*) and cannot later be opened to different contents (*binding*).</p>
+<p><strong>Dark pool</strong> ,  A venue where orders are not publicly visible before execution.</p>
+<p><strong>Devnet / testnet</strong> ,  Public test networks with valueless tokens. Shade runs only here.</p>
+<p><strong>Disclosure bundle</strong> ,  A user-generated, verifiable package revealing specific notes to a chosen party.</p>
+<p><strong>ECDH</strong> ,  Elliptic-curve Diffie-Hellman: two parties derive a shared secret from one&#x27;s private key and the other&#x27;s public key.</p>
+<p><strong>Ephemeral key</strong> ,  A one-time key the sender generates per note so the recipient can derive the shared secret.</p>
+<p><strong>Front-running</strong> ,  Trading ahead of a known pending order to profit from its price impact.</p>
+<p><strong>Groth16</strong> ,  A zk-SNARK proving system with very small proofs and cheap verification, requiring a trusted setup per circuit.</p>
+<p><strong>HKDF</strong> ,  A standard key-derivation function that turns a shared secret into encryption keys.</p>
+<p><strong>Join-split</strong> ,  A transaction shape that consumes some notes and creates new ones, proving value is conserved.</p>
+<p><strong>KYC credential</strong> ,  A signed statement from an issuer about a user (e.g. level, jurisdiction, expiry), provable in zero knowledge.</p>
+<p><strong>Merkle tree / root</strong> ,  A hash tree whose single root summarises every commitment; membership can be proved with a short path.</p>
+<p><strong>MEV (maximal extractable value)</strong> ,  Profit available to whoever controls transaction ordering, e.g. via sandwich attacks.</p>
+<p><strong>Note</strong> ,  A unit of shielded value: asset, amount, one-time owner and random blinding.</p>
+<p><strong>Nullifier</strong> ,  A unique tag revealed when a note is spent; prevents double-spending without revealing which note was spent.</p>
+<p><strong>Poseidon</strong> ,  A hash function designed to be cheap inside zero-knowledge circuits.</p>
+<p><strong>Range check</strong> ,  A circuit constraint proving a number lies in a range (here below 2⁶⁴), preventing modular-arithmetic overflow tricks.</p>
+<p><strong>Relayer</strong> ,  An optional service that submits your transaction and pays gas, so your public wallet isn&#x27;t linked to it.</p>
+<p><strong>Screening hook</strong> ,  A plug-in point where an integrator can check public addresses at deposit/withdraw against a provider of their choosing.</p>
+<p><strong>Shielded address</strong> ,  A shareable address made of a spend public key and a viewing public key; never appears on-chain.</p>
+<p><strong>Shielded pool</strong> ,  The on-chain contract/program holding all notes&#x27; backing tokens, the commitment tree and the nullifier set.</p>
+<p><strong>Spending key</strong> ,  The secret that authorises spending notes. Never share it.</p>
+<p><strong>Stealth address</strong> ,  A one-time owner value derived per payment so payments to the same person cannot be linked.</p>
+<p><strong>Trusted setup (ceremony)</strong> ,  The process generating Groth16 parameters. Secure if at least one participant destroys their secret randomness.</p>
+<p><strong>Viewing key</strong> ,  A secret that decrypts a user&#x27;s incoming notes but cannot spend them.</p>
+<p><strong>View tag</strong> ,  A one-byte hint that lets recipients skip most notes that aren&#x27;t theirs while scanning.</p>
+<p><strong>Witness</strong> ,  The private inputs to a circuit that the prover knows and the proof hides.</p>
+<p><strong>Zero-knowledge proof (ZKP)</strong> ,  A proof that a statement is true which reveals nothing else.</p>
+</main>
+</body>
+</html>
