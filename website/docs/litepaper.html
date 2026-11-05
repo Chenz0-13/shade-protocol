@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Litepaper · Shader Protocol</title>
+<meta name="description" content="Shader Protocol litepaper. Groth16 shielded pool in development. Not audited. Devnet and testnet only. No token. No mainnet.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Litepaper</h1>
+  <p>This page describes the code as it stands and the work that is only in development. It is not an offer, and it does not promise a date. The repository is still <a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a> until it is renamed.</p>
+
+  <h2>What the code does now</h2>
+  <p>Shader Protocol is a Groth16 shielded pool.</p>
+  <p>A transfer spends one input note and creates two output notes plus a fee: <code>value in = value out 1 + value out 2 + fee</code>.</p>
+  <ul>
+    <li>Commitments are Poseidon hashes.</li>
+    <li>The nullifier is bound to the commitment and the leaf index, so the same note cannot be spent twice.</li>
+    <li><code>extDataHash</code> binds the recipient, the relayer, the fee, the chain, and the pool. The contract recomputes that hash from the values it actually uses.</li>
+    <li>Public inputs are canonical field elements.</li>
+    <li>Pools keep a root history. A proof has to cite a root that is still in that history.</li>
+  </ul>
+  <p>Incoming notes use secp256k1 stealth addresses. A view key can recognize a note and decrypt it. It does not derive the spending key. Regulator keys are secp256k1 as well: an issuer-signed encryption key plus a scope.</p>
+  <p>The dark pool in this repository is an operator matcher. Orders are sealed to the operator, who can open them in order to build the two settlement proofs. That is a devnet tool. It does not mean a public mempool cannot front-run, and it is not a custody design for someone else's funds.</p>
+  <p>Zero-knowledge KYC proofs are not implemented. The client rejects <code>generateGroth16KycProof</code> on purpose. Treat that idea as planned at most.</p>
+
+  <h2>Chains</h2>
+  <p>These adapters are in development. None of them is deployed.</p>
+  <table>
+    <thead><tr><th>Chain</th><th>What it is</th></tr></thead>
+    <tbody>
+      <tr><td>Solana devnet</td><td>Shielded pool program</td></tr>
+      <tr><td>Robinhood Chain testnet (chain id 46630)</td><td>Same pool shape on an EVM testnet</td></tr>
+      <tr><td>Kinetiq Elysium testnet (chain id 99801)</td><td>Same pool shape on an EVM testnet</td></tr>
+      <tr><td>NEAR testnet</td><td>Same pool shape</td></tr>
+      <tr><td>Canton</td><td>2-of-N attestation, not a proof verifier</td></tr>
+    </tbody>
+  </table>
+  <p>Canton does not check the Groth16 proof. A result is recorded only when two named attestors authorize it. The trust assumption is those attestors. They are expected to sign only after a pool has already accepted the spend. If two of them sign a result that never happened, Canton records it anyway. The TypeScript adapter does not submit to Canton.</p>
+  <p>Naming a chain here is an engineering target. Shader Protocol has no partnership with any of them.</p>
+
+  <h2>In development</h2>
+  <p>Not shipped, and not deployed:</p>
+  <ul>
+    <li>HyperEVM testnet</li>
+    <li>Base Sepolia</li>
+    <li>A v2 universal note format</li>
+    <li>Private cross-chain teleport, where two transports must agree, with per-epoch caps</li>
+    <li>Disclosure receipts</li>
+    <li>Agent allowance notes</li>
+    <li>Private payroll</li>
+    <li>A multi-party trusted setup ceremony</li>
+    <li>A CI security toolchain</li>
+  </ul>
+
+  <h2>Security</h2>
+  <div class="note">
+    <p>The Groth16 keys are a single-party development setup. Anyone who kept the intermediate parameters can forge proofs. Do not protect real value with them.</p>
+    <p>Not audited. Devnet and testnet only. There is no mainnet deployment.</p>
+    <p>Planned path, with no dates: a multi-party ceremony, then an independent audit, then a guarded beta with caps.</p>
+  </div>
+  <p>Report a vulnerability in private. Do not open a public issue for an unfixed security bug.</p>
+  <p><a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">GitHub private vulnerability reporting</a></p>
+
+  <h2>Token</h2>
+  <p>A possible utility token is under design for relayer and attestor bonding; no token exists and none is offered. Any launch would follow legal review.</p>
+
+  <h2>Roadmap</h2>
+  <p>No dates are promised. A later step starts when the previous one is actually finished.</p>
+  <ol>
+    <li><strong>Now.</strong> Groth16 shielded pool in development, not yet deployed, on the chains listed above.</li>
+    <li><strong>Next build.</strong> The in-development items above, including HyperEVM testnet, Base Sepolia, the v2 note format, and private cross-chain teleport.</li>
+    <li><strong>Ceremony.</strong> Multi-party trusted setup. Not started.</li>
+    <li><strong>Independent audit.</strong> Not started. The code is not audited today.</li>
+    <li><strong>Guarded beta with caps.</strong> Only after the ceremony and the audit.</li>
+  </ol>
+  <div class="actions">
+    <a class="btn" href="index.html">Technical docs</a>
+    <a class="btn line" href="docs/security.html">Security</a>
+  </div>
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../index.html">Home</a>
+    <a href="../terms.html">Terms</a>
+    <a href="../privacy.html">Privacy</a>
+    <a href="../index.html#about">About</a>
+  </nav>
+</footer>
+</body>
+</html>
