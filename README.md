@@ -1,165 +1,149 @@
 # Shade Protocol
 
-Shade Protocol is a privacy-first, multi-chain execution stack for shielded notes, encrypted mempools, dark-pool matching, and compliant settlement.
+TypeScript SDK and Circom circuit for a devnet shielded-note pool: Poseidon
+commitments, nullifiers, ECDH stealth addresses, Groth16 transfers, an
+operator dark pool, and a signed compliance layer.
 
-This repository is organized as a project scaffold and protocol foundation. It brings together:
+This repository does not contain Rust crates. The protocol code lives in
+`src/`.
 
-- a cryptographic core for commitments, nullifiers, stealth-address-style note generation, and encrypted data
-- a privacy execution layer for matching and settlement primitives
-- a KYC / compliance proof layer
-- chain-adapter placeholders for Solana, NEAR, Canton, and Robinhood
-- a unified SDK surface for protocol consumers
-
-## Optimized architecture recommendation
-
-The codebase is best structured as a hybrid system:
-
-- Rust-first protocol core
-  - note and commitment management
-  - nullifier registry
-  - Merkle state
-  - privacy state transitions
-  - proof interfaces and verifier abstractions
-- TypeScript SDK layer
-  - client-side access to protocol primitives
-  - developer ergonomics and local tooling
-  - lightweight integration interfaces
-- Chain adapters remain thin and isolated
-  - Solana, NEAR, Canton, and Robinhood adapters translate protocol state to chain-specific settlement and routing
-- Compliance and proof handling remain at the policy and verification boundary
-  - KYC / AML gating
-  - selective disclosure
-  - gateway policy enforcement
-
-This separation is the best optimization for correctness, security, and maintainability.
-
-## Repository layout
+## Layout
 
 ```text
-privacy-protocol/
-├── Cargo.toml
-├── README.md
-├── crates/
-│   ├── core/
-│   │   ├── crypto/
-│   │   ├── proof/
-│   │   ├── note/
-│   │   └── error.rs
-│   ├── state/
-│   │   ├── tree/
-│   │   ├── mempool/
-│   │   ├── settlement/
-│   │   └── registry/
-│   ├── modules/
-│   │   ├── dark_pool/
-│   │   ├── kyc/
-│   │   ├── vaults/
-│   │   ├── bridge/
-│   │   └── governance/
-│   ├── adapters/
-│   │   ├── solana/
-│   │   ├── near/
-│   │   ├── canton/
-│   │   └── robinhood/
-│   ├── gateway/
-│   ├── node/
-│   ├── cli/
-│   ├── benches/
-│   └── docs/
-├── sdk/
-│   ├── package.json
-│   └── src/
-├── examples/
-├── tests/
-└── README.md
+src/core/crypto       commitments, nullifiers, ECDH stealth, AES-GCM, regulator keys
+src/core/merkle       fixed-depth Poseidon tree
+src/core/proof        Groth16 witness builder, prove, verify
+src/core/pool         operator dark pool
+src/core/compliance   credential store, issuer signatures, sanctions hook
+src/core/chain        Solana, NEAR, and Robinhood devnet adapters; Canton attestation only
+src/sdk               ShadeClient
+circuits/             shielded transfer circuit
+tests/                unit and adversarial tests
 ```
 
-## Core design principles
+## Cryptography
 
-1. Protocol logic belongs in Rust
-   - cryptographic ops
-   - proof verification flow
-   - state transitions
-   - nullifier and commitment tracking
+Notes are hash commitments:
 
-2. SDK and tooling can remain TypeScript
-   - client integrations
-   - local scripting
-   - developer UX
-
-3. Proofs should be backend-agnostic
-   - support groth16 / halo2 / custom proof backends behind a common trait
-
-4. Keep chain adapters thin
-   - adapters should translate protocol state into chain actions, not own the protocol logic
-
-5. Separate policy from execution
-   - compliance checks stay at the gateway and policy layer
-   - execution core should accept only validated state and proof objects
-
-## Suggested protocol primitives
-
-```rust
-pub struct NoteCommitment([u8; 32]);
-pub struct Nullifier([u8; 32]);
-pub struct EncryptedValue(Vec<u8>);
-
-pub struct PrivacyNote {
-    pub commitment: NoteCommitment,
-    pub nullifier: Nullifier,
-    pub encrypted_value: EncryptedValue,
-    pub stealth_address: [u8; 32],
-}
+```text
+ownerPub   = Poseidon(3, spendingKey)
+commitment = Poseidon(1, value, blinding, rho, ownerPub, assetId)
+nullifier  = Poseidon(2, spendingKey, rho)
 ```
 
-```rust
-pub trait PrivacyCircuit {
-    type PublicInputs: Clone;
-    type PrivateInputs: Clone;
+`rho` is a fresh field element, so a spending key has a distinct nullifier
+for every note. The blinding factor hides the value. The Merkle tree is a
+depth-8 Poseidon tree, the same depth the circuit checks. A forged sibling
+does not verify.
 
-    fn generate_proof(
-        private: &Self::PrivateInputs,
-        public: &Self::PublicInputs,
-    ) -> Result<Proof, ProofError>;
+Incoming notes are encrypted with AES-256-GCM. The key is
+`HKDF-SHA256(ECDH shared secret)`, not the raw spending key. The published
+address is a dual-key stealth point `spendPub + H(ECDH(ephemeral, viewPub))·G`.
+The view key recognizes that point and decrypts the payload. It cannot derive
+the ZK spending key. The one-time curve scalar also requires the curve spend
+key; that curve key is separate from the ZK spending key because Poseidon is
+not homomorphic.
 
-    fn verify_proof(
-        proof: &Proof,
-        public: &Self::PublicInputs,
-    ) -> Result<bool, ProofError>;
-}
+A regulator capability is an issuer-signed secp256k1 encryption key plus a
+scope. Notes sealed to it use a scope-bound AES-GCM associated data. A
+capability that cannot see amounts is given a redacted plaintext. An expired
+or re-scoped capability fails verification or authentication.
+
+The circuit enforces Merkle membership, the commitment and nullifier
+derivations above, 64-bit range checks, asset equality, and
+`valueIn = valueOut1 + valueOut2 + fee`.
+
+## Dark pool
+
+`DarkPool` is an operator matcher. Orders are sealed to the operator view
+key. The operator opens them, checks the escrow note, and produces two
+shielded-transfer proofs (payment plus change for each side). Buys match
+only sells, price ranges must overlap, and each order is used once.
+Nullifiers are marked spent only after both proofs verify. Settlement
+inserts the output notes.
+
+The operator learns escrow spending keys. Do not use this class as custody
+for anyone else's funds. A production pool would have users build the proofs
+locally.
+
+Execution price is the low end of the overlapping range. A sell escrows its
+base amount. A buy escrows `amount * maxPrice` of the quote asset.
+
+## Compliance
+
+Credentials are stored behind a `CredentialStore` and hashed with Poseidon
+over every field. The issuer signs that hash with Ed25519. Verification
+loads the stored credential, checks the signature, and applies policy to the
+stored record. A presenter who claims a higher KYC level than the store is
+rejected. `SanctionsScreen` is called with the wallet address before success.
+`DevnetPermissiveScreen` does not screen anyone.
+
+`generateGroth16KycProof()` throws `NotImplementedError`. There is no fake
+Groth16 KYC proof.
+
+## Chains
+
+Every adapter defaults to a devnet or testnet and rejects mainnet. Nothing
+here has been broadcast to a live network: this environment has no funded
+deploy key. The deploy scripts refuse mainnet and read keys from the
+environment.
+
+| Chain | What is implemented | How it was tested | Live deploy |
+| --- | --- | --- | --- |
+| Robinhood Chain testnet (chain id 46630, Arbitrum Orbit) | `contracts/evm` ShadePool: Poseidon frontier, nullifier map, Groth16, and an `extDataHash` public input binding recipient, relayer, fee, and `block.chainid`. TS adapter in `src/core/chain/robinhood.ts`. | `forge test` deposits, withdraws, rejects a second spend, and rejects the same proof paid to a different recipient. | Not deployed. `node scripts/deploy-robinhood.mjs` reads `ROBINHOOD_PRIVATE_KEY` from the environment and does not put it on the forge argv. |
+| Kinetiq Elysium testnet (chain id 99801, Arbitrum Orbit settling to HyperEVM testnet) | The same ShadePool bytecode. Gas token is HYPE (18 decimals). The viem chain is `defineChain` in `src/core/chain/elysium.ts`. viem's `elysiumTestnet` export is chain id 1338 and is not used. | The EVM pool tests cover the bytecode. The adapter test checks chain id 99801. | Not deployed. `node scripts/deploy-elysium.mjs` accepts only chain id 99801 and reads `ELYSIUM_PRIVATE_KEY` from the environment. Mainnet is pre-launch and is not configured. RPC `https://testnet-rpc.elysium.kinetiq.xyz`, explorer `https://elysium.kinetiq.xyz/testnet-explorer`, faucet `https://elysium.kinetiq.xyz/testnet-faucet`, Blockscout verify API `https://elysium.kinetiq.xyz/api`. |
+| NEAR testnet | `contracts/near` (near-sdk 5.11): frontier tree, canonical nullifier and root keys, Groth16, and the same `extDataHash`. The verification key is set in `#[init]` and a later set fails. | `cargo test` rejects `n+r`, `+n`, and `-(r-n)` for nullifiers and roots, rejects a second key write and a non-owner write, and rejects a real proof paid to a different account. | Not deployed. There is no funded testnet account in this environment. |
+| Solana devnet | `programs/shade-solana` is a pool: Poseidon frontier and root history, nullifier PDAs, a SOL vault, and an `extDataHash` check over the recipient and fee payer. | LiteSVM: deposit, real proof, withdraw, reused nullifier, unknown root, and the same proof with a different recipient. | Not deployed. `scripts/deploy-solana.sh` needs `SOLANA_KEYPAIR` with devnet SOL and refuses mainnet. |
+| Canton | Not a verifier. `contracts/canton` records a result only when two named attestors authorize it, with a contract key on `(sourceChain, nullifier)`. There is no proof field. The trust assumption is the attestors, who are expected to report a Groth16 result already accepted by the Robinhood pool. The TS adapter still throws. | `dpm test` in `contracts/canton` (Daml SDK 3.6.4). See `docs/canton-attestation.md`. | No. DevNet needs a Super Validator sponsor and an IP allowlist. This environment has no participant. |
+
+`ROBINHOOD_API_KEY` is gone. Robinhood configuration is `ROBINHOOD_RPC_URL` (default `https://rpc.testnet.chain.robinhood.com`) and `ROBINHOOD_CHAIN_ID` (default `46630`). Chain id `4663` is mainnet and is rejected.
+
+## Develop
+
+```bash
+npm install
+npm run build
+npm run lint
+npm run circuit:setup   # compiles the circuit and runs a dev-only setup
+npm test
+npm run audit
 ```
 
-## Runtime recommendations
+`npm run circuit:setup` needs the `circom` 2.2.x binary on `PATH`. It also
+writes `contracts/evm/src/Verifier.sol`. The setup is single-party. Re-run it
+with `--force` after changing the circuit. Artifacts under `circuits/build/`
+are not committed.
 
-- Use `HashSet` for nullifier lookup in memory
-- Use `BTreeMap` for ordered mempool or reveal-window state
-- Use typed proofs and typed errors
-- Keep cryptographic hot paths in Rust
-- Keep external APIs behind a gateway / SDK layer
-- Isolate chain-specific logic in adapters
+```bash
+cd contracts/evm && forge install foundry-rs/forge-std --no-git && forge test
+cargo test --manifest-path contracts/shade-crypto/Cargo.toml
+cargo test --manifest-path contracts/near/Cargo.toml
+cd programs/shade-solana && cargo-build-sbf --features insecure-test-setup && cargo test --features insecure-test-setup
+cd contracts/canton && dpm build && cd test && dpm test
+```
 
-## Production caveats
+Copy `.env.example` if you want a local Solana key. Never commit a real key.
+`SOLANA_KEYPAIR` is a JSON array from `solana-keygen` or 128 hex characters.
 
-This repo is a solid architectural scaffold, but production deployment still requires:
+Logging goes through `src/core/log/logger.ts`, which redacts secret fields
+and does not print raw key bytes. Do not put secrets in the log message string.
 
-- real proof artifacts and verifier wiring
-- secure key management and threshold decryption design
-- full compliance / policy enforcement
-- formal cryptographic review
-- chain-specific contracts and runtime deployment
+## Not production-ready
 
-## Current status
+- The development setup is not a trusted ceremony. Forged proofs are possible
+  for anyone who sees the intermediate parameters.
+- Tree depth 8 is a devnet limit.
+- No external cryptographic audit has been done.
+- The EVM verifier, NEAR wasm, and Solana SBF program have not been broadcast.
+  The Solana verifying key is the insecure test setup. The generated key file
+  says not to deploy it; this repository still builds it for devnet tests and
+  the deploy script refuses mainnet.
+- Canton records attestor signatures, not proofs. Two colluding attestors can
+  insert a spend the EVM pool never accepted.
+- The dark pool is operator-visible.
+- Sanctions screening and Groth16 KYC proofs are not implemented.
+- `circomlib` and `snarkjs` are GPL-3.0. `LICENSE` is MIT for this
+  repository's original code; confirm that combination before you distribute
+  a combined work.
 
-This repository currently contains a buildable TypeScript scaffold plus protocol-oriented design modules and placeholders that map cleanly to the final Rust-first architecture recommended above.
-
-## Recommended next step
-
-The next phase should be:
-
-1. create the Rust workspace manifest and crates
-2. move protocol primitives into `crates/core`
-3. define nullifier, Merkle, note, and mempool state in `crates/state`
-4. implement adapter stubs for Solana / NEAR / Canton / Robinhood
-5. add real proof-layer interfaces and backend implementations
-6. scaffold the gateway and CLI from the protocol core
-
+Do not point this software at mainnet.

@@ -1,0 +1,123 @@
+-- These scripts run on a ledger that enforces party authorization and contract keys.
+-- They do not submit a Groth16 proof. A proof blob is not an argument of Record.
+module ShadeAttestationTest where
+
+import ShadeAttestation
+import Daml.Script
+
+setup : Script (ContractId AttestorSet, Party, Party, Party, Party, Party)
+setup = script do
+  admin <- allocatePartyByHint (PartyIdHint "shade-admin")
+  alice <- allocatePartyByHint (PartyIdHint "attestor-alice")
+  bob <- allocatePartyByHint (PartyIdHint "attestor-bob")
+  cara <- allocatePartyByHint (PartyIdHint "attestor-cara")
+  user <- allocatePartyByHint (PartyIdHint "spend-observer")
+  setId <- submit admin do
+    createCmd AttestorSet with
+      publisher = admin
+      attestors = [alice, bob, cara]
+      threshold = 2
+      spent = []
+  pure (setId, admin, alice, bob, cara, user)
+
+record : ContractId AttestorSet -> Party -> Party -> Party -> Text -> Script (ContractId AttestorSet, ContractId RecordedSpend)
+record setId signerA signerB user nullifier = submitMulti [signerA, signerB] [] do
+  exerciseCmd setId Record with
+    signerA
+    signerB
+    observer = user
+    sourceChain = "robinhood-testnet"
+    sourceTx = "0xverified-by-shadepool"
+    nullifier
+    commitmentOut1 = "33"
+    commitmentOut2 = "44"
+    fee = "0"
+    merkleRoot = "11"
+
+test_two_attestors_record_a_verified_result : Script (ContractId RecordedSpend)
+test_two_attestors_record_a_verified_result = script do
+  (setId, _, alice, bob, _, user) <- setup
+  (_, spend) <- record setId alice bob user "nullifier-1"
+  pure spend
+
+test_one_attestor_is_rejected : Script ()
+test_one_attestor_is_rejected = script do
+  (setId, _, alice, bob, _, user) <- setup
+  submitMustFail alice do
+    exerciseCmd setId Record with
+      signerA = alice
+      signerB = bob
+      observer = user
+      sourceChain = "robinhood-testnet"
+      sourceTx = "0xverified-by-shadepool"
+      nullifier = "nullifier-solo"
+      commitmentOut1 = "33"
+      commitmentOut2 = "44"
+      fee = "0"
+      merkleRoot = "11"
+
+test_outsider_is_rejected : Script ()
+test_outsider_is_rejected = script do
+  (setId, _, alice, _, _, user) <- setup
+  outsider <- allocatePartyByHint (PartyIdHint "outsider")
+  submitMultiMustFail [alice, outsider] [] do
+    exerciseCmd setId Record with
+      signerA = alice
+      signerB = outsider
+      observer = user
+      sourceChain = "robinhood-testnet"
+      sourceTx = "0xverified-by-shadepool"
+      nullifier = "nullifier-outsider"
+      commitmentOut1 = "33"
+      commitmentOut2 = "44"
+      fee = "0"
+      merkleRoot = "11"
+
+test_reused_nullifier_is_rejected : Script ()
+test_reused_nullifier_is_rejected = script do
+  (setId, _, alice, bob, cara, user) <- setup
+  (setId2, _) <- record setId alice bob user "nullifier-replay"
+  submitMultiMustFail [alice, cara] [] do
+    exerciseCmd setId2 Record with
+      signerA = alice
+      signerB = cara
+      observer = user
+      sourceChain = "robinhood-testnet"
+      sourceTx = "0xverified-by-shadepool"
+      nullifier = "nullifier-replay"
+      commitmentOut1 = "33"
+      commitmentOut2 = "44"
+      fee = "0"
+      merkleRoot = "11"
+
+test_missing_source_transaction_is_rejected : Script ()
+test_missing_source_transaction_is_rejected = script do
+  (setId, _, alice, bob, _, user) <- setup
+  submitMultiMustFail [alice, bob] [] do
+    exerciseCmd setId Record with
+      signerA = alice
+      signerB = bob
+      observer = user
+      sourceChain = "robinhood-testnet"
+      sourceTx = ""
+      nullifier = "nullifier-empty"
+      commitmentOut1 = "33"
+      commitmentOut2 = "44"
+      fee = "0"
+      merkleRoot = "11"
+
+test_admin_alone_cannot_record : Script ()
+test_admin_alone_cannot_record = script do
+  (setId, admin, alice, bob, _, user) <- setup
+  submitMustFail admin do
+    exerciseCmd setId Record with
+      signerA = alice
+      signerB = bob
+      observer = user
+      sourceChain = "robinhood-testnet"
+      sourceTx = "0xverified-by-shadepool"
+      nullifier = "nullifier-admin"
+      commitmentOut1 = "33"
+      commitmentOut2 = "44"
+      fee = "0"
+      merkleRoot = "11"
