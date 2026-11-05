@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Disclosure tooling · Shader Protocol</title>
+<meta name="description" content="What Shader Protocol does and does not implement for disclosure. KYC proofs are not shipped.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Disclosure tooling</h1>
+  <p>These are software hooks. They are not a legal status, and no regulator has reviewed them. Using them does not settle anyone's legal position.</p>
+  <h2>Shipped in the client</h2>
+  <ul>
+    <li>Credentials can be stored and hashed with Poseidon over their fields. An issuer can sign that hash. Verification loads the stored record, checks the signature, and applies policy to the stored record. A presenter who claims a higher level than the store is rejected.</li>
+    <li>A sanctions-screening interface exists. The devnet default screens nobody. The project does not ship or endorse a list.</li>
+    <li>Regulator capabilities are issuer-signed secp256k1 encryption keys with a scope. See <a href="cryptography.html">cryptography</a>.</li>
+  </ul>
+  <h2>Not shipped</h2>
+  <p>Zero-knowledge KYC proofs are not implemented. <code>generateGroth16KycProof</code> throws, on purpose, so the client cannot pretend a proof exists. Call that planned at most.</p>
+  <p>Disclosure receipts, agent allowance notes, and private payroll are in development. They are not in the circuit today.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>

@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Circuits · Shader Protocol</title>
+<meta name="description" content="The devnet shielded transfer circuit: 1-in, 2-out, fee, Poseidon, and extDataHash. No KYC circuit.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Circuits</h1>
+  <p><code>shielded_transfer.circom</code> is the devnet transfer. It checks:</p>
+  <ul>
+    <li>Poseidon Merkle membership of the input note.</li>
+    <li>The Poseidon commitment opening.</li>
+    <li>The nullifier bound to the commitment and the leaf index.</li>
+    <li>Range checks and asset equality.</li>
+    <li>Value conservation: <code>value in = value out 1 + value out 2 + fee</code>.</li>
+    <li><code>extDataHash</code> over the recipient, relayer, fee, chain, and pool.</li>
+  </ul>
+  <p>Public inputs are the canonical field elements: root, nullifier, two output commitments, fee, and <code>extDataHash</code>.</p>
+  <p>The circuit setup command compiles this circuit and runs a single-party Groth16 setup. Those keys are for tests and devnet experiments only. There is no multi-party ceremony yet.</p>
+  <h2>What is not in the circuit</h2>
+  <p>There is no KYC circuit. <code>generateGroth16KycProof</code> throws. Zero-knowledge KYC proofs are planned at most. Disclosure receipts are in development and are not enforced by this circuit.</p>
+  <p>Do not treat a missing measurement as a benchmark. This page does not publish constraint counts or proving times.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>
