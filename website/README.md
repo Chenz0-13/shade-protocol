@@ -1,14 +1,16 @@
-# Shade Protocol website
+# Shader Protocol website
 
-Static marketing site for Shade Protocol. GitHub Actions publishes this folder to GitHub Pages on every push to `main` (see `.github/workflows/pages.yml`). You can also run that workflow by hand with **Actions → Deploy website to GitHub Pages → Run workflow**.
+Static site for Shader Protocol. GitHub Actions publishes this folder to GitHub Pages on every push to `main` (see `.github/workflows/pages.yml`). You can also run that workflow by hand with **Actions → Deploy website to GitHub Pages → Run workflow**.
+
+The repository is still [github.com/Chenz0-13/shade-protocol](https://github.com/Chenz0-13/shade-protocol). A later rename will redirect. Until then the project site is `https://chenz0-13.github.io/shade-protocol/`. Page links are relative so they work at that path.
 
 ## Custom domain
 
-1. Rename `CNAME.example` to `CNAME`. The file should contain only the real domain, one line, with no scheme or path. The placeholder is `shadeprotocol.xyz`; change that line if the domain is different, then commit and push to `main`.
+1. Rename `CNAME.example` to `CNAME`. The file should contain only the real domain, one line, with no scheme or path. The placeholder is `shaderprotocol.xyz`; change that line if the domain is different, then commit and push to `main`.
 2. In the repository, open **Settings → Pages** and set **Source** to **GitHub Actions**.
 3. At the DNS host for the domain, add these records (GitHub Pages anycast addresses):
 
-   Apex (`shadeprotocol.xyz`, or your domain):
+   Apex (`shaderprotocol.xyz`, or your domain):
 
    | Type | Name | Value |
    | --- | --- | --- |

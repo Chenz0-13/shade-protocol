@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>SDK quickstart · Shader Protocol</title>
+<meta name="description" content="How to read the Shader Protocol client. Devnet and testnet only. Not deployed. API will change.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>SDK quickstart</h1>
+  <div class="note">
+    <p>Not audited. Devnet and testnet only. The proving keys are a single-party development setup. Nothing is deployed. Use throwaway keys.</p>
+  </div>
+  <h2>From source</h2>
+  <p>There is no published package yet. Clone the repository, which is still named shade-protocol:</p>
+  <p><a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a></p>
+  <p>The client class is <code>ShadeClient</code>. That identifier has not been renamed. Methods you will see in <code>src/sdk/</code> include <code>init</code>, <code>generateKeys</code>, <code>mintNote</code>, <code>shieldedTransfer</code>, and <code>sealDarkOrder</code>. Signatures can change. Read the source rather than an old snippet.</p>
+  <p>Chain adapters refuse mainnet RPC targets. Solana, Robinhood Chain testnet (46630), Kinetiq Elysium testnet (99801), and NEAR testnet are in development and are not deployed. Canton submission throws. It does not return a fake transaction id.</p>
+  <p><code>generateGroth16KycProof</code> throws. Do not wrap it and tell a user a proof was created.</p>
+  <p>Security reports go to <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">private vulnerability reporting</a>, not a public issue.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>

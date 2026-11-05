@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#07080a">
+<title>Security · Shader Protocol</title>
+<meta name="description" content="Shader Protocol security notes: single-party setup, not audited, devnet and testnet only, and where to report a bug.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="../doc.css">
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="../../index.html">
+    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
+    <span>Shader Protocol</span>
+  </a>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../litepaper.html">Litepaper</a>
+    <a href="../index.html">Docs</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  </nav>
+</header>
+<main class="wrap">
+  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
+  <h1>Security</h1>
+  <div class="note">
+    <p>Single-party development setup. Not audited. Devnet and testnet only. No mainnet deployment.</p>
+  </div>
+  <h2>Report a vulnerability</h2>
+  <p>Use GitHub private vulnerability reporting. Do not open a public issue for an unfixed security bug. Include what you did, the code path, and a proof of concept if you have one.</p>
+  <p><a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">https://github.com/Chenz0-13/shade-protocol/security/advisories/new</a></p>
+  <p>There is no bug bounty.</p>
+  <h2>What is not safe</h2>
+  <ul>
+    <li>Groth16 keys from the development setup are a single-party setup. Anyone who kept the intermediate parameters can forge proofs.</li>
+    <li>The commitment tree depth is a devnet limit, not a production size.</li>
+    <li>The operator matcher can read orders it opens. It is not a custody design.</li>
+    <li>The devnet screening default checks nobody.</li>
+    <li>Zero-knowledge KYC proofs are not implemented.</li>
+    <li>Canton records a 2-of-N attestation. Two attestors can record a spend a pool never accepted. Canton does not verify the proof.</li>
+    <li>No adapter on this list is deployed.</li>
+  </ul>
+  <h2>Planned path</h2>
+  <p>No dates are promised.</p>
+  <ol>
+    <li>Multi-party trusted setup ceremony.</li>
+    <li>Independent audit.</li>
+    <li>Guarded beta with caps, only after the ceremony and the audit.</li>
+  </ol>
+  <p>The code is not audited today. A guarded beta is not a mainnet launch.</p>
+
+</main>
+<footer>
+  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
+  <nav>
+    <a href="../../index.html">Home</a>
+    <a href="../../terms.html">Terms</a>
+    <a href="../../privacy.html">Privacy</a>
+    <a href="../../index.html#about">About</a>
+    <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a vulnerability</a>
+  </nav>
+</footer>
+</body>
+</html>
