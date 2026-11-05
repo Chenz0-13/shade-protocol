@@ -1,6 +1,6 @@
-# Shade Protocol website
+# Shader Protocol website
 
-Static marketing site for Shade Protocol. GitHub Actions publishes this folder to GitHub Pages on every push to `main` (see `.github/workflows/pages.yml`). You can also run that workflow by hand with **Actions → Deploy website to GitHub Pages → Run workflow**.
+Static marketing site for Shader Protocol. GitHub Actions publishes this folder to GitHub Pages on every push to `main` (see `.github/workflows/pages.yml`). You can also run that workflow by hand with **Actions → Deploy website to GitHub Pages → Run workflow**.
 
 ## Custom domain
 

@@ -1,4 +1,4 @@
-# Canton attestation
+# Shader Protocol Canton attestation
 
 Canton is not a Groth16 verifier. Daml has no BN254 pairing, so a contract that stored a proof and returned success would be recording an unchecked blob. This repository does not do that.
 

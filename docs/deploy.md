@@ -1,4 +1,4 @@
-# Testnet deploy
+# Shader Protocol testnet deploy
 
 Nothing in this repository has been broadcast. The scripts refuse to send a transaction unless `SHADE_BROADCAST=1` is set in the environment. This checkout does not set that flag. There are no funded keys here.
 

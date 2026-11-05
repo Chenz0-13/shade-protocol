@@ -1,10 +1,10 @@
-# Shade Protocol ,  Litepaper
+# Shader Protocol ,  Litepaper
 
 **Private by default. Verifiable by design.**
 
 *Version 0.1 (draft) · October 2026 · Status: devnet/testnet only, unaudited, experimental*
 
-> **Read this first.** Shade Protocol is an early-stage, open-source research project. It runs on developer networks (devnets/testnets) only. The code has **not** been audited, its zero-knowledge proving keys come from a **development trusted setup that is not secure for real value**, and parts of the system (notably every chain adapter other than Solana) may still be in progress. There is no token, no mainnet deployment and no partnership with any chain, exchange or broker mentioned in this document. Nothing here is financial, legal or tax advice.
+> **Read this first.** Shader Protocol is an early-stage, open-source research project. It runs on developer networks (devnets/testnets) only. The code has **not** been audited, its zero-knowledge proving keys come from a **development trusted setup that is not secure for real value**, and parts of the system (notably every chain adapter other than Solana) may still be in progress. There is no token, no mainnet deployment and no partnership with any chain, exchange or broker mentioned in this document. Nothing here is financial, legal or tax advice.
 
 ---
 
@@ -23,7 +23,7 @@ The usual responses are unsatisfying. Centralised venues hide your order from th
 
 ## 2. The idea in one paragraph
 
-Shade Protocol is a **shielded execution layer**: users hold value as encrypted *notes* inside a shielded pool, move it with **zero-knowledge proofs** that show a transaction is valid without revealing who, what or how much, and trade through a **dark pool** where orders stay hidden until they are matched and settled. On top of that sits a **selective-disclosure toolkit** ,  optional KYC proofs, scoped viewing keys and a sanctions-screening hook ,  so that users and integrators who need to show information to an auditor or regulator can do so deliberately, rather than leaking it to the whole world by default. The core is chain-agnostic; thin adapters connect it to individual chains, starting with **Solana devnet**.
+Shader Protocol is a **shielded execution layer**: users hold value as encrypted *notes* inside a shielded pool, move it with **zero-knowledge proofs** that show a transaction is valid without revealing who, what or how much, and trade through a **dark pool** where orders stay hidden until they are matched and settled. On top of that sits a **selective-disclosure toolkit** ,  optional KYC proofs, scoped viewing keys and a sanctions-screening hook ,  so that users and integrators who need to show information to an auditor or regulator can do so deliberately, rather than leaking it to the whole world by default. The core is chain-agnostic; thin adapters connect it to individual chains, starting with **Solana devnet**.
 
 ## 3. How it works, in plain language
 
@@ -73,7 +73,7 @@ The privacy logic ,  notes, commitments, nullifiers, the Merkle tree, proofs and
 | NEAR | Smart contract using NEAR's alt_bn128 host functions | Testnet ,  in progress |
 | Canton | Daml workflows for institutional settlement | Research / in progress |
 
-Listing a chain here describes an engineering target only. **Shade Protocol has no partnership, endorsement or affiliation with Solana, NEAR, Canton/Digital Asset, Robinhood or any other organisation.** Cross-chain transfers between shielded pools are not part of the current scope.
+Listing a chain here describes an engineering target only. **Shader Protocol has no partnership, endorsement or affiliation with Solana, NEAR, Canton/Digital Asset, Robinhood or any other organisation.** Cross-chain transfers between shielded pools are not part of the current scope.
 
 ```mermaid
 flowchart LR
@@ -129,9 +129,9 @@ No dates are promised. Each phase begins only when the previous one is genuinely
 
 ## 8. Risks and disclaimers
 
-- **Experimental software.** Shade Protocol is unaudited research code under active development. It may contain bugs that lead to total loss of funds or loss of privacy. Use only on devnets/testnets with valueless test tokens.
+- **Experimental software.** Shader Protocol is unaudited research code under active development. It may contain bugs that lead to total loss of funds or loss of privacy. Use only on devnets/testnets with valueless test tokens.
 - **No financial, legal or tax advice.** Nothing in this document is an offer, solicitation or recommendation to buy, sell or hold any asset. There is no token, no yield and no expected return.
-- **Not a compliance guarantee.** The selective-disclosure features are tools. Using them does not by itself make any deployment or user compliant with any law, and no regulator has reviewed or approved Shade Protocol.
+- **Not a compliance guarantee.** The selective-disclosure features are tools. Using them does not by itself make any deployment or user compliant with any law, and no regulator has reviewed or approved Shader Protocol.
 - **Regulatory uncertainty.** Privacy technology is treated differently across jurisdictions and the rules are changing. Users and integrators are responsible for their own legal position.
 - **Privacy is not absolute.** Small anonymity sets, metadata (IP addresses, timing, amounts) and user error can all reveal information.
 - **Third-party dependencies.** Host chains, RPC providers, KYC issuers and screening providers are outside the project's control.

@@ -1,4 +1,4 @@
-# Token design note
+# Shader Protocol token design note
 
 This is a design note. It is not a token, not a launch, and not legal advice. It needs legal review, an independent audit, and a multi-party ceremony before any launch. There is no token contract in this repository, and this note does not authorise deploying one.
 

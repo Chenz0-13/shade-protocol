@@ -1,6 +1,7 @@
 {
   "name": "shade-protocol",
   "version": "0.1.0",
+  "description": "Shader Protocol devnet SDK for shielded notes. The npm package name is still shade-protocol.",
   "private": true,
   "type": "module",
   "engines": {

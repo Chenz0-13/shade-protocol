@@ -1,6 +1,6 @@
 # Security
 
-Shade Protocol in this repository is a devnet and testnet implementation of a
+Shader Protocol in this repository is a devnet and testnet implementation of a
 shielded-note engine. It is not ready for mainnet. It has not had an external
 audit. Nothing here is a claim of compliance, production safety, or a
 completed trusted setup.

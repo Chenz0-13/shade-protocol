@@ -1,4 +1,4 @@
-# Groth16 ceremony tooling
+# Shader Protocol ceremony tooling
 
 The circuits are not frozen. No ceremony has been started. The keys produced by `npm run circuit:setup` are a single-party development setup. Do not deploy them.
 

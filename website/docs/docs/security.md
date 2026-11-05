@@ -1,6 +1,6 @@
 # Security
 
-> **Status: experimental, unaudited, devnet/testnet only.** Do not use Shade Protocol with real funds. The Groth16 proving keys come from a **development trusted setup** and must be treated as compromised.
+> **Status: experimental, unaudited, devnet/testnet only.** Do not use Shader Protocol with real funds. The Groth16 proving keys come from a **development trusted setup** and must be treated as compromised.
 
 ## 1. Security goals
 

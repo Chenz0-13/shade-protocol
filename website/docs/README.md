@@ -1,4 +1,4 @@
-# Shade Protocol ,  documentation
+# Shader Protocol ,  documentation
 
 > Devnet/testnet only · unaudited · development trusted setup · API subject to change.
 

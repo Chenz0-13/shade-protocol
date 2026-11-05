@@ -1,4 +1,6 @@
-# Shade Protocol
+# Shader Protocol
+
+The product name is Shader Protocol. Repository paths, the npm package `shade-protocol`, contract names such as `ShadePool`, and the `ShadeClient` SDK class are unchanged.
 
 TypeScript SDK and Circom circuit for a devnet shielded-note pool: Poseidon
 commitments, nullifiers, ECDH stealth addresses, Groth16 transfers, an

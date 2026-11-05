@@ -1,4 +1,4 @@
-# Note format v2
+# Shader Protocol note format v2
 
 Devnet format. Not audited and not for mainnet.
 

@@ -131,7 +131,7 @@ shade-protocol/
 - **NEAR (testnet)** ,  in progress; verification via alt_bn128 host functions.
 - **Canton** ,  in progress / research; Daml templates for settlement workflows. Proof verification is likely to sit with a participant node rather than on-ledger.
 
-Shade Protocol has no partnership, endorsement or affiliation with any of these networks or companies.
+Shader Protocol has no partnership, endorsement or affiliation with any of these networks or companies.
 
 ## 7. Non-goals (current scope)
 

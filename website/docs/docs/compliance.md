@@ -2,7 +2,7 @@
 
 > **Status:** devnet/testnet only · **unaudited** · interfaces subject to change.
 >
-> **Important.** The features on this page are **tools for selective disclosure and policy enforcement**. Using them does not, by itself, make any deployment, operator or user compliant with any law or regulation. Shade Protocol has not been reviewed or approved by any regulator. Operators should obtain their own legal advice.
+> **Important.** The features on this page are **tools for selective disclosure and policy enforcement**. Using them does not, by itself, make any deployment, operator or user compliant with any law or regulation. Shader Protocol has not been reviewed or approved by any regulator. Operators should obtain their own legal advice.
 
 ## 1. Principles
 
