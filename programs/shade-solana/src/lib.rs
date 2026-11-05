@@ -283,9 +283,15 @@ fn split_addr(bytes: &[u8; 32]) -> ([u8; 32], [u8; 32]) {
 
 fn commitment(value: u64, blinding: &[u8; 32], rho: &[u8; 32], owner: &[u8; 32]) -> Result<[u8; 32], ProgramError> {
     let domain = be_bytes(1);
-    let asset = be_bytes(1);
     let amount = be_bytes(value);
-    poseidon(&[&domain, &amount, blinding, rho, owner, &asset])
+    let tag = asset_tag(1, SOLANA_EXT_DOMAIN)?;
+    poseidon(&[&domain, &amount, blinding, rho, owner, &tag])
+}
+
+fn asset_tag(asset: u64, chain_home: u64) -> Result<[u8; 32], ProgramError> {
+    let asset_tag = poseidon(&[&be_bytes(7), &be_bytes(asset)])?;
+    let chain_tag = poseidon(&[&be_bytes(9), &be_bytes(chain_home)])?;
+    poseidon(&[&asset_tag, &chain_tag])
 }
 
 fn init_frontier(data: &mut [u8]) -> ProgramResult {

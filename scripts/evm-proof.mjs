@@ -67,7 +67,11 @@ const rho = 13n;
 const spendingKey = 17n;
 const owner = hash2(3n, spendingKey);
 const asset = 1n;
-const commitment = hash6([1n, value, blinding, rho, owner, asset]);
+const chainHome = BigInt(arg("--domain", "46630"));
+const assetTag = hash2(7n, asset);
+const chainTag = hash2(9n, chainHome);
+const tag = hash2(assetTag, chainTag);
+const commitment = hash6([1n, value, blinding, rho, owner, tag]);
 const index = insert(commitment);
 const membership = proof(index);
 let leafIndex = 0n;
@@ -99,8 +103,8 @@ const extHash = hash6([
   binder,
   0n,
 ]);
-const commitmentOut1 = hash6([1n, out1.value, out1.blinding, out1.rho, out1.owner, out1.asset]);
-const commitmentOut2 = hash6([1n, out2.value, out2.blinding, out2.rho, out2.owner, out2.asset]);
+const commitmentOut1 = hash6([1n, out1.value, out1.blinding, out1.rho, out1.owner, tag]);
+const commitmentOut2 = hash6([1n, out2.value, out2.blinding, out2.rho, out2.owner, tag]);
 
 const witness = {
   merkleRoot: membership.root.toString(),
@@ -121,6 +125,7 @@ const witness = {
   blindingIn: blinding.toString(),
   rhoIn: rho.toString(),
   assetIn: asset.toString(),
+  chainHome: chainHome.toString(),
   spendingKey: spendingKey.toString(),
   pathElements: membership.pathElements.map((item) => item.toString()),
   pathIndices: membership.pathIndices.map((item) => item.toString()),
