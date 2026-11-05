@@ -1,5 +1,9 @@
 #!/bin/sh
 set -eu
+if [ "${SHADE_BROADCAST:-}" != "1" ]; then
+  echo "Refusing to broadcast. Set SHADE_BROADCAST=1 after reading docs/deploy.md. No transaction was sent." >&2
+  exit 0
+fi
 url="${SOLANA_RPC_URL:-https://api.devnet.solana.com}"
 export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
 genesis="$(solana genesis-hash --url "$url")"

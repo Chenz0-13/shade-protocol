@@ -1,5 +1,9 @@
 #!/bin/sh
 set -eu
+if [ "${SHADE_BROADCAST:-}" != "1" ]; then
+  echo "Refusing to broadcast. Set SHADE_BROADCAST=1 after reading docs/deploy.md. No transaction was sent." >&2
+  exit 0
+fi
 url="${NEAR_RPC_URL:-https://rpc.testnet.near.org}"
 status="$(curl -fsS "$url" -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":"shade","method":"status","params":[]}')"
 chain="$(printf '%s' "$status" | node -e 'let s="";process.stdin.on("data",d=>s+=d);process.stdin.on("end",()=>{const id=JSON.parse(s).result&&JSON.parse(s).result.chain_id; if(!id){process.stderr.write("NEAR status did not include a chain id\n"); process.exit(1)} process.stdout.write(id)})')"
