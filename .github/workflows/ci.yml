@@ -42,6 +42,8 @@ jobs:
           "$HOME/.foundry/bin/forge" --version
       - name: Compile circuit and run the devnet setup
         run: npm run circuit:setup
+      - name: Check the dev verifier matches the verification key
+        run: node scripts/ceremony/check-vkey.mjs
       - name: Forge tests
         run: |
           cd contracts/evm

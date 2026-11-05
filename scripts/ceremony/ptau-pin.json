@@ -1,0 +1,10 @@
+{
+  "name": "powersOfTau28_hez_final_16.ptau",
+  "url": "https://circom.info/powersOfTau28_hez_final_16.ptau",
+  "power": 16,
+  "maxConstraints": 65536,
+  "hash": "blake2b512",
+  "blake2b512": "6a6277a2f74e1073601b4f9fed6e1e55226917efb0f0db8a07d98ab01df1ccf43eb0e8c3159432acd4960e2f29fe84a4198501fa54c8dad9e43297453efec125",
+  "source": "Hash published in the snarkjs README for the Hermez Perpetual Powers of Tau response file.",
+  "note": "Circuits are not frozen. This file is a pin for a future ceremony. Do not start one."
+}
