@@ -47,6 +47,15 @@ contract ShadePoolTest is Test {
         pool.shieldedTransfer(pA, pB, pC, pubSignals, recipient, address(0));
     }
 
+    /// Robinhood Chain testnet (46630) rejects deployed code larger than 98304 bytes.
+    function testRuntimeCodeFitsRobinhood() public view {
+        assertLt(vm.getDeployedCode("PoseidonT3.sol:PoseidonT3").length, 98304);
+        assertLt(vm.getDeployedCode("PoseidonT7.sol:PoseidonT7").length, 98304);
+        assertLt(vm.getDeployedCode("ShadePool.sol:ShadePool").length, 98304);
+        assertLt(vm.getDeployedCode("Verifier.sol:Groth16Verifier").length, 98304);
+        assertLt(vm.getCode("PoseidonT7.sol:PoseidonT7").length, 98304);
+    }
+
     function testUnknownRootRejectedBeforeTheVerifier() public {
         uint256[2] memory pA;
         uint256[2][2] memory pB;

@@ -98,6 +98,8 @@ environment.
 
 `ROBINHOOD_API_KEY` is gone. Robinhood configuration is `ROBINHOOD_RPC_URL` (default `https://rpc.testnet.chain.robinhood.com`) and `ROBINHOOD_CHAIN_ID` (default `46630`). Chain id `4663` is mainnet and is rejected.
 
+Robinhood Chain testnet rejects deployed bytecode larger than 98304 bytes. `PoseidonT7` stores the circomlib matrix and round constants once and hashes in a loop, so that library (and the rest of the EVM pool) stays under the limit. The hash is still circomlib Poseidon. NEAR testnet rejects a transaction of about 1.5 MiB. The NEAR wasm ships Poseidon parameters only for 2, 3, and 6 inputs, which are the Merkle, nullifier, and commitment / `extDataHash` widths.
+
 ## Develop
 
 ```bash

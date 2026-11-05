@@ -1,8 +1,9 @@
 use ark_bn254::Fr;
 use ark_ff::PrimeField;
-use light_poseidon::{Poseidon, PoseidonHasher};
 use std::cmp::Ordering;
 use std::str::FromStr;
+
+use crate::poseidon;
 
 pub const DEPTH: usize = 8;
 
@@ -78,18 +79,15 @@ pub fn fr_to_u128(value: Fr) -> u128 {
 }
 
 pub fn hash2(left: Fr, right: Fr) -> Fr {
-    let mut poseidon = Poseidon::<Fr>::new_circom(2).expect("poseidon2");
-    poseidon.hash(&[left, right]).expect("hash2")
+    poseidon::hash2(left, right)
 }
 
 pub fn hash3(a: Fr, b: Fr, c: Fr) -> Fr {
-    let mut poseidon = Poseidon::<Fr>::new_circom(3).expect("poseidon3");
-    poseidon.hash(&[a, b, c]).expect("hash3")
+    poseidon::hash3(a, b, c)
 }
 
 pub fn hash6(inputs: &[Fr; 6]) -> Fr {
-    let mut poseidon = Poseidon::<Fr>::new_circom(6).expect("poseidon6");
-    poseidon.hash(inputs).expect("hash6")
+    poseidon::hash6(inputs)
 }
 
 pub fn zero_hashes() -> Vec<Fr> {

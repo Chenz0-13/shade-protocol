@@ -1,5 +1,6 @@
 mod groth16;
 mod merkle;
+mod poseidon;
 
 pub use groth16::{verify_snarkjs, SnarkjsProof, VerifyingKeyJson};
 pub use merkle::{

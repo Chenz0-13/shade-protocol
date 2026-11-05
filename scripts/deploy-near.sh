@@ -10,6 +10,7 @@ if [ -z "${NEAR_ACCOUNT_ID:-}" ] || [ -z "${NEAR_PRIVATE_KEY:-}" ]; then
 fi
 cargo build --release --target wasm32-unknown-unknown --manifest-path "$(dirname "$0")/../contracts/near/Cargo.toml"
 echo "Wasm: contracts/near/target/wasm32-unknown-unknown/release/shade_near.wasm"
+echo "That release wasm is the deploy artifact. It must stay under NEAR's ~1.5 MiB transaction limit."
 echo "Deploy that wasm to $NEAR_ACCOUNT_ID on $url with near-cli-rs."
 echo "This environment does not bundle a NEAR deploy CLI, so the script stops after the build."
 exit 2
