@@ -14,6 +14,7 @@ contract PoseidonEquivalenceTest is Test {
         uint256 count = vm.parseJsonUint(json, ".count");
         uint256 seenT3;
         uint256 seenT7;
+        uint256 seenOther;
         for (uint256 i = 0; i < count; i++) {
             string memory base = string.concat(".cases[", vm.toString(i), "]");
             string[] memory inputs = vm.parseJsonStringArray(json, string.concat(base, ".inputs"));
@@ -31,10 +32,17 @@ contract PoseidonEquivalenceTest is Test {
                 }
                 assertEq(PoseidonT7.hash(preimage), expected);
                 seenT7++;
+            } else if (inputs.length == 3 || inputs.length == 4) {
+                // Widths 3 and 4 are checked by the Rust hasher and the TypeScript SDK.
+                // The EVM pool calls PoseidonT3 (width 2) and PoseidonT7 (width 6).
+                seenOther++;
+            } else {
+                assertTrue(false, "unexpected poseidon width");
             }
         }
         assertGe(seenT3, 3);
         assertGe(seenT7, 3);
+        assertGe(seenOther, 6);
     }
 
     function testUnreducedInputsMatchTheReducedElement() public pure {

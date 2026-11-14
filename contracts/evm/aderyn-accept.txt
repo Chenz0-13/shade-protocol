@@ -1,0 +1,13 @@
+# Aderyn rule ids that are accepted. scripts/security/aderyn-check.mjs fails on any other id.
+# Reasons are in docs/security-tooling.md.
+contract-locks-ether
+reentrancy-state-change
+strict-equality-contract-balance
+costly-loop
+literal-instead-of-constant
+push-zero-opcode
+state-change-without-event
+state-variable-could-be-immutable
+unsafe-erc20-operation
+unused-public-function
+unspecific-solidity-pragma

@@ -1,13 +1,20 @@
 import { sha256 } from "@noble/hashes/sha2.js";
+import { DOMAIN } from "../constants.js";
 import { bytesToBigint } from "../crypto/field.js";
 import { poseidon } from "../crypto/poseidon.js";
 
-/** Poseidon(recipientLo, recipientHi, relayerLo, relayerHi, fee, chainDomain). */
+/**
+ * Recipient, relayer, and the pool that must accept the proof.
+ * The pool address is part of the domain binder, so a proof for one
+ * deployment does not authorize a payout from another.
+ */
 export interface ExtDataLimbs {
   recipientLo: bigint;
   recipientHi: bigint;
   relayerLo: bigint;
   relayerHi: bigint;
+  poolLo: bigint;
+  poolHi: bigint;
   chainDomain: bigint;
 }
 
@@ -32,13 +39,21 @@ export function limbsFromAccount(account: string): [bigint, bigint] {
   return limbsFrom32(sha256(new TextEncoder().encode(account)));
 }
 
-export function extDataHash(limbs: ExtDataLimbs, fee: bigint): bigint {
+export function extDataHash(limbs: ExtDataLimbs, withdrawAmount: bigint, relayerFee: bigint): bigint {
+  const binder = poseidon([
+    DOMAIN.ext,
+    limbs.poolLo,
+    limbs.poolHi,
+    limbs.chainDomain,
+    withdrawAmount,
+    relayerFee,
+  ]);
   return poseidon([
     limbs.recipientLo,
     limbs.recipientHi,
     limbs.relayerLo,
     limbs.relayerHi,
-    fee,
-    limbs.chainDomain,
+    binder,
+    0n,
   ]);
 }

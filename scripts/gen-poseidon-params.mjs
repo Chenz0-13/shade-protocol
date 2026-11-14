@@ -3,8 +3,9 @@
  * the NEAR hasher, plus shared test vectors from poseidon-lite.
  *
  * Widths are the ones the pool and the circuit use:
- *   2 inputs (t = 3) Merkle nodes
- *   3 inputs (t = 4) nullifiers
+ *   2 inputs (t = 3) Merkle nodes and asset tags
+ *   3 inputs (t = 4) derived output rhos
+ *   4 inputs (t = 5) nullifiers
  *   6 inputs (t = 7) commitments and extDataHash
  *
  * Run from the repo root: node scripts/gen-poseidon-params.mjs
@@ -13,14 +14,14 @@ import { createRequire } from "node:module";
 import { readFileSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { poseidon2, poseidon3, poseidon6 } from "poseidon-lite";
+import { poseidon2, poseidon3, poseidon4, poseidon6 } from "poseidon-lite";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const require = createRequire(import.meta.url);
 const F = 21888242871839275222246405745257275088548364400416034343698204186575808495617n;
 const N_ROUNDS_F = 8;
 const N_ROUNDS_P = [56, 57, 56, 60, 60, 63, 64, 63, 60, 66, 60, 65, 70, 60, 64, 68];
-const HASHERS = { 2: poseidon2, 3: poseidon3, 6: poseidon6 };
+const HASHERS = { 2: poseidon2, 3: poseidon3, 4: poseidon4, 6: poseidon6 };
 
 function load(inputs) {
   const file = path.join(root, "node_modules", "poseidon-lite", "constants", `${inputs}.js`);
@@ -82,6 +83,11 @@ const patterns = {
     [1n, 2n, 3n],
     [FIELD_MINUS_ONE, 1n, 2n],
   ],
+  4: [
+    [0n, 0n, 0n, 0n],
+    [1n, 2n, 3n, 4n],
+    [FIELD_MINUS_ONE, 1n, 2n, 3n],
+  ],
   6: [
     [0n, 0n, 0n, 0n, 0n, 0n],
     [1n, 2n, 3n, 4n, 5n, 6n],
@@ -92,7 +98,7 @@ const patterns = {
 const paramDir = path.join(root, "contracts", "shade-crypto", "src", "params");
 mkdirSync(paramDir, { recursive: true });
 const cases = [];
-for (const inputs of [2, 3, 6]) {
+for (const inputs of [2, 3, 4, 6]) {
   const table = load(inputs);
   const bytes = blob(table);
   const expected = (table.t * table.t + table.rounds * table.t) * 32;
@@ -118,7 +124,7 @@ writeFileSync(
   vectorPath,
   `${JSON.stringify(
     {
-      source: "poseidon-lite 0.3.0 circomlib BN254 x^5. Widths 2, 3, and 6.",
+      source: "poseidon-lite 0.3.0 circomlib BN254 x^5. Widths 2, 3, 4, and 6.",
       count: cases.length,
       cases,
     },
@@ -127,15 +133,23 @@ writeFileSync(
   )}\n`,
 );
 
-const solidity = path.join(root, "contracts", "evm", "src", "PoseidonT7.sol");
-const source = readFileSync(solidity, "utf8");
-const hex = blob(load(6)).toString("hex");
-const next = source.replace(
-  /\/\/ PARAMS-BEGIN\n[\s\S]*?\/\/ PARAMS-END/,
-  `// PARAMS-BEGIN\n    bytes internal constant PARAMS = hex"${hex}";\n    // PARAMS-END`,
-);
-if (next === source || !next.includes(hex.slice(0, 32))) {
-  throw new Error("PoseidonT7.sol is missing the PARAMS markers");
+function patchSolidity(filename, inputs) {
+  const solidity = path.join(root, "contracts", "evm", "src", filename);
+  const source = readFileSync(solidity, "utf8");
+  const hex = blob(load(inputs)).toString("hex");
+  if (!/\/\/ PARAMS-BEGIN\n[\s\S]*?\/\/ PARAMS-END/.test(source)) {
+    throw new Error(`${filename} is missing the PARAMS markers`);
+  }
+  const next = source.replace(
+    /\/\/ PARAMS-BEGIN\n[\s\S]*?\/\/ PARAMS-END/,
+    `// PARAMS-BEGIN\n    bytes internal constant PARAMS = hex"${hex}";\n    // PARAMS-END`,
+  );
+  if (!next.includes(`hex"${hex}"`)) {
+    throw new Error(`${filename} did not receive the circomlib constants`);
+  }
+  writeFileSync(solidity, next);
 }
-writeFileSync(solidity, next);
-process.stdout.write(`wrote ${cases.length} vectors and PoseidonT7 constants\n`);
+
+patchSolidity("PoseidonT3.sol", 2);
+patchSolidity("PoseidonT7.sol", 6);
+process.stdout.write(`wrote ${cases.length} vectors and PoseidonT3/PoseidonT7 constants\n`);

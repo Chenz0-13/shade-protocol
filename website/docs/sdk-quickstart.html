@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SDK quickstart · Shader Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shader Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>SDK quickstart (Solana devnet)</h1>
+<h2>1. Install</h2>
+<p>The package is not yet published to npm. Build from source:</p>
+<pre><code>
+git clone https://github.com/Chenz0-13/shade-protocol.git
+cd shade-protocol
+npm ci
+npm run build          # compiles the SDK
+npm test
+</code></pre>
+<p>In your own project:</p>
+<pre><code>
+npm install /path/to/shade-protocol   # or `npm link`
+</code></pre>
+<p>You will also need a funded Solana devnet wallet:</p>
+<pre><code>
+solana-keygen new -o ~/.config/solana/devnet.json
+solana airdrop 2 --url devnet
+</code></pre>
+<h2>2. Create a client</h2>
+<pre><code>
+import { ShadeClient } from &quot;shade-protocol&quot;;
+import { Keypair, Connection } from &quot;@solana/web3.js&quot;;
+import fs from &quot;node:fs&quot;;
+
+const payer = Keypair.fromSecretKey(
+  Uint8Array.from(JSON.parse(fs.readFileSync(process.env.HOME + &quot;/.config/solana/devnet.json&quot;, &quot;utf8&quot;)))
+);
+
+const client = new ShadeClient({
+  chain: &quot;solana&quot;,
+  network: &quot;devnet&quot;,
+  rpcUrl: &quot;https://api.devnet.solana.com&quot;,
+  circuits: {
+    wasmPath: &quot;./build/transaction_js/transaction.wasm&quot;,
+    zkeyPath: &quot;./build/transaction_dev.zkey&quot;,     // DEV SETUP ,  not secure
+    vkeyPath: &quot;./build/transaction_vkey.json&quot;,
+  },
+});
+
+await client.init();
+</code></pre>
+<h2>3. Keys and your shielded address</h2>
+<pre><code>
+// Generate once and store securely. Losing the spending key loses funds.
+const keys = await client.keys.generate();
+// { spendingKey, viewingKey, address: &quot;shade1...&quot; }
+
+// Later:
+const restored = await client.keys.fromSeed(seedBytes);
+client.useKeys(restored);
+
+console.log(&quot;Shielded address:&quot;, restored.address);
+</code></pre>
+<p>The address encodes $(pk, V)$ ,  see <a href="cryptography.md#2-keys-and-addresses">cryptography.md</a>. It is safe to share; it never appears on-chain.</p>
+<h2>4. Deposit (shield)</h2>
+<pre><code>
+const { signature, note } = await client.deposit({
+  asset: &quot;SOL&quot;,          // or an SPL mint address
+  amount: 500_000_000n,  // 0.5 SOL in lamports
+  payer,                 // public wallet the funds come from
+});
+console.log(&quot;Deposited:&quot;, signature, &quot;leaf&quot;, note.leafIndex);
+</code></pre>
+<p>A deposit links your public wallet to the *fact* that you deposited this amount. What you do afterwards is hidden.</p>
+<h2>5. Sync and check your balance</h2>
+<pre><code>
+await client.sync();                       // scans new commitments, trial-decrypts with your view key
+const balance = await client.balance(&quot;SOL&quot;);
+const notes = await client.notes.list({ asset: &quot;SOL&quot;, unspent: true });
+</code></pre>
+<h2>6. Private transfer</h2>
+<pre><code>
+const { signature } = await client.transfer({
+  to: &quot;shade1qxy...recipient&quot;,   // recipient&#x27;s shielded address
+  asset: &quot;SOL&quot;,
+  amount: 100_000_000n,
+  relayer: undefined,            // optionally a relayer URL so your public wallet doesn&#x27;t pay gas
+});
+</code></pre>
+<h2>7. Withdraw (unshield)</h2>
+<pre><code>
+await client.withdraw({
+  asset: &quot;SOL&quot;,
+  amount: 200_000_000n,
+  recipient: &quot;9xQe...publicSolanaAddress&quot;,
+});
+</code></pre>
+<p>Withdrawing straight after depositing the same amount makes the link obvious. Waiting and using round amounts helps.</p>
+<h2>8. Dark-pool order</h2>
+<pre><code>
+const { orderId } = await client.darkPool.submitOrder({
+  pair: &quot;SOL/USDC-dev&quot;,
+  side: &quot;buy&quot;,
+  size: 1_000_000_000n,     // 1 SOL (base units)
+  limitPrice: 150_000_000n, // quote units per 1 base, with pair decimals
+  expiresIn: 3600,          // seconds
+});
+
+client.darkPool.on(&quot;filled&quot;, (e) =&gt; console.log(&quot;Filled&quot;, e.orderId, e.fillSize));
+await client.darkPool.cancel(orderId);
+</code></pre>
+<p>See <a href="dark-pool.html">dark-pool.md</a> for matching rules and the matcher trust model.</p>
+<h2>9. Compliance helpers (optional)</h2>
+<pre><code>
+// Prove a KYC credential to a pool that requires it
+const kycProof = await client.compliance.proveCredential({
+  credential,                 // issued off-chain by an issuer
+  minLevel: 2,
+  jurisdictionSet,            // provided by the pool policy
+});
+
+// Produce a scoped disclosure bundle for your accountant
+const bundle = await client.compliance.createDisclosure({
+  from: new Date(&quot;2026-07-01&quot;),
+  to: new Date(&quot;2026-09-30&quot;),
+  assets: [&quot;SOL&quot;],
+  encryptTo: accountantPublicKey,
+});
+
+// Register a screening provider (no-op by default)
+client.compliance.registerScreeningProvider(myProvider);
+</code></pre>
+<p>Details in <a href="compliance.html">compliance.md</a>.</p>
+<h2>10. Other chains</h2>
+<pre><code>
+new ShadeClient({ chain: &quot;near&quot;, network: &quot;testnet&quot;, /* ... */ });  // in progress
+</code></pre>
+<h2>11. Troubleshooting</h2>
+<p>| Symptom | Likely cause |</p>
+<p>|---|---|</p>
+<p>| `Unknown root` | Your local tree is stale ,  call `client.sync()` and retry |</p>
+<p>| `Nullifier already spent` | The note was spent in another transaction; resync |</p>
+<p>| Proof generation very slow | Use Node rather than a mobile browser; ensure WASM and zkey paths are local |</p>
+<p>| Balance shows zero after deposit | Not yet synced, or wrong viewing key |</p>
+</main>
+</body>
+</html>

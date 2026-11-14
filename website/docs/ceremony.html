@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ceremony · Shader Protocol</title>
+<link rel="stylesheet" href="../assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="../index.html">Shader Protocol</a>
+  <nav><a href="../app.html">Testnet app</a> <a href="../ceremony.html">Ceremony</a> <a href="architecture.html">Docs</a></nav>
+</div></header>
+<main class="shell">
+<p class="banner">Testnet and devnet software. Not audited. Not for mainnet. No real funds.</p>
+<h1>Shader Protocol ceremony tooling</h1>
+<p>The circuits are not frozen. No ceremony has been started. The keys produced by <code>npm run circuit:setup</code> are a single-party development setup. Do not deploy them.</p>
+<p>This directory of scripts is the tooling a later ceremony would use. Running it does not make the result a ceremony.</p>
+<h2>What has to be true first</h2>
+<ul>
+<li>1. The circuit source is frozen. A change after the first contribution throws the ceremony away.</li>
+<li>2. The Powers of Tau file is large enough. The pinned Hermez file is <code>powersOfTau28_hez_final_16.ptau</code> (2^16 constraints). The current largest circuit, <code>transfer.circom</code>, is under that cap. If a later circuit grows past it, start over with a larger file.</li>
+<li>3. At least one contributor is honest and destroys their entropy. The result is safe if one contributor is honest. It is not safe if every contributor colludes or leaks entropy.</li>
+</ul>
+<h2>How a contribution works</h2>
+<p>Phase 1 is the public Perpetual Powers of Tau response from Hermez. <code>scripts/ceremony/init.mjs</code> downloads that file and checks the blake2b512 hash pinned in <code>scripts/ceremony/ptau-pin.json</code>.</p>
+<p>Phase 2 is a chain of <code>snarkjs zkey contribute</code> steps. Each contributor takes the previous <code>.zkey</code>, adds entropy, and publishes the new file. <code>scripts/ceremony/verify-chain.mjs</code> runs <code>snarkjs zkey verify</code> on every file in the chain.</p>
+<p>The last step is a beacon. <code>scripts/ceremony/beacon.mjs</code> reads the latest drand randomness from <code>https://drand.cloudflare.com/public/latest</code>, or a hash you pass with <code>--beacon</code> (for example a future block hash that did not exist when the last contribution was made). The beacon stops the last contributor from grinding the result.</p>
+<p><code>scripts/ceremony/export.mjs</code> writes the verification key, a Solidity verifier, and the sha256 of both. <code>scripts/ceremony/check-vkey.mjs</code> fails CI when <code>contracts/evm/src/Verifier.sol</code> constants do not match <code>circuits/build/verification_key.json</code>. snarkjs swaps the Fq2 limbs when it exports Solidity, and the check uses that order. A published hash file, if one exists under <code>circuits/ceremony/published/</code>, is compared too. Nothing is published yet.</p>
+<p>The scripts refuse to run unless <code>SHADE_CEREMONY_ACK=circuits-not-frozen</code> is set. That flag means you are exercising the tooling. It does not mean a ceremony is open.</p>
+<h2>Contributor guide</h2>
+<h3>CLI</h3>
+<pre><code>
+npm install
+export SHADE_CEREMONY_ACK=circuits-not-frozen
+node scripts/ceremony/init.mjs
+# compile the frozen circuit to circuits/ceremony/r1cs/&lt;name&gt;.r1cs with circom --r1cs --O0
+node scripts/ceremony/contribute.mjs --circuit shielded_transfer --name &quot;Your Name&quot; --entropy &quot;$(head -c 64 /dev/urandom | xxd -p)&quot;
+node scripts/ceremony/verify-chain.mjs --circuit shielded_transfer
+</code></pre>
+<p>Keep the entropy off the command line on a shared machine if you can. The script passes it to snarkjs because that is the CLI the tool supports. Delete the shell history afterwards. Do not reuse the entropy.</p>
+<h3>Browser</h3>
+<p>Open <code>website/ceremony.html</code>. The page is labelled &quot;Ceremony not started&quot; and does not accept a contribution. When a ceremony is actually open, the same page loads snarkjs in the browser and talks to a coordinator.</p>
+<h2>Coordinator API</h2>
+<p>The browser page expects this HTTP API. No server in this repository implements it. A later coordinator can be a small service in front of a GitHub-authenticated queue.</p>
+<p>| Method | Path | Body | Result |</p>
+<p>| --- | --- | --- | --- |</p>
+<p>| GET | `/api/ceremony/status` | | `{ &quot;started&quot;: false, &quot;circuit&quot;: null, &quot;latest&quot;: null }` until the ceremony opens |</p>
+<p>| POST | `/api/ceremony/queue` | GitHub OAuth bearer token | `{ &quot;position&quot;: number }` |</p>
+<p>| GET | `/api/ceremony/challenge` | `Authorization: Bearer` | The current `.zkey` bytes, or 409 if it is not your turn |</p>
+<p>| POST | `/api/ceremony/contribution` | multipart file plus the contributor name | 202 after `zkey verify` succeeds |</p>
+<p>Rules for that service:</p>
+<ul>
+<li>One contribution at a time. The next person waits.</li>
+<li>Verify the uploaded zkey before it becomes the new challenge.</li>
+<li>Store the transcript (name, hash of the previous file, hash of the new file) in public.</li>
+<li>Reject uploads after the circuit hash changes.</li>
+</ul>
+<h2>Threat model</h2>
+<p>Safe if one honest contributor deletes their entropy and the beacon is unpredictable at the time of the last human contribution. Not safe if the circuit changes afterwards, if the Powers of Tau file is the wrong one, or if every contributor is dishonest. The development setup used in CI meets none of those conditions.</p>
+</main>
+</body>
+</html>

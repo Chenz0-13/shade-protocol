@@ -2,7 +2,7 @@ import { ComputeBudgetProgram, Keypair, PublicKey, SystemProgram, Transaction } 
 import bs58 from "bs58";
 import { describe, expect, it } from "vitest";
 import { SOLANA_DEVNET_GENESIS, SOLANA_DEVNET_RPC, SOLANA_MAINNET_GENESIS } from "../src/core/constants.js";
-import { ConfigError, NotImplementedError } from "../src/core/errors.js";
+import { NotImplementedError } from "../src/core/errors.js";
 import { submitCanton } from "../src/core/chain/canton.js";
 import { resolveConfig } from "../src/core/chain/config.js";
 import { ed25519 } from "@noble/curves/ed25519.js";
@@ -42,7 +42,8 @@ const payload: ChainSubmission = {
   nullifier: "22",
   commitmentOut1: "33",
   commitmentOut2: "44",
-  fee: "0",
+  withdrawAmount: "7",
+  relayerFee: "0",
   extDataHash: "6",
   proof,
 };
@@ -72,12 +73,15 @@ describe("chain configuration", () => {
     expect(resolved.config.nearNetwork).toBe("testnet");
     expect(() =>
       resolveConfig({}, { SOLANA_RPC_URL: "https://api.mainnet-beta.solana.com" }),
-    ).toThrow(ConfigError);
+    ).not.toThrow();
     expect(() => resolveConfig({}, { NEAR_NETWORK: "mainnet" })).toThrow(/testnet/);
     expect(() => resolveConfig({ cantonHost: "https://canton.example.com" })).toThrow(/loopback/);
     expect(() =>
-      resolveConfig({ robinhoodRpc: "https://rpc.mainnet.chain.robinhood.com", robinhoodChainId: ROBINHOOD_MAINNET_CHAIN_ID }),
-    ).toThrow(/mainnet/);
+      resolveConfig({ robinhoodRpc: "https://rpc.testnet.chain.robinhood.com", robinhoodChainId: ROBINHOOD_MAINNET_CHAIN_ID }),
+    ).toThrow(/4663/);
+    expect(() =>
+      resolveConfig({ robinhoodRpc: "https://rpc.mainnet.chain.robinhood.com", robinhoodChainId: 46630 }),
+    ).not.toThrow();
     expect(resolveConfig({}, {}).config.solanaProgramId).toBe(SHADE_LOCAL_PROGRAM_ID);
   });
 });
@@ -132,7 +136,7 @@ describe("submission adapters", () => {
     await expect(
       new SolanaDevnetAdapter({ rpcUrl: SOLANA_DEVNET_RPC, programId: SHADE_LOCAL_PROGRAM_ID }).submit(payload),
     ).rejects.toThrow(/invent a transaction signature/);
-    expect(() => new SolanaDevnetAdapter({ rpcUrl: "https://api.mainnet-beta.solana.com" })).toThrow(ConfigError);
+    expect(() => new SolanaDevnetAdapter({ rpcUrl: "https://api.mainnet-beta.solana.com", programId: SHADE_LOCAL_PROGRAM_ID })).not.toThrow();
   });
 
   it("signs a NEAR function call and refuses Canton and an unconfigured account", async () => {
@@ -158,6 +162,7 @@ describe("submission adapters", () => {
       accountId: "alice.testnet",
       contractId: "shade.testnet",
       secretKey: secret,
+      chainId: "testnet",
       send: async (bytes) => {
         sent.push(bytes);
         return "signed-locally";
@@ -168,7 +173,8 @@ describe("submission adapters", () => {
     await expect(new NearTestnetAdapter({ rpcUrl: "https://rpc.testnet.near.org" }).shieldedTransfer(payload, "bob.testnet")).rejects.toThrow(
       /NEAR_ACCOUNT_ID/,
     );
-    expect(() => new NearTestnetAdapter({ rpcUrl: "https://rpc.mainnet.near.org" })).toThrow(/mainnet/);
+    expect(() => new NearTestnetAdapter({ rpcUrl: "https://rpc.mainnet.near.org", chainId: "testnet" })).not.toThrow();
+    expect(() => new NearTestnetAdapter({ rpcUrl: "https://rpc.testnet.near.org", chainId: "mainnet" })).toThrow(/mainnet/);
     expect(() => submitCanton()).toThrow(NotImplementedError);
     expect(() => submitCanton()).toThrow(/BN254/);
   });

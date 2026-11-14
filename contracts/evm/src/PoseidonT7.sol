@@ -3,9 +3,9 @@ pragma solidity >=0.7.0;
 
 /// @notice Circomlib Poseidon over 6 BN254 field elements (state width t = 7, s-box x^5).
 /// @dev Round constants and the MDS matrix are stored once and applied in a loop.
-///      The unrolled assembly this replaced compiled to 165420 bytes, above the
-///      98304-byte code-size limit on Robinhood Chain testnet (chain id 46630).
-///      With the repo's solc 0.8.28 / via-IR / 200-run settings this runtime is 22013 bytes.
+///      The unrolled assembly this replaced compiled to 165420 bytes, above both
+///      Robinhood Chain testnet's 98304-byte cap and the EIP-170 24576-byte limit
+///      used by Base Sepolia, HyperEVM testnet, and Elysium testnet.
 ///      Output matches circomlib Poseidon(6) and poseidon-lite. Inputs are reduced
 ///      mod the scalar field, same as the previous implementation.
 library PoseidonT7 {

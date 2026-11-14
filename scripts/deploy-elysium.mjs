@@ -2,15 +2,15 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+if (process.env.SHADE_BROADCAST !== "1") {
+  process.stderr.write("Refusing to broadcast. Set SHADE_BROADCAST=1 after reading docs/deploy.md. No transaction was sent.\n");
+  process.exit(0);
+}
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const rpc = process.env.ELYSIUM_RPC_URL ?? "https://testnet-rpc.elysium.kinetiq.xyz";
 const key = process.env.ELYSIUM_PRIVATE_KEY;
 if (!key) {
   process.stderr.write("Set ELYSIUM_PRIVATE_KEY. Refusing to deploy without a key.\n");
-  process.exit(1);
-}
-if (rpc.toLowerCase().includes("mainnet")) {
-  process.stderr.write("Refusing Elysium mainnet. Mainnet is pre-launch.\n");
   process.exit(1);
 }
 const chain = spawnSync("cast", ["chain-id", "--rpc-url", rpc], { encoding: "utf8" });

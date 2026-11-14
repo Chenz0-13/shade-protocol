@@ -1,0 +1,21 @@
+rules:
+  - id: shade-no-eval
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: eval is not used. Dynamic code execution is out of scope for this devnet SDK.
+    pattern: eval(...)
+  - id: shade-no-function-constructor
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: The Function constructor is not used.
+    pattern: new Function(...)
+  - id: shade-no-tx-origin
+    languages: [solidity]
+    severity: ERROR
+    message: tx.origin is not an authorization check.
+    pattern: tx.origin
+  - id: shade-no-delegatecall
+    languages: [solidity]
+    severity: ERROR
+    message: delegatecall is not used by the pool.
+    pattern: delegatecall(...)

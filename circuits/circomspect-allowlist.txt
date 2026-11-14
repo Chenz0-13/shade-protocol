@@ -1,0 +1,6 @@
+# Circomspect report ids that are accepted. The runner fails on every other warning.
+# CS0010 is non-strict-binary-conversion inside Num2Bits. AssertRange uses it to
+# constrain a 64-bit value. The reconstructed bits are checked against the input,
+# so a field-sized alias does not pass. Num2Bits_strict would add a 254-bit alias
+# check, blow past the pinned Powers of Tau, and force a new setup. Do not switch.
+CS0010

@@ -45,7 +45,8 @@ export interface ChainSubmission {
   nullifier: string;
   commitmentOut1: string;
   commitmentOut2: string;
-  fee: string;
+  withdrawAmount: string;
+  relayerFee: string;
   extDataHash: string;
   proof: Groth16Proof;
 }
@@ -60,7 +61,7 @@ const ALLOWED_GENESIS = new Set([SOLANA_DEVNET_GENESIS, SOLANA_TESTNET_GENESIS])
 
 /**
  * Submits a signed transaction to the Shade pool. Withdraw carries the Groth16
- * proof in the byte layout `groth16-solana` verifies, plus the five public
+ * proof in the byte layout `groth16-solana` verifies, plus the seven public
  * inputs, and names the pool, vault, nullifier PDA, and recipient. Deposit
  * moves SOL into the vault PDA. Mainnet genesis hashes are rejected. Without
  * a keypair or program id the adapter throws instead of inventing a signature.
@@ -191,7 +192,7 @@ export function encodeDeposit(params: { blinding: bigint; rho: bigint; ownerPub:
   ]);
 }
 
-/** Instruction tag 1, then negated-A || B || C || six scalar public inputs. */
+/** Instruction tag 1, then negated-A || B || C || seven scalar public inputs. */
 export function encodeShadeTransfer(payload: ChainSubmission): Buffer {
   const proofA = g1(payload.proof.pi_a, true);
   const proofB = g2(payload.proof.pi_b);
@@ -201,7 +202,8 @@ export function encodeShadeTransfer(payload: ChainSubmission): Buffer {
     payload.nullifier,
     payload.commitmentOut1,
     payload.commitmentOut2,
-    payload.fee,
+    payload.withdrawAmount,
+    payload.relayerFee,
     payload.extDataHash,
   ].map((value) => be32(BigInt(value), scalarPrime()));
   return Buffer.concat([Buffer.from([1]), proofA, proofB, proofC, ...inputs]);

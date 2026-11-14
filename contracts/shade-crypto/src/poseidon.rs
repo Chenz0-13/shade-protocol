@@ -2,10 +2,10 @@
 //!
 //! `light_poseidon` compiles a parameter table for every width into the wasm.
 //! That table was about 1.6 MiB and pushed `shade_near.wasm` over NEAR's
-//! transaction limit. The circuit and the pool only hash 2, 3, and 6 inputs
-//! (Merkle nodes, nullifiers, commitments / extDataHash). Those three tables
-//! live in `params/` as 32-byte big-endian words: the MDS matrix, then the
-//! round constants. The permutation is the same one circomlib and poseidon-lite use.
+//! transaction limit. The circuit and the pool only hash 2, 3, 4, and 6 inputs
+//! (Merkle nodes, nullifiers, asset tags, commitments / extDataHash). Those
+//! tables live in `params/` as 32-byte big-endian words: the MDS matrix, then
+//! the round constants. The permutation is the same one circomlib and poseidon-lite use.
 
 use ark_bn254::Fr;
 use ark_ff::{Field, PrimeField};
@@ -17,6 +17,7 @@ const ROUNDS_P: [usize; 16] = [
 
 const PARAMS_2: &[u8] = include_bytes!("params/circom_2.bin");
 const PARAMS_3: &[u8] = include_bytes!("params/circom_3.bin");
+const PARAMS_4: &[u8] = include_bytes!("params/circom_4.bin");
 const PARAMS_6: &[u8] = include_bytes!("params/circom_6.bin");
 
 pub fn hash2(left: Fr, right: Fr) -> Fr {
@@ -25,6 +26,10 @@ pub fn hash2(left: Fr, right: Fr) -> Fr {
 
 pub fn hash3(first: Fr, second: Fr, third: Fr) -> Fr {
     hash_inputs(&[first, second, third], PARAMS_3)
+}
+
+pub fn hash4(inputs: &[Fr; 4]) -> Fr {
+    hash_inputs(inputs, PARAMS_4)
 }
 
 pub fn hash6(inputs: &[Fr; 6]) -> Fr {
@@ -103,6 +108,7 @@ mod tests {
         match inputs {
             [a, b] => hash2(*a, *b),
             [a, b, c] => hash3(*a, *b, *c),
+            [a, b, c, d] => hash4(&[*a, *b, *c, *d]),
             [a, b, c, d, e, f] => hash6(&[*a, *b, *c, *d, *e, *f]),
             _ => panic!("unsupported width {}", inputs.len()),
         }
@@ -126,7 +132,7 @@ mod tests {
 
     #[test]
     fn matches_light_poseidon_circom_on_more_than_the_vectors() {
-        for width in [2usize, 3, 6] {
+        for width in [2usize, 3, 4, 6] {
             for seed in 0..12u64 {
                 let inputs: Vec<Fr> = (0..width)
                     .map(|index| Fr::from(seed.wrapping_mul(997) + index as u64 + 1))

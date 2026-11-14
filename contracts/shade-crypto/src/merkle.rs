@@ -5,7 +5,7 @@ use std::str::FromStr;
 
 use crate::poseidon;
 
-pub const DEPTH: usize = 8;
+pub const DEPTH: usize = 20;
 
 /// BN254 scalar modulus, decimal. Inputs greater than or equal to this alias a smaller element.
 pub const FIELD_MODULUS_DEC: &str =
@@ -19,6 +19,18 @@ pub fn domain_nullifier() -> Fr {
 }
 pub fn domain_owner() -> Fr {
     Fr::from(3u64)
+}
+pub fn domain_ext() -> Fr {
+    Fr::from(5u64)
+}
+pub fn domain_rho() -> Fr {
+    Fr::from(6u64)
+}
+pub fn domain_asset() -> Fr {
+    Fr::from(7u64)
+}
+pub fn domain_chain() -> Fr {
+    Fr::from(9u64)
 }
 
 /// Accept only a canonical decimal in `0..r`: no sign, no leading zeros except `0`.
@@ -86,6 +98,10 @@ pub fn hash3(a: Fr, b: Fr, c: Fr) -> Fr {
     poseidon::hash3(a, b, c)
 }
 
+pub fn hash4(inputs: &[Fr; 4]) -> Fr {
+    poseidon::hash4(inputs)
+}
+
 pub fn hash6(inputs: &[Fr; 6]) -> Fr {
     poseidon::hash6(inputs)
 }
@@ -106,7 +122,7 @@ pub fn insert(filled: &mut [Fr], zeros: &[Fr], next_index: u64, leaf: Fr) -> (Fr
     let mut index = next_index;
     let mut current = leaf;
     for level in 0..DEPTH {
-        if index % 2 == 0 {
+        if index.is_multiple_of(2) {
             filled[level] = current;
             current = hash2(current, zeros[level]);
         } else {

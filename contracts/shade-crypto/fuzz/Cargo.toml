@@ -1,0 +1,29 @@
+[package]
+name = "shade-crypto-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+license = "MIT"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+shade-crypto = { path = ".." }
+
+[workspace]
+
+[[bin]]
+name = "parse_field"
+path = "fuzz_targets/parse_field.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "proof_input"
+path = "fuzz_targets/proof_input.rs"
+test = false
+doc = false
+bench = false
