@@ -117,12 +117,19 @@ jobs:
           echo "$HOME/.foundry/bin" >> "$GITHUB_PATH"
       - name: Install Slither 0.11.6 and crytic-compile 0.4.2
         run: python3 -m pip install --user 'slither-analyzer==0.11.6' 'crytic-compile==0.4.2'
+      - name: Install Rust 1.99.1
+        uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # v1
+        with:
+          toolchain: 1.99.1
       - name: Install Aderyn 0.6.8
         run: |
-          curl -fsSL -L -o /tmp/aderyn.tar.xz https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/aderyn-x86_64-unknown-linux-gnu.tar.xz
-          echo "ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46  /tmp/aderyn.tar.xz" | sha256sum -c
-          tar -xJf /tmp/aderyn.tar.xz -C /tmp
-          sudo install -m 755 /tmp/aderyn-x86_64-unknown-linux-gnu/aderyn /usr/local/bin/aderyn
+          # Cyfrin withdrew the 0.6.8 prebuilt binaries on 2026-11-13. The
+          # source archive and this checksum are still on that release.
+          curl -fsSL -L -o /tmp/aderyn-src.tar.gz https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/source.tar.gz
+          echo "2d4afdb52bae30f8488e5d9470a281d284c0b286455b61b474e6c2e7dafe343a  /tmp/aderyn-src.tar.gz" | sha256sum -c
+          tar -xzf /tmp/aderyn-src.tar.gz -C /tmp
+          cargo install --path /tmp/aderyn-0.6.8/aderyn --locked
+          aderyn --version
       - name: Install Medusa 1.5.1
         run: |
           curl -fsSL -L -o /tmp/medusa.tar.gz https://github.com/crytic/medusa/releases/download/v1.5.1/medusa-linux-x64.tar.gz

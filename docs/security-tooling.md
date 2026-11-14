@@ -44,7 +44,7 @@ Slither 0.11.6 with crytic-compile 0.4.2 reads `contracts/evm/slither.config.jso
 - `unused-return`: the Medusa harness ignores the commitment returned by `deposit`. The property checks the balance, not the commitment.
 - `naming-convention`: Medusa looks for `property_` prefixes. Those names are not mixedCase.
 
-Aderyn 0.6.8 (tar.xz sha256 `ffd6ca658962e211a3ac821c646f69c8e14bf1b1001cbfe091bcd4535a691e46`) writes SARIF. `scripts/security/aderyn-check.mjs` fails if a rule id is missing from `contracts/evm/aderyn-accept.txt`. Accepted rules:
+Aderyn 0.6.8 is built from the retained source archive (sha256 `2d4afdb52bae30f8488e5d9470a281d284c0b286455b61b474e6c2e7dafe343a`). Cyfrin withdrew the prebuilt binaries on 2026-11-13. It writes SARIF. `scripts/security/aderyn-check.mjs` fails if a rule id is missing from `contracts/evm/aderyn-accept.txt`. Accepted rules:
 
 - `reentrancy-state-change`: same lock and regression test as the Slither note above. `mintAttested` sets the nullifier before `consume`.
 - `unsafe-erc20-operation`: `transfer` and `transferFrom` must return `bool`, and the pool checks that bool. A token that returns no value does not match the interface and is not supported.

@@ -53,21 +53,21 @@ fn hash_inputs<const N: usize>(inputs: &[Fr; N], params: &[u8]) -> Fr {
     }
     let mut after_sbox = [Fr::from(0u64); 8];
 
-    for round in 0..rounds {
+        for round in 0..rounds {
         let full = round < ROUNDS_F / 2 || round >= ROUNDS_F / 2 + rounds_p;
-        for index in 0..t {
+        for (index, slot) in after_sbox.iter_mut().enumerate().take(t) {
             let mut value = state[index] + word(constants, round * t + index);
             if full || index == 0 {
                 value = pow5(value);
             }
-            after_sbox[index] = value;
+            *slot = value;
         }
-        for row in 0..t {
+        for (row, slot) in state.iter_mut().enumerate().take(t) {
             let mut acc = Fr::from(0u64);
-            for col in 0..t {
-                acc += word(matrix, row * t + col) * after_sbox[col];
+            for (col, sboxed) in after_sbox.iter().enumerate().take(t) {
+                acc += word(matrix, row * t + col) * sboxed;
             }
-            state[row] = acc;
+            *slot = acc;
         }
     }
     state[0]
