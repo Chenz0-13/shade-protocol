@@ -1,6 +1,11 @@
-import { randomBytes } from "node:crypto";
 import { sha256 } from "@noble/hashes/sha2.js";
 import { BN128_FIELD, MAX_VALUE, VALUE_BITS } from "../constants.js";
+
+function randomBytes(length: number): Uint8Array {
+  const out = new Uint8Array(length);
+  crypto.getRandomValues(out);
+  return out;
+}
 
 export function assertField(name: string, value: bigint): void {
   if (value < 0n || value >= BN128_FIELD) {
@@ -47,14 +52,20 @@ export function utf8(value: string): Uint8Array {
 }
 
 export function bytesToHex(bytes: Uint8Array): string {
-  return Buffer.from(bytes).toString("hex");
+  let hex = "";
+  for (const byte of bytes) hex += byte.toString(16).padStart(2, "0");
+  return hex;
 }
 
 export function hexToBytes(hex: string): Uint8Array {
   if (hex.length % 2 !== 0 || /[^0-9a-fA-F]/.test(hex)) {
     throw new Error("invalid hex");
   }
-  return new Uint8Array(Buffer.from(hex, "hex"));
+  const out = new Uint8Array(hex.length / 2);
+  for (let index = 0; index < out.length; index += 1) {
+    out[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
+  }
+  return out;
 }
 
 export function sha256ToField(data: Uint8Array): bigint {

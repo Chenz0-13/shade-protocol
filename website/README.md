@@ -4,6 +4,8 @@ Static site for Shader Protocol. GitHub Actions publishes this folder to GitHub 
 
 The repository is still [github.com/Chenz0-13/shade-protocol](https://github.com/Chenz0-13/shade-protocol). A later rename will redirect. Until then the project site is `https://chenz0-13.github.io/shade-protocol/`. Page links are relative so they work at that path.
 
+The testnet app source is `app/`. The Pages workflow builds it into `website/app/` before upload, including the development circuit files used for in-browser proofs. Those files are a single-party development setup.
+
 ## Custom domain
 
 1. Rename `CNAME.example` to `CNAME`. The file should contain only the real domain, one line, with no scheme or path. The placeholder is `shaderprotocol.xyz`; change that line if the domain is different, then commit and push to `main`.

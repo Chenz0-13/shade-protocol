@@ -25,6 +25,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install circom
+        run: |
+          curl -fsSL -L https://github.com/iden3/circom/releases/download/v2.2.3/circom-linux-amd64 -o /tmp/circom
+          sudo install -m 755 /tmp/circom /usr/local/bin/circom
+          circom --version
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Compile the devnet circuit
+        run: npm run circuit:setup
+
+      - name: Publish proof files with the testnet app
+        run: |
+          mkdir -p app/public/artifacts
+          cp circuits/build/shielded_transfer_js/shielded_transfer.wasm app/public/artifacts/
+          cp circuits/build/shielded_transfer_final.zkey app/public/artifacts/
+          cp circuits/build/verification_key.json app/public/artifacts/
+          npm run build:app
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

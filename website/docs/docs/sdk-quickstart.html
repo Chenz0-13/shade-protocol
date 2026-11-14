@@ -10,6 +10,7 @@
 <link rel="stylesheet" href="../doc.css">
 </head>
 <body>
+<p class="testnet-banner">Testnet only, unaudited</p>
 <header class="top">
   <a class="brand" href="../../index.html">
     <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
@@ -26,13 +27,13 @@
   <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
   <h1>SDK quickstart</h1>
   <div class="note">
-    <p>Not audited. Devnet and testnet only. The proving keys are a single-party development setup. Nothing is deployed. Use throwaway keys.</p>
+    <p>Not audited. Devnet and testnet only. The proving keys are a single-party development setup. A Solana devnet pool is deployed. Use throwaway keys.</p>
   </div>
   <h2>From source</h2>
   <p>There is no published package yet. Clone the repository, which is still named shade-protocol:</p>
   <p><a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a></p>
   <p>The client class is <code>ShadeClient</code>. That identifier has not been renamed. Methods you will see in <code>src/sdk/</code> include <code>init</code>, <code>generateKeys</code>, <code>mintNote</code>, <code>shieldedTransfer</code>, and <code>sealDarkOrder</code>. Signatures can change. Read the source rather than an old snippet.</p>
-  <p>Chain adapters refuse mainnet RPC targets. Solana, Robinhood Chain testnet (46630), Kinetiq Elysium testnet (99801), and NEAR testnet are in development and are not deployed. Canton submission throws. It does not return a fake transaction id.</p>
+  <p>Chain adapters refuse mainnet RPC targets. A Solana devnet pool is deployed. Robinhood Chain testnet (46630), Kinetiq Elysium testnet (99801), and NEAR testnet are not deployed. Canton submission throws. It does not return a fake transaction id.</p>
   <p><code>generateGroth16KycProof</code> throws. Do not wrap it and tell a user a proof was created.</p>
   <p>Security reports go to <a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">private vulnerability reporting</a>, not a public issue.</p>
 

@@ -66,8 +66,12 @@
   :focus-visible{outline:2px solid var(--lime);outline-offset:3px}
   ::selection{background:var(--lime);color:var(--bg)}
   .shell{max-width:var(--max);margin:0 auto;padding-left:var(--gl);padding-right:var(--gr)}
+  .testnet-banner{
+    position:sticky;top:0;z-index:70;margin:0;background:#C6F432;color:#0a0b0c;text-align:center;
+    font:600 12px/1.2 var(--sans);letter-spacing:.16em;text-transform:uppercase;padding:8px 12px;
+  }
   .nav{
-    position:sticky;top:0;z-index:60;
+    position:sticky;top:34px;z-index:60;
     background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,.35));
     backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
     border-bottom:1px solid rgba(255,255,255,.06);
@@ -107,6 +111,7 @@
 </style>
 </head>
 <body>
+<p class="testnet-banner">Testnet only, unaudited</p>
 <header class="nav">
   <div class="shell nav-in">
     <a class="brand" href="./" aria-label="Shader Protocol, home">
