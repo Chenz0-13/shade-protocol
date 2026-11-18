@@ -44,7 +44,7 @@ Slither 0.11.6 with crytic-compile 0.4.2 reads `contracts/evm/slither.config.jso
 - `unused-return`: the Medusa harness ignores the commitment returned by `deposit`. The property checks the balance, not the commitment.
 - `naming-convention`: Medusa looks for `property_` prefixes. Those names are not mixedCase.
 
-Aderyn 0.6.8 is built from the retained source archive (sha256 `2d4afdb52bae30f8488e5d9470a281d284c0b286455b61b474e6c2e7dafe343a`). Cyfrin withdrew the prebuilt binaries on 2026-11-13. It writes SARIF. `scripts/security/aderyn-check.mjs` fails if a rule id is missing from `contracts/evm/aderyn-accept.txt`. Accepted rules:
+Aderyn 0.6.8 is built from the retained source archive (sha256 `2d4afdb52bae30f8488e5d9470a281d284c0b286455b61b474e6c2e7dafe343a`). Cyfrin withdrew the prebuilt binaries on 2026-11-13. Rust 1.99 rejects the leftover `#![feature(result_option_map_or_default)]` because that feature has been stable since 1.98, so the install deletes that one line before `cargo install --locked`. It writes SARIF. `scripts/security/aderyn-check.mjs` fails if a rule id is missing from `contracts/evm/aderyn-accept.txt`. Accepted rules:
 
 - `reentrancy-state-change`: same lock and regression test as the Slither note above. `mintAttested` sets the nullifier before `consume`.
 - `unsafe-erc20-operation`: `transfer` and `transferFrom` must return `bool`, and the pool checks that bool. A token that returns no value does not match the interface and is not supported.
@@ -75,6 +75,7 @@ Unmaintained or unsound transitive crates, not fixed in this tree:
 - `RUSTSEC-2022-0054` and `GHSA-rc23-xxgq-x27g` wee_alloc 0.4.5. The GitHub advisory is critical. near-sdk 5.11 depends on wee_alloc directly. Removing it means forking the SDK. The NEAR contract stays testnet-only.
 - `RUSTSEC-2026-0002`, `RUSTSEC-2026-0253`, and `GHSA-rhfx-m35p-ff5j` lru 0.12.5, via near-sdk. This contract does not call `IterMut` or `pop`.
 - `RUSTSEC-2021-0139` ansi_term 0.12.1, `RUSTSEC-2025-0141` bincode 1.3.3, and `RUSTSEC-2025-0161` libsecp256k1 0.7.2, via Solana crates. Proof checks use groth16-solana.
+- `RUSTSEC-2026-0543` chrono 0.4.45, informational and unmaintained, via near-sdk. No release is marked patched. This contract does not parse dates with it.
 
 cargo-fuzz 0.13.2 uses nightly `nightly-2026-10-14`. The targets live in `contracts/shade-crypto/fuzz` as their own workspace so `cargo test` does not build them. `parse_field` calls `parse_canonical_field`. `proof_input` calls `screen_proof_json`, which returns an error on bad JSON and on non-canonical field strings instead of panicking. CI runs each target for 20 seconds. A local run finished with no crashes: `parse_field` did 3,425,669 executions and `proof_input` did 1,762,884. The linker is `g++` with `LIBRARY_PATH` pointed at the GCC 13 libstdc++, because `rust-lld` does not find the unversioned `libstdc++.so` on its own.
 

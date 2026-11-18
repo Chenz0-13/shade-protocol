@@ -28,7 +28,13 @@ export function formatAmount(value: bigint, decimals: number): string {
   const absolute = negative ? -value : value;
   const text = absolute.toString().padStart(decimals + 1, "0");
   const whole = text.slice(0, text.length - decimals);
-  const fraction = text.slice(text.length - decimals).replace(/0+$/, "");
+  const fraction = stripTrailingZeros(text.slice(text.length - decimals));
   const rendered = fraction.length > 0 ? `${whole}.${fraction}` : whole;
   return negative ? `-${rendered}` : rendered;
+}
+
+function stripTrailingZeros(value: string): string {
+  let end = value.length;
+  while (end > 0 && value.charCodeAt(end - 1) === 48) end -= 1;
+  return value.slice(0, end);
 }

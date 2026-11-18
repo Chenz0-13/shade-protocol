@@ -128,6 +128,9 @@ jobs:
           curl -fsSL -L -o /tmp/aderyn-src.tar.gz https://github.com/Cyfrin/aderyn/releases/download/aderyn-v0.6.8/source.tar.gz
           echo "2d4afdb52bae30f8488e5d9470a281d284c0b286455b61b474e6c2e7dafe343a  /tmp/aderyn-src.tar.gz" | sha256sum -c
           tar -xzf /tmp/aderyn-src.tar.gz -C /tmp
+          # Rust 1.99 rejects #![feature] for result_option_map_or_default, which
+          # has been stable since 1.98. The attribute is the only nightly gate.
+          sed -i '1{/^#!\[feature(result_option_map_or_default)\]$/d;}' /tmp/aderyn-0.6.8/aderyn_driver/src/lib.rs
           cargo install --path /tmp/aderyn-0.6.8/aderyn --locked
           aderyn --version
       - name: Install Medusa 1.5.1
