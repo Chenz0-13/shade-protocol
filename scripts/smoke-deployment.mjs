@@ -228,7 +228,7 @@ async function smokeNear() {
       public_inputs: proof.pub,
       recipient,
     },
-    gas: 300_000_000_000_000n,
+    gas: 1_000_000_000_000_000n,
     deposit: 0n,
     nonce,
     blockHash,
@@ -302,7 +302,7 @@ async function nearRpc(rpc, method, params) {
 
 async function submitNear(params) {
   const signed = signFunctionCall(params);
-  const result = await nearRpc(params.rpc, "broadcast_tx_commit", [bs58.encode(signed)]);
+  const result = await nearRpc(params.rpc, "broadcast_tx_commit", [signed.toString("base64")]);
   const status = result.status ?? {};
   if (status.Failure || status.failure) {
     fail(`${params.methodName} failed: ${JSON.stringify(status.Failure ?? status.failure)}`);

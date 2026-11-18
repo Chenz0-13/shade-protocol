@@ -14,6 +14,7 @@ export interface NoteGift {
   blinding: string;
   rho: string;
   assetId: string;
+  chainHome: string;
   ownerPub: string;
   memo: string;
 }
@@ -103,7 +104,7 @@ export async function openNoteGift(viewPrivateKey: Uint8Array, gift: string): Pr
   if (typeof parsed !== "object" || parsed === null) throw new VaultError("That private note gift could not be read.");
   const record = parsed as Record<string, unknown>;
   if (record.v !== 1) throw new VaultError("That private note gift could not be read.");
-  const fields = ["chainKey", "commitment", "value", "blinding", "rho", "assetId", "ownerPub", "memo"] as const;
+  const fields = ["chainKey", "commitment", "value", "blinding", "rho", "assetId", "chainHome", "ownerPub", "memo"] as const;
   const note = { v: 1 as const } as NoteGift;
   for (const field of fields) {
     if (typeof record[field] !== "string" || (record[field] as string).length === 0 && field !== "memo") {

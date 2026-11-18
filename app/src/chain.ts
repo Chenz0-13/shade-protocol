@@ -29,9 +29,7 @@ export async function syncSolanaPool(rpcUrl: string, programId: string, poolAddr
   const info = await connection.getAccountInfo(pool, "confirmed");
   if (!info) throw new Error("The Solana devnet pool account was not found.");
   const header = readPoolHeader(info.data);
-  if (header.nextIndex === 0n) {
-    return { nextIndex: 0n, root: MerkleTree.empty(TREE_DEPTH).root(), leaves: [] };
-  }
+  if (header.nextIndex === 0n) return checkPool(header, []);
   const signatures = await allSignatures(connection, pool);
   const leaves: bigint[] = [];
   const pending = signatures.filter((item) => item.err === null).map((item) => item.signature);
@@ -238,7 +236,7 @@ async function getLogs(chain: ChainDeployment): Promise<EvmPoolLog[]> {
 }
 
 function checkPool(header: { nextIndex: bigint; root: bigint }, leaves: bigint[]): PoolView {
-  if (header.nextIndex > 256n) throw new Error("This devnet pool is full.");
+  if (header.nextIndex > 1n << BigInt(TREE_DEPTH)) throw new Error("This devnet pool is full.");
   if (BigInt(leaves.length) !== header.nextIndex) {
     throw new Error("The pool history this browser read does not match the pool, so a proof would be rejected.");
   }

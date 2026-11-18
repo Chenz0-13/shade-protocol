@@ -28,7 +28,7 @@ export function encodeShieldedTransferCall(params: {
   recipient: string;
   relayer: string;
 }): string {
-  if (params.publicSignals.length !== 6) throw new Error("a shielded transfer has six public signals");
+  if (params.publicSignals.length !== 7) throw new Error("a shielded transfer has seven public signals");
   const pA = [BigInt(params.proof.pi_a[0]!), BigInt(params.proof.pi_a[1]!)];
   const pB = [
     BigInt(params.proof.pi_b[0]![1]!),
@@ -45,7 +45,7 @@ export function encodeShieldedTransferCall(params: {
     BigInt(params.recipient),
     BigInt(params.relayer),
   ];
-  return "0x" + functionSelector("shieldedTransfer(uint256[2],uint256[2][2],uint256[2],uint256[6],address,address)") + words.map(word).join("");
+  return "0x" + functionSelector("shieldedTransfer(uint256[2],uint256[2][2],uint256[2],uint256[7],address,address)") + words.map(word).join("");
 }
 
 export function viewCall(signature: string): string {

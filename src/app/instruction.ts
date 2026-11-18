@@ -17,7 +17,8 @@ export interface TransferPublicSignals {
   nullifier: string;
   commitmentOut1: string;
   commitmentOut2: string;
-  fee: string;
+  withdrawAmount: string;
+  relayerFee: string;
   extDataHash: string;
 }
 
@@ -39,7 +40,7 @@ export function encodeDepositData(params: {
   return out;
 }
 
-/** Tag 1 layout consumed by the Solana pool: negated A, B, C, then six public inputs. */
+/** Tag 1 layout consumed by the Solana pool: negated A, B, C, then seven public inputs. */
 export function encodeWithdrawData(proof: Groth16ProofJson, signals: TransferPublicSignals): Uint8Array {
   const parts = [
     g1(proof.pi_a, true),
@@ -50,11 +51,12 @@ export function encodeWithdrawData(proof: Groth16ProofJson, signals: TransferPub
       signals.nullifier,
       signals.commitmentOut1,
       signals.commitmentOut2,
-      signals.fee,
+      signals.withdrawAmount,
+      signals.relayerFee,
       signals.extDataHash,
     ].map((value) => be32(BigInt(value), SCALAR)),
   ];
-  const out = new Uint8Array(449);
+  const out = new Uint8Array(481);
   out[0] = 1;
   let offset = 1;
   for (const part of parts) {

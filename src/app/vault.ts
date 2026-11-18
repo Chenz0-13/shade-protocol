@@ -37,6 +37,7 @@ export interface VaultNote {
   blinding: string;
   rho: string;
   assetId: string;
+  chainHome: string;
   ownerPub: string;
   leafIndex: number | null;
   memo: string;
@@ -216,6 +217,7 @@ function parseNote(value: unknown): VaultNote {
     blinding: requiredString(value.blinding),
     rho: requiredString(value.rho),
     assetId: requiredString(value.assetId),
+    chainHome: requiredString(value.chainHome),
     ownerPub: requiredString(value.ownerPub),
     leafIndex,
     memo: optionalString(value.memo),

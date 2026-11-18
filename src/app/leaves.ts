@@ -1,5 +1,5 @@
 import { keccak_256 } from "@noble/hashes/sha3.js";
-import { ASSET_BASE } from "../core/constants.js";
+import { ASSET_BASE, EXT_DOMAIN } from "../core/constants.js";
 import { bytesToHex, utf8 } from "../core/crypto/field.js";
 import { noteCommitment } from "../core/crypto/note.js";
 import { readBe, readU64LE } from "./bytes.js";
@@ -10,10 +10,10 @@ export const POOL_MAGIC = POOL_MAGICS[0];
 export const POOL_NEXT_INDEX_OFFSET = 12;
 export const POOL_ROOT_OFFSET = 20;
 export const DEPOSIT_IX_LEN = 105;
-export const WITHDRAW_IX_LEN = 449;
+export const WITHDRAW_IX_LEN = 481;
 
 const depositTopicBytes = keccak_256(utf8("Deposited(uint256,uint256,uint256,uint256)"));
-const spentTopicBytes = keccak_256(utf8("Spent(uint256,uint256,uint256,uint256,uint256)"));
+const spentTopicBytes = keccak_256(utf8("Spent(uint256,uint256,uint256,uint256,uint256,uint256)"));
 
 export const DEPOSIT_TOPIC = bytesToHex(depositTopicBytes);
 export const SPENT_TOPIC = bytesToHex(spentTopicBytes);
@@ -45,6 +45,7 @@ export function leavesFromInstruction(data: Uint8Array): bigint[] {
         rho: readBe(data.subarray(33, 65)),
         ownerPub: readBe(data.subarray(65, 97)),
         assetId: ASSET_BASE,
+        chainHome: EXT_DOMAIN.solana,
       }),
     ];
   }

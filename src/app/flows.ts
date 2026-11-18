@@ -1,6 +1,6 @@
 import { ASSET_BASE, TREE_DEPTH } from "../core/constants.js";
 import { randomNonZeroField } from "../core/crypto/field.js";
-import { noteCommitment, noteNullifier, type NoteParts } from "../core/crypto/note.js";
+import { deriveOutputRho, noteCommitment, noteNullifier, type NoteParts } from "../core/crypto/note.js";
 import { MerkleTree } from "../core/merkle/MerkleTree.js";
 import { extDataHash, type ExtDataLimbs } from "../core/proof/extData.js";
 import { buildTransferWitness, type TransferWitnessInput } from "../core/proof/witness.js";
@@ -10,6 +10,7 @@ export interface ShieldPlan {
   rho: bigint;
   ownerPub: bigint;
   assetId: bigint;
+  chainHome: bigint;
   value: bigint;
   commitment: bigint;
 }
@@ -20,6 +21,7 @@ export interface PlannedOutput {
   rho: bigint;
   ownerPub: bigint;
   assetId: bigint;
+  chainHome: bigint;
   commitment: bigint;
 }
 
@@ -35,24 +37,30 @@ export interface SpendPlan {
   extDataHash: bigint;
 }
 
-export function planShield(ownerPub: bigint, value: bigint, assetId: bigint = ASSET_BASE): ShieldPlan {
+export function planShield(
+  ownerPub: bigint,
+  value: bigint,
+  chainHome: bigint,
+  assetId: bigint = ASSET_BASE,
+): ShieldPlan {
   if (value <= 0n) throw new Error("Enter an amount greater than zero.");
   const blinding = randomNonZeroField();
   const rho = randomNonZeroField();
-  const commitment = noteCommitment({ value, blinding, rho, ownerPub, assetId });
-  return { blinding, rho, ownerPub, assetId, value, commitment };
+  const commitment = noteCommitment({ value, blinding, rho, ownerPub, assetId, chainHome });
+  return { blinding, rho, ownerPub, assetId, chainHome, value, commitment };
 }
 
 export function planSpend(params: {
   spendingKey: bigint;
   note: NoteParts & { leafIndex: number | null };
   leaves: readonly bigint[];
-  fee: bigint;
+  withdrawAmount: bigint;
+  relayerFee: bigint;
   out1: { value: bigint; ownerPub: bigint };
   out2: { value: bigint; ownerPub: bigint };
   ext: ExtDataLimbs;
 }): SpendPlan {
-  if (params.out1.value + params.out2.value + params.fee !== params.note.value) {
+  if (params.out1.value + params.out2.value + params.withdrawAmount + params.relayerFee !== params.note.value) {
     throw new Error("The amount plus what you keep has to equal the note.");
   }
   const commitmentIn = noteCommitment(params.note);
@@ -67,9 +75,10 @@ export function planSpend(params: {
     throw new Error("This note's position in the pool does not match the saved note.");
   }
   const proof = tree.getProof(found);
+  const nullifier = noteNullifier(params.spendingKey, commitmentIn, BigInt(found));
   const outputs: [PlannedOutput, PlannedOutput] = [
-    fillOutput(params.out1.value, params.out1.ownerPub, params.note.assetId),
-    fillOutput(params.out2.value, params.out2.ownerPub, params.note.assetId),
+    fillOutput(params.out1.value, params.out1.ownerPub, params.note.assetId, params.note.chainHome, deriveOutputRho(nullifier, 1n)),
+    fillOutput(params.out2.value, params.out2.ownerPub, params.note.assetId, params.note.chainHome, deriveOutputRho(nullifier, 2n)),
   ];
   const input: TransferWitnessInput = {
     root: proof.root,
@@ -78,9 +87,11 @@ export function planSpend(params: {
     blindingIn: params.note.blinding,
     rhoIn: params.note.rho,
     assetIn: params.note.assetId,
+    chainHome: params.note.chainHome,
     pathElements: proof.pathElements,
     pathIndices: proof.pathIndices,
-    fee: params.fee,
+    withdrawAmount: params.withdrawAmount,
+    relayerFee: params.relayerFee,
     ext: params.ext,
     out1: outputs[0],
     out2: outputs[1],
@@ -91,23 +102,29 @@ export function planSpend(params: {
     witness: built.witness,
     publicSignals: built.publicSignals,
     commitmentIn,
-    nullifier: noteNullifier(params.spendingKey, params.note.rho),
+    nullifier,
     outputs,
     leafIndex: found,
     root: proof.root,
-    extDataHash: extDataHash(params.ext, params.fee),
+    extDataHash: extDataHash(params.ext, params.withdrawAmount, params.relayerFee),
   };
 }
 
-function fillOutput(value: bigint, ownerPub: bigint, assetId: bigint): PlannedOutput {
+function fillOutput(
+  value: bigint,
+  ownerPub: bigint,
+  assetId: bigint,
+  chainHome: bigint,
+  rho: bigint,
+): PlannedOutput {
   const blinding = randomNonZeroField();
-  const rho = randomNonZeroField();
   return {
     value,
     blinding,
     rho,
     ownerPub,
     assetId,
-    commitment: noteCommitment({ value, blinding, rho, ownerPub, assetId }),
+    chainHome,
+    commitment: noteCommitment({ value, blinding, rho, ownerPub, assetId, chainHome }),
   };
 }

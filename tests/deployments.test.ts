@@ -28,12 +28,23 @@ describe("deployments", () => {
     }
   });
 
-  it("keeps undeployed EVM testnets visible and NEAR as coming soon", () => {
-    expect(deploymentStatus(getDeployment("robinhood-testnet"))).toBe("not-deployed");
+  it("lists the deployed testnet pools and leaves the others unset", () => {
+    const pool = "0xd752b0950DD4ad662CFb451Dea2d07b53B047559";
+    const verifier = "0xaE9645Cd9833A655f0EA3babd41b9b8f615F5D2F";
+    const robinhood = getDeployment("robinhood-testnet");
+    const elysium = getDeployment("elysium-testnet");
+    expect(deploymentStatus(robinhood)).toBe("deployed");
+    expect(deploymentStatus(elysium)).toBe("deployed");
+    expect(robinhood.poolAddress).toBe(pool);
+    expect(elysium.poolAddress).toBe(pool);
+    expect(robinhood.verifierAddress).toBe(verifier);
+    expect(elysium.verifierAddress).toBe(verifier);
+    expect(robinhood.explorerUrl).toBe("https://explorer.testnet.chain.robinhood.com");
+    expect(elysium.explorerUrl).toBe("https://elysium.kinetiq.xyz/testnet-explorer");
     expect(deploymentStatus(getDeployment("base-sepolia"))).toBe("not-deployed");
     expect(deploymentStatus(getDeployment("hyperevm-testnet"))).toBe("not-deployed");
-    expect(deploymentStatus(getDeployment("elysium-testnet"))).toBe("not-deployed");
     expect(deploymentStatus(getDeployment("near-testnet"))).toBe("coming-soon");
+    expect(getDeployment("near-testnet").contractId).toBe("shader-deployer-blie3d.testnet");
     expect(getDeployment("robinhood-testnet").chainId).toBe(46630);
     expect(getDeployment("base-sepolia").chainId).toBe(84532);
     expect(getDeployment("hyperevm-testnet").chainId).toBe(998);

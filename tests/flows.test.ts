@@ -28,7 +28,6 @@ import {
 } from "../src/app/instruction.js";
 import { leavesFromEvmLogs, leavesFromInstruction, readPoolHeader, DEPOSIT_TOPIC, SPENT_TOPIC } from "../src/app/leaves.js";
 import { hexToBytes } from "../src/core/crypto/field.js";
-import { readBe } from "../src/app/bytes.js";
 import { MerkleTree } from "../src/core/merkle/MerkleTree.js";
 import { keccak256, toBytes } from "viem";
 
@@ -52,8 +51,9 @@ describe("app flows", () => {
       nullifier: "2",
       commitmentOut1: "3",
       commitmentOut2: "4",
-      fee: "5",
-      extDataHash: "6",
+      withdrawAmount: "5",
+      relayerFee: "6",
+      extDataHash: "7",
     };
     const payload = { ...signals, proof };
     expect(encodeWithdrawData(proof, signals)).toEqual(new Uint8Array(encodeShadeTransfer(payload)));
@@ -65,7 +65,7 @@ describe("app flows", () => {
     expect(accounts.vault.toBase58()).toBe(vaultPda(program).toBase58());
     expect(solanaNullifierAccount(program, 42n).toBase58()).toBe(nullifierPda(program, 42n).toBase58());
     expect(leavesFromInstruction(encodeDepositData(opening))[0]).toBe(
-      noteCommitment({ ...opening, assetId: ASSET_BASE }),
+      noteCommitment({ ...opening, assetId: ASSET_BASE, chainHome: EXT_DOMAIN.solana }),
     );
   });
 
@@ -80,7 +80,7 @@ describe("app flows", () => {
     expect(encodeNullifierQuery(4n)).toBe(
       encodeFunctionData({ abi: shadePoolAbi, functionName: "nullifiers", args: [4n] }),
     );
-    const signals = ["8", "9", "10", "11", "12", "13"];
+    const signals = ["8", "9", "10", "11", "12", "13", "14"];
     const recipient = "0x00000000000000000000000000000000000000aa";
     const relayer = "0x00000000000000000000000000000000000000bb";
     const solid = solidityProof({
@@ -88,8 +88,9 @@ describe("app flows", () => {
       nullifier: signals[1]!,
       commitmentOut1: signals[2]!,
       commitmentOut2: signals[3]!,
-      fee: signals[4]!,
-      extDataHash: signals[5]!,
+      withdrawAmount: signals[4]!,
+      relayerFee: signals[5]!,
+      extDataHash: signals[6]!,
       proof,
     });
     expect(encodeShieldedTransferCall({ proof, publicSignals: signals, recipient, relayer })).toBe(
@@ -103,25 +104,36 @@ describe("app flows", () => {
 
   it("plans a shield and a withdraw that conserves value", () => {
     const keys = generatePrivacyKeys();
-    const shield = planShield(keys.ownerPub, 50n);
+    const shield = planShield(keys.ownerPub, 50n, EXT_DOMAIN.solana);
     expect(shield.commitment).toBe(noteCommitment({ ...shield }));
+    const ext = {
+      recipientLo: 1n,
+      recipientHi: 0n,
+      relayerLo: 2n,
+      relayerHi: 0n,
+      poolLo: 3n,
+      poolHi: 0n,
+      chainDomain: EXT_DOMAIN.solana,
+    };
     expect(() => planSpend({
       spendingKey: keys.spendingKey,
       note: { ...shield, leafIndex: null },
       leaves: [shield.commitment],
-      fee: 10n,
+      withdrawAmount: 10n,
+      relayerFee: 0n,
       out1: { value: 50n, ownerPub: keys.ownerPub },
       out2: { value: 0n, ownerPub: keys.ownerPub },
-      ext: { recipientLo: 1n, recipientHi: 0n, relayerLo: 2n, relayerHi: 0n, chainDomain: EXT_DOMAIN.solana },
+      ext,
     })).toThrow(/equal the note/);
     const spend = planSpend({
       spendingKey: keys.spendingKey,
       note: { ...shield, leafIndex: 0 },
       leaves: [shield.commitment],
-      fee: 20n,
+      withdrawAmount: 20n,
+      relayerFee: 0n,
       out1: { value: 30n, ownerPub: keys.ownerPub },
       out2: { value: 0n, ownerPub: keys.ownerPub },
-      ext: { recipientLo: 1n, recipientHi: 0n, relayerLo: 2n, relayerHi: 0n, chainDomain: EXT_DOMAIN.solana },
+      ext,
     });
     expect(spend.leafIndex).toBe(0);
     expect(spend.publicSignals[4]).toBe("20");
@@ -149,6 +161,7 @@ describe("app flows", () => {
       blinding: "8",
       rho: "9",
       assetId: "1",
+      chainHome: "1001",
       ownerPub: keys.ownerPub.toString(),
       memo: "",
     });
@@ -174,12 +187,10 @@ describe("app flows", () => {
         "5348414445706c32fffe010100000000000000002134e76ac5d21aab186c2be1dd8f84ee880a1e46eaf712f9d371b6df22191f3e",
       ),
     );
-    expect(readPoolHeader(live).nextIndex).toBe(0n);
-    expect(readBe(hexToBytes("2fa5e5f18f6027a6501bec864564472a616b2e274a41211a444cbe3a99f3cc61"))).toBe(
-      MerkleTree.empty().root(),
-    );
+    expect(readPoolHeader(live)).toEqual({ nextIndex: 0n, root: MerkleTree.empty().root() });
 
     expect(`0x${DEPOSIT_TOPIC}`).toBe(keccak256(toBytes("Deposited(uint256,uint256,uint256,uint256)")));
+    expect(`0x${SPENT_TOPIC}`).toBe(keccak256(toBytes("Spent(uint256,uint256,uint256,uint256,uint256,uint256)")));
     const out1 = 5n;
     const out2 = 6n;
     const leaves = leavesFromEvmLogs([

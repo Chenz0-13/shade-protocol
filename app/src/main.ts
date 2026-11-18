@@ -3,11 +3,12 @@ import { PublicKey } from "@solana/web3.js";
 import { EXT_DOMAIN } from "../../src/core/constants.js";
 import { generatePrivacyKeys } from "../../src/core/crypto/keys.js";
 import { noteNullifier } from "../../src/core/crypto/note.js";
-import { limbsFrom32, limbsFromEvmAddress, type ExtDataLimbs } from "../../src/core/proof/extData.js";
+import { limbsFrom32, limbsFromAccount, limbsFromEvmAddress, type ExtDataLimbs } from "../../src/core/proof/extData.js";
 import { formatAmount, parseAmount } from "../../src/app/amount.js";
 import { formatShieldedAddress, parseShieldedAddress } from "../../src/app/address.js";
 import {
   DEPLOYMENTS,
+  chainHome,
   deploymentStatus,
   explorerTx,
   getDeployment,
@@ -178,7 +179,9 @@ function renderChains(): void {
     const title = document.createElement("b");
     title.textContent = chain.name;
     const detail = document.createElement("small");
-    detail.textContent = chain.kind === "near" ? "Wallet connection is not in this app yet." : `${chain.nativeSymbol} · ${chain.network}`;
+    detail.textContent = chain.kind === "near"
+      ? `Contract ${chain.contractId}. A NEAR wallet is not connected from this app yet.`
+      : `${chain.nativeSymbol} · ${chain.network}`;
     const badge = document.createElement("span");
     badge.className = "badge";
     badge.textContent = statusLabel(status);
@@ -237,7 +240,9 @@ function renderVault(): void {
   $<HTMLButtonElement>("withdraw-submit").disabled = !ready || state.busy || !state.artifacts;
   $("proof-note").textContent = state.artifactNote;
   const pool = $("pool-status");
-  if (deploymentStatus(chain) === "coming-soon") pool.textContent = "Coming soon. The faucet link is there for when a wallet is added.";
+  if (deploymentStatus(chain) === "coming-soon") {
+    pool.textContent = `Coming soon. Contract ${chain.contractId} is on NEAR testnet. This app does not connect a NEAR wallet yet.`;
+  }
   else if (!ready) pool.textContent = "Not deployed yet. Shield, send, and withdraw stay off until a pool address is added.";
   else if (state.pool) pool.textContent = `The pool is readable. It holds ${state.pool.nextIndex.toString()} notes.`;
   else pool.textContent = state.poolError ?? "Reading the pool…";
@@ -363,7 +368,7 @@ async function shield(): Promise<void> {
   if (!unlocked.payload.identity) throw new Error("Unlock notes first.");
   const value = parseAmount($<HTMLInputElement>("shield-amount").value, chain.nativeDecimals);
   const keys = keysFromIdentity(unlocked.payload.identity);
-  const plan = planShield(keys.ownerPub, value);
+  const plan = planShield(keys.ownerPub, value, chainHome(chain));
   showProgress("Waiting for the wallet", 30, false);
   const wallet = requireWallet(chain);
   const sent =
@@ -457,10 +462,12 @@ async function transfer(mode: "send" | "withdraw"): Promise<void> {
       rho: BigInt(note.rho),
       ownerPub: BigInt(note.ownerPub),
       assetId: BigInt(note.assetId),
+      chainHome: BigInt(note.chainHome),
       leafIndex: note.leafIndex,
     },
     leaves: state.pool.leaves,
-    fee: mode === "withdraw" ? amount : 0n,
+    withdrawAmount: mode === "withdraw" ? amount : 0n,
+    relayerFee: 0n,
     out1: { value: mode === "send" ? amount : change, ownerPub: ownerOut },
     out2: { value: mode === "send" ? change : 0n, ownerPub: keys.ownerPub },
     ext,
@@ -499,6 +506,7 @@ async function transfer(mode: "send" | "withdraw"): Promise<void> {
       blinding: spend.outputs[0].blinding.toString(),
       rho: spend.outputs[0].rho.toString(),
       assetId: spend.outputs[0].assetId.toString(),
+      chainHome: spend.outputs[0].chainHome.toString(),
       ownerPub: spend.outputs[0].ownerPub.toString(),
       memo: "Private send",
     });
@@ -544,8 +552,9 @@ async function spendSolana(
           nullifier: spend.publicSignals[1] ?? "",
           commitmentOut1: spend.publicSignals[2] ?? "",
           commitmentOut2: spend.publicSignals[3] ?? "",
-          fee: spend.publicSignals[4] ?? "",
-          extDataHash: spend.publicSignals[5] ?? "",
+          withdrawAmount: spend.publicSignals[4] ?? "",
+          relayerFee: spend.publicSignals[5] ?? "",
+          extDataHash: spend.publicSignals[6] ?? "",
         }),
       }),
     ],
@@ -568,6 +577,7 @@ async function importGift(): Promise<void> {
     blinding: gift.blinding,
     rho: gift.rho,
     assetId: gift.assetId,
+    chainHome: gift.chainHome,
     ownerPub: gift.ownerPub,
     leafIndex: null,
     memo: gift.memo,
@@ -628,7 +638,12 @@ async function refreshPool(required: boolean): Promise<void> {
           changed = true;
         }
         if (!note.spent) {
-          const spent = await isNullifierSpent(chain, noteNullifier(keys.spendingKey, BigInt(note.rho)));
+          const spent = note.leafIndex === null
+            ? false
+            : await isNullifierSpent(
+                chain,
+                noteNullifier(keys.spendingKey, BigInt(note.commitment), BigInt(note.leafIndex)),
+              );
           if (spent) {
             note.spent = true;
             changed = true;
@@ -661,6 +676,7 @@ function remember(
     blinding: plan.blinding.toString(),
     rho: plan.rho.toString(),
     assetId: plan.assetId.toString(),
+    chainHome: plan.chainHome.toString(),
     ownerPub: plan.ownerPub.toString(),
     leafIndex: null,
     memo: confirmed ? "Shield" : "Waiting for confirmation",
@@ -686,6 +702,7 @@ function rememberOutput(
     blinding: output.blinding.toString(),
     rho: output.rho.toString(),
     assetId: output.assetId.toString(),
+    chainHome: output.chainHome.toString(),
     ownerPub: output.ownerPub.toString(),
     leafIndex: null,
     memo: "Change",
@@ -696,14 +713,21 @@ function rememberOutput(
 }
 
 function externalData(chain: ChainDeployment, recipient: string, relayer: string): ExtDataLimbs {
+  const [poolLo, poolHi] = poolLimbs(chain);
   if (chain.kind === "solana") {
     const [recipientLo, recipientHi] = limbsFrom32(new PublicKey(recipient).toBytes());
     const [relayerLo, relayerHi] = limbsFrom32(new PublicKey(relayer).toBytes());
-    return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: EXT_DOMAIN.solana };
+    return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain: EXT_DOMAIN.solana };
   }
   const [recipientLo, recipientHi] = limbsFromEvmAddress(recipient);
   const [relayerLo, relayerHi] = limbsFromEvmAddress(relayer);
-  return { recipientLo, recipientHi, relayerLo, relayerHi, chainDomain: BigInt(chain.chainId ?? 0) };
+  return { recipientLo, recipientHi, relayerLo, relayerHi, poolLo, poolHi, chainDomain: chainHome(chain) };
+}
+
+function poolLimbs(chain: ChainDeployment): [bigint, bigint] {
+  if (chain.kind === "solana") return limbsFrom32(new PublicKey(chain.poolAddress).toBytes());
+  if (chain.kind === "near") return limbsFromAccount(chain.contractId);
+  return limbsFromEvmAddress(chain.poolAddress);
 }
 
 function prove(spend: SpendPlan, artifacts: Artifacts): Promise<{ proof: Groth16ProofJson; publicSignals: string[] }> {
@@ -753,7 +777,7 @@ async function loadArtifacts(): Promise<void> {
     if (!vkeyResponse.ok) throw new Error("missing");
     state.artifacts = { wasm, zkey, vkey: (await vkeyResponse.json()) as object };
     state.artifactNote =
-      "Proof files are on this device. Creating one often takes 15–90 seconds, and longer on a phone. They are a development setup. A pool accepts the proof only when it was deployed with the same file, so the live Solana program may reject it.";
+      "Proof files are the pinned development setup. Creating one often takes 15–90 seconds, and longer on a phone. A pool accepts the proof only when it was deployed from these same files.";
   } catch {
     state.artifacts = null;
     state.artifactNote =

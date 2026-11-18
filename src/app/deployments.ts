@@ -1,3 +1,5 @@
+import { EXT_DOMAIN } from "../core/constants.js";
+
 /**
  * Testnet deployments for the Shader app.
  * A missing pool address means that chain is shown as not deployed yet.
@@ -26,8 +28,12 @@ export interface ChainDeployment {
   nativeDecimals: number;
   /** Solana program id. Empty until that program is deployed. */
   programId: string;
-  /** Solana pool PDA or EVM ShadePool address. Empty until deployed. */
+  /** Solana pool PDA, EVM ShadePool, or empty until deployed. */
   poolAddress: string;
+  /** EVM Groth16 verifier. Empty when that chain has no verifier yet. */
+  verifierAddress: string;
+  /** NEAR account id of the pool contract. Empty on other chains. */
+  contractId: string;
 }
 
 /** Chain ids that are mainnet, or a public network this app must never configure. */
@@ -61,6 +67,8 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeDecimals: 9,
     programId: "4VnXvKR2pwUio27hG8Q2VHxFj6gFENG6qa4AdqtvobSj",
     poolAddress: "DA56DQtdwGzbSQyy7jLAt76cqnVpW5E6JHg3N7V6DyZF",
+    verifierAddress: "",
+    contractId: "",
   },
   {
     id: "robinhood-testnet",
@@ -76,7 +84,9 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeSymbol: "ETH",
     nativeDecimals: 18,
     programId: "",
-    poolAddress: "",
+    poolAddress: "0xd752b0950DD4ad662CFb451Dea2d07b53B047559",
+    verifierAddress: "0xaE9645Cd9833A655f0EA3babd41b9b8f615F5D2F",
+    contractId: "",
   },
   {
     id: "base-sepolia",
@@ -93,6 +103,8 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeDecimals: 18,
     programId: "",
     poolAddress: "",
+    verifierAddress: "",
+    contractId: "",
   },
   {
     id: "hyperevm-testnet",
@@ -109,6 +121,8 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeDecimals: 18,
     programId: "",
     poolAddress: "",
+    verifierAddress: "",
+    contractId: "",
   },
   {
     id: "elysium-testnet",
@@ -124,7 +138,9 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeSymbol: "HYPE",
     nativeDecimals: 18,
     programId: "",
-    poolAddress: "",
+    poolAddress: "0xd752b0950DD4ad662CFb451Dea2d07b53B047559",
+    verifierAddress: "0xaE9645Cd9833A655f0EA3babd41b9b8f615F5D2F",
+    contractId: "",
   },
   {
     id: "near-testnet",
@@ -140,6 +156,8 @@ export const DEPLOYMENTS: readonly ChainDeployment[] = [
     nativeDecimals: 24,
     programId: "",
     poolAddress: "",
+    verifierAddress: "",
+    contractId: "shader-deployer-blie3d.testnet",
   },
 ];
 
@@ -204,6 +222,14 @@ export function getDeployment(id: string): ChainDeployment {
 
 export function explorerTx(chain: ChainDeployment, tx: string): string {
   return chain.explorerTxUrl.replace("{tx}", tx);
+}
+
+/** Chain home mixed into a note. Solana is 1001, NEAR is 1002, and an EVM note uses its chain id. */
+export function chainHome(chain: ChainDeployment): bigint {
+  if (chain.kind === "solana") return EXT_DOMAIN.solana;
+  if (chain.kind === "near") return EXT_DOMAIN.near;
+  if (chain.chainId === undefined) throw new Error(`${chain.id} has no chain id.`);
+  return BigInt(chain.chainId);
 }
 
 assertDeploymentList(DEPLOYMENTS);

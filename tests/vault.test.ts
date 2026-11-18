@@ -22,6 +22,7 @@ function note(chainKey: string, value: string, spent = false): VaultNote {
     blinding: "2",
     rho: "3",
     assetId: "1",
+    chainHome: "1001",
     ownerPub: "4",
     leafIndex: 0,
     memo: "",
