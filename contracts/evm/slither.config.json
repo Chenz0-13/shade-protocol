@@ -1,0 +1,6 @@
+{
+  "filter_paths": "Verifier.sol,PoseidonT3.sol,PoseidonT7.sol",
+  "exclude_dependencies": true,
+  "fail_on": "medium",
+  "detectors_to_exclude": "naming-convention,arbitrary-send-eth,low-level-calls,incorrect-equality,reentrancy-benign,unused-return"
+}

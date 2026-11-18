@@ -1,10 +1,10 @@
-use crate::merkle::field_from_dec;
+use crate::merkle::{field_from_dec, parse_canonical_field};
 use ark_bn254::{Bn254, Fq, Fq2, Fr, G1Affine, G2Affine};
 use ark_groth16::{Groth16, PreparedVerifyingKey, Proof, VerifyingKey};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Serialize)]
 pub struct SnarkjsProof {
     #[serde(rename = "pi_a")]
     pub pi_a: Vec<String>,
@@ -68,6 +68,47 @@ pub fn proof_from_json(json: &SnarkjsProof) -> Proof<Bn254> {
     }
 }
 
+/// Fallible scan of a snarkjs proof JSON blob. Random bytes must return an error, not abort.
+pub fn screen_proof_json(bytes: &[u8]) -> Result<(), &'static str> {
+    let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| "json")?;
+    let proof = value.as_object().ok_or("object")?;
+    check_g1(proof.get("pi_a").ok_or("pi_a")?)?;
+    check_g2(proof.get("pi_b").ok_or("pi_b")?)?;
+    check_g1(proof.get("pi_c").ok_or("pi_c")?)?;
+    Ok(())
+}
+
+fn check_decimal(value: &serde_json::Value) -> Result<(), &'static str> {
+    let text = value.as_str().ok_or("coord")?;
+    parse_canonical_field(text).map(|_| ()).map_err(|_| "field")
+}
+
+fn check_g1(value: &serde_json::Value) -> Result<(), &'static str> {
+    let coords = value.as_array().ok_or("g1")?;
+    if coords.len() < 2 {
+        return Err("g1");
+    }
+    check_decimal(&coords[0])?;
+    check_decimal(&coords[1])?;
+    Ok(())
+}
+
+fn check_g2(value: &serde_json::Value) -> Result<(), &'static str> {
+    let rows = value.as_array().ok_or("g2")?;
+    if rows.len() < 2 {
+        return Err("g2");
+    }
+    for row in rows.iter().take(2) {
+        let coords = row.as_array().ok_or("g2")?;
+        if coords.len() < 2 {
+            return Err("g2");
+        }
+        check_decimal(&coords[0])?;
+        check_decimal(&coords[1])?;
+    }
+    Ok(())
+}
+
 pub fn verify_snarkjs(vk: &VerifyingKeyJson, proof: &SnarkjsProof, public_inputs: &[String]) -> bool {
     let key = verifying_key_from_json(vk);
     let prepared = PreparedVerifyingKey::from(key);
@@ -128,5 +169,9 @@ mod tests {
             .map(|item| item.as_str().unwrap().to_string())
             .collect();
         assert!(verify_snarkjs(&vk, &proof, &public_inputs));
+        let encoded = serde_json::to_vec(&proof).unwrap();
+        assert!(screen_proof_json(&encoded).is_ok());
+        assert!(screen_proof_json(b"not json").is_err());
+        assert!(screen_proof_json(br#"{"pi_a":["01","1"],"pi_b":[["1","1"],["1","1"]],"pi_c":["1","1"]}"#).is_err());
     }
 }

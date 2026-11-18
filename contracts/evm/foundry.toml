@@ -11,5 +11,10 @@ optimizer_runs = 200
 ffi = true
 fs_permissions = [{ access = "read", path = "../.." }]
 
+[invariant]
+runs = 16
+depth = 4
+fail_on_revert = false
+
 [fmt]
 line_length = 120

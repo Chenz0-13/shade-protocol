@@ -15,7 +15,8 @@ describe("Kinetiq Elysium testnet", () => {
     expect(elysiumTestnet.nativeCurrency.decimals).toBe(18);
     expect(() => assertElysiumTarget(ELYSIUM_TESTNET_RPC, ELYSIUM_TESTNET_CHAIN_ID)).not.toThrow();
     expect(() => assertElysiumTarget(ELYSIUM_TESTNET_RPC, 1338)).toThrow(/99801/);
-    expect(() => assertElysiumTarget("https://elysium.example/mainnet", ELYSIUM_TESTNET_CHAIN_ID)).toThrow(ConfigError);
+    expect(() => assertElysiumTarget("https://elysium.example/mainnet", ELYSIUM_TESTNET_CHAIN_ID)).not.toThrow();
+    expect(() => assertElysiumTarget(ELYSIUM_TESTNET_RPC, 1)).toThrow(ConfigError);
     expect(() => new ElysiumTestnetAdapter({ rpcUrl: ELYSIUM_TESTNET_RPC, chainId: 1 })).toThrow(/99801/);
   });
 });

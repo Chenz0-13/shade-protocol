@@ -26,3 +26,6 @@ export * from "./chain/solana.js";
 export * from "./chain/robinhood.js";
 export * from "./chain/near.js";
 export * from "./chain/canton.js";
+export * from "./chain/extraEvm.js";
+export * from "./agent/allowance.js";
+export * from "./payroll/batch.js";

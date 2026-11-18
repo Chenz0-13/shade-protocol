@@ -1,108 +1,273 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="theme-color" content="#07080a">
-<title>Litepaper · Shader Protocol</title>
-<meta name="description" content="Shader Protocol litepaper. Groth16 shielded pool in development. Not audited. Devnet and testnet only. No token. No mainnet.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="doc.css">
-</head>
+<!doctype html><html lang="en-AU"><head><meta charset="utf-8"><title>Shader Protocol Litepaper v2 (draft)</title>
+<meta name="viewport" content="width=device-width,initial-scale=1"><style>@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&family=Oswald:wght@400;500;600&display=swap");
+:root{--bg:#07080a;--bg2:#0d0f12;--ink:#E9ECEF;--muted:#9AA1AA;--dim:#6b727b;--lime:#C6F432;--line:#262a30}
+@page{size:A4;margin:0}
+*{box-sizing:border-box}
+html{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+body{margin:0;min-height:100%;color:var(--muted);font:400 10.4pt/1.62 Inter,system-ui,sans-serif;}
+html{background-color:var(--bg);
+ background-image:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+  radial-gradient(ellipse 70% 40% at 85% 8%, rgba(120,128,138,.10), transparent 70%),
+  radial-gradient(ellipse 60% 35% at 10% 55%, rgba(110,118,128,.08), transparent 70%),
+  radial-gradient(ellipse 70% 35% at 80% 92%, rgba(198,244,50,.035), transparent 70%);
+ background-repeat:repeat,no-repeat,no-repeat,no-repeat}
+a{color:var(--lime);text-decoration:none}
+em{font-style:normal}
+strong{color:var(--ink);font-weight:600}
+/* ---------- cover ---------- */
+.cover{position:relative;width:210mm;height:297mm;overflow:hidden;break-after:page;background:#050607}
+.cover-bg{position:absolute;inset:0;background:
+  url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.7' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .07 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+  radial-gradient(ellipse 60% 30% at 25% 20%, rgba(140,148,158,.16), transparent 70%),
+  radial-gradient(ellipse 80% 30% at 20% 80%, rgba(90,96,104,.18), transparent 70%),
+  linear-gradient(180deg,#0b0c0e 0%,#050607 60%,#08090b 100%)}
+.wizard{position:absolute;right:-4mm;top:30mm;height:240mm;width:auto;opacity:.96}
+.topbar{position:absolute;top:0;left:0;right:0;height:24mm;display:flex;align-items:center;gap:4mm;padding:0 16mm;border-bottom:1px solid rgba(255,255,255,.05);background:linear-gradient(180deg,rgba(0,0,0,.6),rgba(0,0,0,.2))}
+.brand{font:500 12pt Oswald,sans-serif;letter-spacing:.18em;color:var(--ink)}
+.pill{margin-left:auto;border:1px solid var(--lime);color:var(--lime);font:500 8pt Inter;letter-spacing:.14em;padding:2.6mm 4mm}
+.cover-main{position:absolute;left:16mm;top:62mm;width:112mm}
+.cover h1{font:600 62pt/0.98 Oswald,sans-serif;text-transform:uppercase;color:#F2F4F6;margin:6mm 0 8mm;letter-spacing:-.005em}
+.cover h1 em,h2 em{color:var(--lime)}
+.lede{text-shadow:0 1px 8px #000,0 0 2px #000;font:300 12.5pt/1.55 Inter;color:#A3AAB3;margin:0 0 10mm;max-width:104mm}
+.btns{display:flex;gap:5mm}
+.btn{display:inline-block;font:500 9pt Inter;letter-spacing:.14em;text-transform:uppercase;padding:4.2mm 7mm}
+.btn.fill{background:var(--lime);color:#0a0b0c}
+.btn.line{border:1px solid #4a4f56;color:var(--ink)}
+.cover-foot{position:absolute;left:16mm;right:16mm;bottom:14mm;display:grid;grid-template-columns:repeat(4,1fr);gap:4mm;border-top:1px solid #23272c;padding-top:5mm;font:400 8.6pt/1.4 Inter;color:#8d949c}
+.cover-foot b{display:block;font:500 7.4pt Inter;letter-spacing:.18em;color:var(--lime);margin-bottom:1.2mm}
+/* ---------- eyebrow ---------- */
+.eyebrow{display:flex;align-items:center;gap:3.5mm;font:500 8.4pt Inter;letter-spacing:.24em;color:var(--lime);text-transform:uppercase}
+.eyebrow .rule{display:inline-block;width:10mm;height:1px;background:var(--lime)}
+/* ---------- flowing pages ---------- */
+table.flow{width:100%;border-collapse:collapse}
+table.flow>thead>tr>td,table.flow>tfoot>tr>td,table.flow>tbody>tr>td{padding:0}
+.runhead{height:20mm;display:flex;align-items:center;gap:3mm;padding:0 16mm;font:500 7.6pt Inter;letter-spacing:.2em;color:#7d848c}
+.runhead .logo{width:16px;height:15px}
+.runhead span:nth-of-type(1){color:var(--ink)}
+.runhead .sep{color:var(--lime)}
+.runhead .r{margin-left:auto;color:var(--lime)}
+.runfoot{height:16mm;display:flex;align-items:center;padding:0 16mm;font:400 7.2pt Inter;letter-spacing:.08em;color:#5d636b}
+main{padding:0 18mm 0 18mm}
+.notice{margin:6mm 0 10mm}
+.sec{margin:0 0 11mm}
+.sec.page-start{break-before:page}
+h2{font:600 30pt/1.04 Oswald,sans-serif;text-transform:uppercase;color:#F2F4F6;margin:4mm 0 6mm;break-after:avoid}
+h3{font:500 13.5pt/1.2 Oswald,sans-serif;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);margin:7mm 0 2.5mm;break-after:avoid}
+h3::before{content:"";display:inline-block;width:2.2mm;height:2.2mm;background:var(--lime);margin-right:2.6mm;vertical-align:.25em}
+p{margin:0 0 3.2mm}
+ul,ol{margin:0 0 3.5mm;padding-left:5mm}
+li{margin:0 0 1.6mm}
+li::marker{color:var(--lime)}
+hr{display:none}
+code{font:400 9pt "JetBrains Mono",ui-monospace,monospace;color:var(--ink);background:#14171a;padding:.2mm 1.2mm}
+.callout{margin:5mm 0;padding:5mm 6mm;border:1px solid var(--lime);background:rgba(198,244,50,.04);color:#B5BBC2;break-inside:avoid}
+.callout.warn{border-left:4px solid var(--lime)}
+.callout p:last-child{margin:0}
+.callout strong{color:var(--lime)}
+table:not(.flow){width:100%;border-collapse:collapse;margin:4mm 0 6mm;font-size:9.2pt;break-inside:avoid}
+table:not(.flow) th{text-align:left;font:500 7.8pt Inter;letter-spacing:.16em;text-transform:uppercase;color:var(--lime);border-bottom:1px solid var(--lime);padding:2.4mm 3mm}
+table:not(.flow) td{border-bottom:1px solid var(--line);padding:2.4mm 3mm;vertical-align:top;color:#B0B6BD}
+table:not(.flow) tr:nth-child(even) td{background:rgba(255,255,255,.015)}
+figure.diagram{margin:6mm 0;padding:6mm;border:1px solid #23272c;background:rgba(10,11,13,.75);break-inside:avoid}
+figure.diagram svg{display:block;max-width:100%;height:auto;margin:0 auto}
+figcaption{margin-top:4mm;font:400 8pt Inter;letter-spacing:.06em;color:var(--dim)}
+@media screen{body{max-width:210mm;margin:0 auto;box-shadow:0 0 60px #000}}
+.sechead{break-inside:avoid;break-after:avoid}
+.sechead + *{break-before:avoid}
+.closing{margin:14mm 0 6mm;padding:10mm 10mm 11mm;border:1px solid #2a2e34;background:linear-gradient(135deg,rgba(198,244,50,.06),rgba(10,11,13,.6) 55%);break-inside:avoid}
+.closing h2{font-size:26pt}
+.closing .btns{flex-wrap:wrap;margin-top:6mm}
+
+.closing .btn{padding:4mm 5mm}
+
+code,pre{font-family:JetBrains Mono,ui-monospace,Menlo,Consolas,monospace;font-size:8.6pt}
+pre{background:#0b0c0e;border:1px solid var(--line);padding:3mm 3.5mm;overflow:hidden;white-space:pre-wrap;word-break:break-word;color:#C9CDD2;margin:3mm 0 4mm}
+code{color:var(--lime)}
+.sec pre code{color:#C9CDD2}
+.note{border-left:2px solid var(--lime);padding:.5mm 0 .5mm 3.5mm;margin:3mm 0;color:var(--muted)}
+.sec table td:first-child{white-space:nowrap}
+</style>
+
 <body>
-<header class="top">
-  <a class="brand" href="../index.html">
-    <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
-    <span>Shader Protocol</span>
-  </a>
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="index.html">Docs</a>
-    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
-  </nav>
-</header>
-<main class="wrap">
-  <p class="labels">Not audited · Devnet/testnet only · No token · No mainnet</p>
-  <h1>Litepaper</h1>
-  <p>This page describes the code as it stands and the work that is only in development. It is not an offer, and it does not promise a date. The repository is still <a href="https://github.com/Chenz0-13/shade-protocol">github.com/Chenz0-13/shade-protocol</a> until it is renamed.</p>
-
-  <h2>What the code does now</h2>
-  <p>Shader Protocol is a Groth16 shielded pool.</p>
-  <p>A transfer spends one input note and creates two output notes plus a fee: <code>value in = value out 1 + value out 2 + fee</code>.</p>
-  <ul>
-    <li>Commitments are Poseidon hashes.</li>
-    <li>The nullifier is bound to the commitment and the leaf index, so the same note cannot be spent twice.</li>
-    <li><code>extDataHash</code> binds the recipient, the relayer, the fee, the chain, and the pool. The contract recomputes that hash from the values it actually uses.</li>
-    <li>Public inputs are canonical field elements.</li>
-    <li>Pools keep a root history. A proof has to cite a root that is still in that history.</li>
-  </ul>
-  <p>Incoming notes use secp256k1 stealth addresses. A view key can recognize a note and decrypt it. It does not derive the spending key. Regulator keys are secp256k1 as well: an issuer-signed encryption key plus a scope.</p>
-  <p>The dark pool in this repository is an operator matcher. Orders are sealed to the operator, who can open them in order to build the two settlement proofs. That is a devnet tool. It does not mean a public mempool cannot front-run, and it is not a custody design for someone else's funds.</p>
-  <p>Zero-knowledge KYC proofs are not implemented. The client rejects <code>generateGroth16KycProof</code> on purpose. Treat that idea as planned at most.</p>
-
-  <h2>Chains</h2>
-  <p>These adapters are in development. None of them is deployed.</p>
-  <table>
-    <thead><tr><th>Chain</th><th>What it is</th></tr></thead>
-    <tbody>
-      <tr><td>Solana devnet</td><td>Shielded pool program</td></tr>
-      <tr><td>Robinhood Chain testnet (chain id 46630)</td><td>Same pool shape on an EVM testnet</td></tr>
-      <tr><td>Kinetiq Elysium testnet (chain id 99801)</td><td>Same pool shape on an EVM testnet</td></tr>
-      <tr><td>NEAR testnet</td><td>Same pool shape</td></tr>
-      <tr><td>Canton</td><td>2-of-N attestation, not a proof verifier</td></tr>
-    </tbody>
-  </table>
-  <p>Canton does not check the Groth16 proof. A result is recorded only when two named attestors authorize it. The trust assumption is those attestors. They are expected to sign only after a pool has already accepted the spend. If two of them sign a result that never happened, Canton records it anyway. The TypeScript adapter does not submit to Canton.</p>
-  <p>Naming a chain here is an engineering target. Shader Protocol has no partnership with any of them.</p>
-
-  <h2>In development</h2>
-  <p>Not shipped, and not deployed:</p>
-  <ul>
-    <li>HyperEVM testnet</li>
-    <li>Base Sepolia</li>
-    <li>A v2 universal note format</li>
-    <li>Private cross-chain teleport, where two transports must agree, with per-epoch caps</li>
-    <li>Disclosure receipts</li>
-    <li>Agent allowance notes</li>
-    <li>Private payroll</li>
-    <li>A multi-party trusted setup ceremony</li>
-    <li>A CI security toolchain</li>
-  </ul>
-
-  <h2>Security</h2>
-  <div class="note">
-    <p>The Groth16 keys are a single-party development setup. Anyone who kept the intermediate parameters can forge proofs. Do not protect real value with them.</p>
-    <p>Not audited. Devnet and testnet only. There is no mainnet deployment.</p>
-    <p>Planned path, with no dates: a multi-party ceremony, then an independent audit, then a guarded beta with caps.</p>
+<div class="cover">
+  <div class="cover-bg"></div>
+  <img class="wizard" src="assets/wizard-cover.png" alt="">
+  <header class="topbar"><svg class="logo" viewBox="0 0 40 36" width="30" height="27"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg><span class="brand">SHADER PROTOCOL</span><span class="pill">LITEPAPER v2 · DRAFT</span></header>
+  <div class="hero">
+    <div class="eyebrow"><span class="rule"></span>01 // PRIVACY INFRASTRUCTURE</div>
+    <h1>Private<br>by <em>default.</em><br>Verifiable<br>by design.</h1>
+    <p class="lede">A shielded execution layer for private transfers, dark-pool trading, agent allowances and cross-chain teleports. Zero-knowledge proofs for validity. Selective disclosure when you choose to show your hand. Testnet and devnet only.</p>
+    <div class="cta"><a class="btn fill" href="https://github.com/Chenz0-13/shade-protocol">View source</a><a class="btn line" href="https://github.com/Chenz0-13/shade-protocol">Read the docs</a></div>
   </div>
-  <p>Report a vulnerability in private. Do not open a public issue for an unfixed security bug.</p>
-  <p><a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">GitHub private vulnerability reporting</a></p>
-
-  <h2>Token</h2>
-  <p>A possible utility token is under design for relayer and attestor bonding; no token exists and none is offered. Any launch would follow legal review.</p>
-
-  <h2>Roadmap</h2>
-  <p>No dates are promised. A later step starts when the previous one is actually finished.</p>
-  <ol>
-    <li><strong>Now.</strong> Groth16 shielded pool in development, not yet deployed, on the chains listed above.</li>
-    <li><strong>Next build.</strong> The in-development items above, including HyperEVM testnet, Base Sepolia, the v2 note format, and private cross-chain teleport.</li>
-    <li><strong>Ceremony.</strong> Multi-party trusted setup. Not started.</li>
-    <li><strong>Independent audit.</strong> Not started. The code is not audited today.</li>
-    <li><strong>Guarded beta with caps.</strong> Only after the ceremony and the audit.</li>
-  </ol>
-  <div class="actions">
-    <a class="btn" href="index.html">Technical docs</a>
-    <a class="btn line" href="docs/security.html">Security</a>
+  <div class="stats">
+    <div><div class="k">Status</div><div class="v">Devnet / testnet only</div></div>
+    <div><div class="k">Audit</div><div class="v">Not yet audited</div></div>
+    <div><div class="k">Setup</div><div class="v">Dev keys, ceremony not run</div></div>
+    <div><div class="k">Date</div><div class="v">November 2026</div></div>
   </div>
-</main>
-<footer>
-  <div>Shader Protocol. Not audited. Devnet/testnet only. No token. No mainnet.</div>
-  <nav>
-    <a href="../index.html">Home</a>
-    <a href="../terms.html">Terms</a>
-    <a href="../privacy.html">Privacy</a>
-    <a href="../index.html#about">About</a>
-  </nav>
-</footer>
+</div>
+
+<table class="flow"><thead><tr><td><div class="runhead"><svg class="logo" viewBox="0 0 40 36" width="30" height="27"><defs><linearGradient id="lg2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg2)"/></svg><span>SHADER PROTOCOL</span><span class="sep">//</span><span>LITEPAPER v2 · DRAFT</span><span class="r">DEVNET · UNAUDITED</span></div></td></tr></thead>
+<tbody><tr><td>
+
+<div class="callout">
+<p><strong>Read this first.</strong> Shader Protocol is an early-stage, open-source research project. It runs on developer networks (devnets/testnets) only. The code has <strong>not</strong> been audited. Its zero-knowledge proving keys come from a <strong>single-party development trusted setup that is not secure for real value</strong>. A multi-party ceremony has <strong>not</strong> been started. Parts of the system (adapters other than the first EVM/Solana paths, live message transports, on-chain allowance verification) are incomplete. There is no token, no token sale, no mainnet deployment and no partnership with any chain, exchange or broker named here. Nothing here is financial, legal or tax advice.</p>
+</div>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>01 // THE PROBLEM</div><h2>Public ledgers <em>leak</em> too much.</h2></div>
+<p>Public blockchains give verifiability. The price is that balances, counterparties, order flow and strategy are visible to everyone, forever.</p>
+<ul>
+<li><strong>Balances are public.</strong> Wallet identity links to every inflow and outflow.</li>
+<li><strong>Orders are public before they execute.</strong> Pending trades in public mempools invite copy and sandwich flow.</li>
+<li><strong>Front-running and MEV follow.</strong> Extractable value comes from reading intent before settlement.</li>
+<li><strong>Counterparties and strategies leak.</strong> DAOs, desks and agents cannot keep commercial detail private by default.</li>
+</ul>
+<p>Centralized venues and naive mixers are unsatisfying. Shader Protocol aims for private-by-default execution with optional, deliberate disclosure.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>02 // OVERVIEW</div><h2>The idea in <em>one paragraph.</em></h2></div>
+<p>Shader Protocol is a <strong>shielded execution layer</strong>. Users hold value as encrypted <em>notes</em> inside a shielded pool, move it with <strong>Groth16 / Circom</strong> proofs that show a transaction is valid without revealing who, what or how much, and can trade through a <strong>dark pool</strong> where orders stay sealed until match and settlement. Notes carry an <strong>asset id</strong> and a <strong>chainHome</strong> so a note minted on one chain does not open on another unless a teleport mints it there. On top sit selective-disclosure tools (viewing keys, scoped bundles, issuer-signed credentials, regulator capabilities), agent <strong>allowance</strong> notes, private <strong>payroll</strong> batches, and ERC-20 deposits on the EVM pool. The core is chain-agnostic; thin adapters target listed testnets only.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>03 // NOTES v2</div><h2>Commitments that know their <em>home.</em></h2></div>
+<p>Devnet note format. Not audited. Not for mainnet. A note opening is:</p>
+<table>
+<thead><tr><th>Field</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>value</td><td>64-bit amount</td></tr>
+<tr><td>blinding, rho</td><td>Secret field elements. Deposit rho is chosen by the depositor. Spend outputs derive rho from the input nullifier.</td></tr>
+<tr><td>owner</td><td>Poseidon(owner domain, spending key)</td></tr>
+<tr><td>assetId</td><td>Asset identifier</td></tr>
+<tr><td>chainHome</td><td>Chain that minted the note</td></tr>
+</tbody>
+</table>
+<p>Asset and chain are domain-tagged, then packed, so every chain uses the same 6-input commitment:</p>
+<pre><code>assetTag   = Poseidon(7, assetId)
+chainTag   = Poseidon(9, chainHome)
+packed     = Poseidon(assetTag, chainTag)
+commitment = Poseidon(1, value, blinding, rho, owner, packed)</code></pre>
+<p>A note minted on Robinhood Chain testnet (46630) does not open on Elysium testnet (99801) unless a teleport mint inserts that commitment into the destination tree.</p>
+<p><strong>Nullifier binding.</strong> The nullifier is bound to the spending key, the commitment and the leaf index:</p>
+<pre><code>nullifier = Poseidon(2, spendingKey, commitment, leafIndex)
+rhoOut    = Poseidon(6, nullifier, outputIndex)</code></pre>
+<p>Two notes that reuse rho no longer share a nullifier. Output rhos are derived; a spender cannot choose them freely.</p>
+<p><strong>extDataHash binding.</strong> Recipient, relayer, fee, pool and chain are bound into the public input so a proof for one pool cannot authorize a payout from another:</p>
+<pre><code>binder      = Poseidon(5, poolLo, poolHi, chainDomain, withdrawAmount, relayerFee)
+extDataHash = Poseidon(recipientLo, recipientHi, relayerLo, relayerHi, binder, 0)</code></pre>
+<p>Shared circuit family (v2 commitment + same extDataHash): <code>shielded_transfer.circom</code> (1-in / 2-out withdraw), <code>transfer.circom</code> (2-in / 2-out), <code>teleport_out.circom</code> (burn one note; output commitment uses destChain as chainHome). Default <code>npm run circuit:setup</code> builds the withdraw circuit only. Transfer and teleport proving keys are not produced by that default run. The setup remains a single-party development setup.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>04 // TELEPORT</div><h2>Two transports. <em>Per-epoch caps.</em></h2></div>
+<p>Cross-chain move of shielded value is a burn on the source tree plus an attested mint on the destination. The destination pool's <code>mintAttested</code> path accepts a commitment only after a message verifier confirms the payload.</p>
+<p><strong>Two-transport agreement.</strong> <code>TwoOfTwoVerifier</code> requires two independent transports to submit the same <code>(destChain, commitment, nullifier, amount)</code> body. A single transport is rejected. Hyperlane and LayerZero adapters in the repository are stubs marked <strong>NOT WIRED</strong>; tests use mock transports. The first designed lane is Robinhood Chain testnet (46630) to Kinetiq Elysium testnet (99801).</p>
+<p><strong>Per-epoch cap.</strong> Attestation consumes an epoch value budget. When <code>epochUsed + amount</code> would exceed <code>epochCap</code>, attestation reverts. Epoch boundaries follow <code>block.timestamp / epochLength</code>.</p>
+<p>Canton is separate: it is <strong>not</strong> a Groth16 verifier. Daml has no BN254 pairing. Canton records a result only when two named attestors authorize it (2-of-N over the named set). If two attestors sign a result that never happened on the EVM pool, Canton records it. That is attestation, not proof verification. The TypeScript Canton adapter still throws <code>NotImplementedError</code>. Nothing is deployed to Canton DevNet from this repository.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>05 // APPLICATIONS</div><h2>Allowances, payroll, <em>ERC-20.</em></h2></div>
+<p><strong>Agent allowance notes.</strong> <code>circuits/allowance_spend.circom</code> and <code>src/core/agent/allowance.ts</code> bind a spend cap and expiry into the note commitment. The circuit checks <code>amount &lt;= cap</code>, <code>amount &lt;= value</code> and <code>now &lt;= expiry</code> with 64-bit range checks. An x402-style helper builds a public payment object; it does not call a live x402 endpoint. <strong>The shielded pool does not yet verify allowance proofs on-chain.</strong> Witness tests cover over-cap and expired <code>now</code>.</p>
+<p><strong>Private payroll.</strong> <code>src/core/payroll/batch.ts</code> builds one stealth outgoing note per payee. <code>chainHome</code> is inside each commitment, so a payroll for one chain does not open on another.</p>
+<p><strong>ERC-20 support.</strong> The EVM pool can bind a mock or real ERC-20, accept <code>depositToken</code>, and pay recipient and relayer in that token on <code>shieldedTransfer</code>. The forge test <code>testErc20DepositAndWithdrawPaysBothParties</code> covers that path. Native and token modes are mutually exclusive per pool instance.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>06 // MULTI-CHAIN</div><h2>One core. <em>Thin adapters.</em></h2></div>
+<p>Privacy logic lives in a chain-agnostic core. Each chain uses a thin adapter to verify proofs and custody assets. Listing a chain is an engineering target only. <strong>Shader Protocol has no partnership, endorsement or affiliation with Solana, NEAR, Canton / Digital Asset, Robinhood, Kinetiq, Hyperliquid, Base or any other organisation.</strong> Deploy scripts refuse mainnet by chain id or genesis hash. <code>website/deployments.json</code> ships with empty addresses. Nothing in this repository has been broadcast.</p>
+<table>
+<thead><tr><th>Chain</th><th>chainHome / id</th><th>Status in repo</th></tr></thead>
+<tbody>
+<tr><td>Solana devnet</td><td>1001</td><td>Program + LiteSVM tests. Not deployed.</td></tr>
+<tr><td>NEAR testnet</td><td>1002</td><td>near-sdk contract + cargo tests. Not deployed. Open: wee_alloc via near-sdk.</td></tr>
+<tr><td>Canton</td><td>attestation</td><td>2-of-N Daml AttestorSet (SDK 3.6.4). Not a verifier. Not on DevNet.</td></tr>
+<tr><td>Robinhood Chain testnet</td><td>46630</td><td>Same EVM pool bytecode. Not deployed.</td></tr>
+<tr><td>Kinetiq Elysium testnet</td><td>99801</td><td>Arbitrum Orbit settling toward HyperEVM. defineChain in adapter (not viem elysiumTestnet 1338). Not deployed.</td></tr>
+<tr><td>HyperEVM testnet</td><td>998</td><td>Deploy script + pool target. Not deployed.</td></tr>
+<tr><td>Base Sepolia</td><td>84532</td><td>Deploy script + pool target. Not deployed.</td></tr>
+</tbody>
+</table>
+<div class="note">Anvil (31337) is local only. Robinhood mainnet (4663), Solana mainnet genesis and NEAR <code>mainnet</code> are rejected by deploy scripts.</div>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>07 // DISCLOSURE</div><h2>Private by default. <em>Disclose by choice.</em></h2></div>
+<p>Selective-disclosure features are <strong>tools</strong>. Using them does not make any deployment or user compliant with any law. No regulator has reviewed or approved Shader Protocol.</p>
+<ul>
+<li><strong>Viewing keys</strong> decrypt notes for an address but cannot spend. Sharing a full viewing key is irreversible for past and future notes until the user moves address.</li>
+<li><strong>Scoped disclosure bundles</strong> (documented) limit reveal to a time range, asset or note set without handing over the full viewing key.</li>
+<li><strong>Regulator capabilities</strong> are issuer-signed encryption keys with a scope. Notes sealed to a capability use scope-bound AES-GCM associated data. Expired or re-scoped capabilities fail.</li>
+<li><strong>Credentials</strong> are Poseidon-hashed field records with an issuer Ed25519 signature over the hash. Presentations must match the issuer store. Self-asserted KYC levels are ignored.</li>
+<li><strong>No ZK disclosure proof yet.</strong> <code>generateGroth16KycProof()</code> throws <code>NotImplementedError</code>. There is no Groth16 selective-disclosure KYC circuit in the devnet artifact set. Disclosure receipts today are signature- and key-based, not zero-knowledge proofs.</li>
+<li><strong>Sanctions screening</strong> is an interface. <code>DevnetPermissiveScreen</code> does not check a list.</li>
+</ul>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>08 // CEREMONY &amp; KEYS</div><h2>Ceremony planned. <em>Not yet run.</em></h2></div>
+<p>Keys from <code>npm run circuit:setup</code> are a single-party development setup. Toxic waste is not destroyed. Do not deploy those keys. Anyone who keeps the intermediate parameters can forge proofs.</p>
+<p>Ceremony tooling lives under <code>scripts/ceremony/</code>. It reuses the pinned Hermez Powers of Tau file <code>powersOfTau28_hez_final_16.ptau</code>. Scripts refuse to run unless <code>SHADE_CEREMONY_ACK=circuits-not-frozen</code> is set. That flag means you are exercising tooling. It does not open a ceremony. The browser page <code>website/ceremony.html</code> is labelled "Ceremony not started" and does not accept contributions. No transcript is published under <code>circuits/ceremony/published/</code>.</p>
+<p>A real ceremony needs frozen circuit source, a large enough ptau, at least one honest contributor who destroys entropy, and a beacon. None of that has started.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>09 // SECURITY TOOLING</div><h2>Scanners help. They are <em>not an audit.</em></h2></div>
+<p>CI runs pinned scanners. Results below reflect the repository's documented tooling status. Tooling is not a substitute for an independent audit.</p>
+<table>
+<thead><tr><th>Area</th><th>Result (as documented)</th></tr></thead>
+<tbody>
+<tr><td>Foundry unit + invariant</td><td>Pool invariants and unit tests in CI (tracked deposits vs balance, known root, garbage proofs must not move funds).</td></tr>
+<tr><td>Medusa (EVM)</td><td>Local campaign passed property_balance, property_root_known and deposit assertion (445 calls, 0 failures). Does not fuzz Groth16 witnesses.</td></tr>
+<tr><td>cargo-fuzz</td><td>parse_field and proof_input: local run finished with no crashes (millions of executions).</td></tr>
+<tr><td>circomspect</td><td>Fails on warnings; CS0010 alone allowlisted.</td></tr>
+<tr><td>Slither / Aderyn</td><td>Pinned; accepted findings documented in docs/security-tooling.md.</td></tr>
+<tr><td>Semgrep / OSV / npm audit</td><td>Local rules clean; high npm audit passes; known ignored advisories listed.</td></tr>
+<tr><td>Open: wee_alloc</td><td>near-sdk 5.11 depends on wee_alloc 0.4.5 (critical advisory). NEAR stays testnet-only. Removing it means forking the SDK.</td></tr>
+<tr><td>Open: Picus</td><td>Under-constraint job is continue-on-error. Timeout or unknown is a log, not a safety proof. Pending a conclusive safe result.</td></tr>
+</tbody>
+</table>
+<p>Tree depth is 20 (frontier). Field inputs are canonical-checked. Dark-pool operators who decrypt order openings learn escrow spending keys; do not custody third-party funds that way.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>10 // TOKEN (DESIGN ONLY)</div><h2>Utility bonding. <em>No sale.</em></h2></div>
+<p>There is <strong>no token contract</strong> in this repository. <code>docs/token-design.md</code> is a design note, not a launch, not legal advice, and not an offer of a security.</p>
+<ul>
+<li>If ever built: a utility work token to bond relayers and message attestors, slashable on proven fault.</li>
+<li>Fee discounts via circuit are an idea only; that circuit does not exist yet.</li>
+<li><strong>No revenue share.</strong> Holding would not be a claim on protocol fees.</li>
+<li><strong>No token sale</strong> is described or authorised by this document or repository.</li>
+</ul>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>11 // ROADMAP</div><h2>Testnet first. <em>No dates promised.</em></h2></div>
+<table>
+<thead><tr><th>Phase</th><th>Milestone</th><th>Meaning</th></tr></thead>
+<tbody>
+<tr><td>0</td><td><strong>Devnet / testnet (now)</strong></td><td>Circuits, multi-chain adapters, website, security CI. Development keys only. Empty deployments.json. Breaking changes expected.</td></tr>
+<tr><td>1</td><td><strong>Funded testnet deploys</strong></td><td>Broadcast only with <code>SHADE_BROADCAST=1</code> and funded keys. Fill deployments.json. Still unaudited.</td></tr>
+<tr><td>2</td><td><strong>Hardening</strong></td><td>On-chain allowance verification, wired transports (not stubs), Picus closure, NEAR allocator path, disclosure ZK if designed.</td></tr>
+<tr><td>3</td><td><strong>Independent audit</strong></td><td>Third-party review of circuits, cryptography, contracts and SDK. Findings published. Tooling is not this phase.</td></tr>
+<tr><td>4</td><td><strong>Multi-party ceremony</strong></td><td>Only after circuits are frozen. Published transcripts. Replace dev keys.</td></tr>
+<tr><td>5</td><td><strong>Guarded mainnet (conditional)</strong></td><td>Only after audit + ceremony, with caps and staged rollout. Not promised.</td></tr>
+</tbody>
+</table>
+<p>Each phase starts only when the previous one is genuinely finished.</p>
+</section>
+
+<section class="sec"><div class="sechead"><div class="eyebrow"><span class="rule"></span>12 // RISKS</div><h2>Risks &amp; <em>disclaimers.</em></h2></div>
+<ul>
+<li><strong>Experimental software.</strong> Shader Protocol is unaudited research code. Bugs may cause total loss of funds or privacy. Use only on devnets/testnets with valueless test tokens.</li>
+<li><strong>No financial, legal or tax advice.</strong> Nothing here is an offer, solicitation or recommendation. There is no token sale, no yield and no expected return.</li>
+<li><strong>Not a compliance guarantee.</strong> Selective-disclosure features are tools. No regulator has reviewed or approved Shader Protocol.</li>
+<li><strong>Development proving keys.</strong> Single-party setup. Forged proofs are possible for anyone who sees intermediate parameters.</li>
+<li><strong>Incomplete adapters.</strong> Message transports are not wired. Allowance is not verified on-chain. Canton adapter throws. Deployments are empty.</li>
+<li><strong>Operator-visible dark pool.</strong> The current matcher learns escrow spending keys.</li>
+<li><strong>Licensing.</strong> circomlib and snarkjs are GPL-3.0. Original repository code is MIT. Confirm that combination before distributing a combined work.</li>
+</ul>
+</section>
+
+<section class="closing"><div class="eyebrow"><span class="rule"></span>13 // GET INVOLVED</div><h2>Read the code. <em>Break it.</em> Tell us.</h2>
+<p>Shader Protocol is open source and testnet-only. Review the circuits and contracts, run the SDK on devnet, and report what you find. Use GitHub private vulnerability reporting for unfixed security bugs.</p>
+<div class="btns"><a class="btn fill" href="https://github.com/Chenz0-13/shade-protocol">GitHub repository</a><a class="btn line" href="https://github.com/Chenz0-13/shade-protocol/blob/cursor/shade-v2-architecture-61e7/docs/security-tooling.md">Security tooling</a><a class="btn line" href="https://github.com/Chenz0-13/shade-protocol/blob/cursor/shade-v2-architecture-61e7/docs/note-format-v2.md">Note format v2</a></div>
+<p class="foot">Shader Protocol Litepaper v2 (draft) · November 2026 · Unaudited · No mainnet · No token sale · No partnerships claimed</p>
+</section>
+
+</td></tr></tbody></table>
 </body>
+
 </html>

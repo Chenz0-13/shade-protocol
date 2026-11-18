@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ceremony not started · Shader Protocol</title>
+<link rel="stylesheet" href="assets/site.css">
+</head>
+<body>
+<header class="nav"><div class="shell nav-in">
+  <a class="brand" href="index.html">Shader Protocol</a>
+  <nav><a href="app.html">Testnet app</a><a href="docs/architecture.html">Docs</a><a href="https://github.com/Chenz0-13/shade-protocol/security/advisories/new">Report a bug</a></nav>
+</div></header>
+<main class="shell">
+  <p class="banner">Ceremony not started. Circuits are not frozen. The keys in CI are a single-party development setup.</p>
+  <h1>Phase 2 contribution</h1>
+  <p>This page will load snarkjs in the browser when a coordinator says the ceremony is open. It is not open. Do not send entropy to anyone claiming to run it.</p>
+  <section>
+    <h2>Coordinator</h2>
+    <p>Status: <strong id="status">checking</strong></p>
+    <pre id="spec">GET /api/ceremony/status
+POST /api/ceremony/queue          Authorization: Bearer (GitHub OAuth)
+GET  /api/ceremony/challenge
+POST /api/ceremony/contribution   multipart zkey</pre>
+    <p>The interface is specified in <a href="docs/ceremony.html">the ceremony guide</a>. There is no live backend in this repository. A future coordinator can queue GitHub-authenticated contributors one at a time.</p>
+    <button id="contribute" type="button" disabled>Contribute (disabled)</button>
+    <p id="note"></p>
+  </section>
+</main>
+<script type="module">
+const status = document.querySelector("#status");
+const note = document.querySelector("#note");
+try {
+  const snarkjs = await import("https://esm.sh/snarkjs@0.7.6");
+  note.textContent = snarkjs.groth16
+    ? "snarkjs loaded in the browser. Contribution stays disabled because the ceremony has not started."
+    : "snarkjs did not expose groth16.";
+} catch (error) {
+  note.textContent = "snarkjs could not be loaded from the CDN. The ceremony is still not started.";
+}
+try {
+  const response = await fetch("/api/ceremony/status");
+  if (!response.ok) throw new Error(String(response.status));
+  const body = await response.json();
+  status.textContent = body.started ? "open" : "not started";
+} catch {
+  status.textContent = "not started (no coordinator)";
+}
+</script>
+</body>
+</html>

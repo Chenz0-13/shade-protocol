@@ -1,0 +1,27 @@
+import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+if (process.env.SHADE_BROADCAST !== "1") {
+  process.stderr.write("Refusing to broadcast. Set SHADE_BROADCAST=1 after reading docs/deploy.md. No transaction was sent.\n");
+  process.exit(0);
+}
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const rpc = process.env.HYPEREVM_RPC_URL ?? "https://rpc.hyperliquid-testnet.xyz/evm";
+const key = process.env.HYPEREVM_PRIVATE_KEY;
+if (!key) {
+  process.stderr.write("Set HYPEREVM_PRIVATE_KEY. Refusing to deploy without a key.\n");
+  process.exit(1);
+}
+const chain = spawnSync("cast", ["chain-id", "--rpc-url", rpc], { encoding: "utf8" });
+const chainId = Number(chain.stdout.trim());
+if (chainId !== 998) {
+  process.stderr.write(`Refusing chain id ${chainId}. HyperEVM testnet is 998.\n`);
+  process.exit(1);
+}
+const run = spawnSync("forge", ["script", "script/Deploy.s.sol", "--rpc-url", rpc, "--broadcast"], {
+  cwd: path.join(root, "contracts", "evm"),
+  stdio: "inherit",
+  env: { ...process.env, DEPLOYER_PRIVATE_KEY: key },
+});
+process.exit(run.status ?? 1);

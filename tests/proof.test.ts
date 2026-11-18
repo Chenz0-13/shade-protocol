@@ -2,7 +2,8 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { ASSET_BASE } from "../src/core/constants.js";
 import { randomNonZeroField } from "../src/core/crypto/field.js";
 import { generatePrivacyKeys } from "../src/core/crypto/keys.js";
-import { noteCommitment } from "../src/core/crypto/note.js";
+import { deriveOutputRho, noteCommitment, noteNullifier, ownerAddress } from "../src/core/crypto/note.js";
+import { pathIndex } from "../src/core/proof/witness.js";
 import { MerkleTree } from "../src/core/merkle/MerkleTree.js";
 import { ShieldedTransferProver } from "../src/core/proof/ShieldedTransferProver.js";
 import { buildTransferWitness, type TransferOutput, type TransferWitnessInput } from "../src/core/proof/witness.js";
@@ -19,23 +20,28 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
     rho,
     ownerPub: owner.ownerPub,
     assetId: ASSET_BASE,
+    chainHome: 0n,
   });
   const tree = MerkleTree.empty();
   const index = tree.insert(commitment);
   const proof = tree.getProof(index);
+  const nullifier = noteNullifier(owner.spendingKey, commitment, pathIndex(proof.pathIndices));
+  expect(ownerAddress(owner.spendingKey)).toBe(owner.ownerPub);
   const out1: TransferOutput = {
-    value: 60n,
-    blinding: randomNonZeroField(),
-    rho: randomNonZeroField(),
-    ownerPub: recipient.ownerPub,
-    assetId: ASSET_BASE,
-  };
-  const out2: TransferOutput = {
     value: 40n,
     blinding: randomNonZeroField(),
-    rho: randomNonZeroField(),
+    rho: deriveOutputRho(nullifier, 1n),
+    ownerPub: recipient.ownerPub,
+    assetId: ASSET_BASE,
+    chainHome: 0n,
+  };
+  const out2: TransferOutput = {
+    value: 30n,
+    blinding: randomNonZeroField(),
+    rho: deriveOutputRho(nullifier, 2n),
     ownerPub: owner.ownerPub,
     assetId: ASSET_BASE,
+    chainHome: 0n,
   };
   return {
     commitment,
@@ -46,10 +52,20 @@ function sample(): { input: TransferWitnessInput; commitment: bigint } {
       blindingIn: blinding,
       rhoIn: rho,
       assetIn: ASSET_BASE,
+      chainHome: 0n,
       pathElements: proof.pathElements,
       pathIndices: proof.pathIndices,
-      fee: 0n,
-      ext: { recipientLo: 0n, recipientHi: 0n, relayerLo: 0n, relayerHi: 0n, chainDomain: 0n },
+      withdrawAmount: 20n,
+      relayerFee: 10n,
+      ext: {
+        recipientLo: 1n,
+        recipientHi: 2n,
+        relayerLo: 3n,
+        relayerHi: 4n,
+        poolLo: 5n,
+        poolHi: 6n,
+        chainDomain: 46630n,
+      },
       out1,
       out2,
     },
@@ -97,7 +113,24 @@ describe("shielded transfer proofs", () => {
       rho: BigInt(unbalanced.witness.rhoOut1 as string),
       ownerPub: BigInt(unbalanced.witness.ownerOut1 as string),
       assetId: ASSET_BASE,
+      chainHome: 0n,
     }).toString();
     await expect(prover.proveCircuit(unbalanced.witness)).rejects.toBeInstanceOf(ProofError);
+  });
+
+  it("rejects an output rho the spender chose instead of the derived one", async () => {
+    const { input } = sample();
+    const attacked = buildTransferWitness({
+      ...input,
+      out1: { ...input.out1, rho: input.out1.rho },
+    });
+    attacked.witness.rhoOut1 = (BigInt(attacked.witness.rhoOut1 as string) + 1n).toString();
+    await expect(prover.proveCircuit(attacked.witness)).rejects.toBeInstanceOf(ProofError);
+    expect(() =>
+      buildTransferWitness({
+        ...input,
+        out1: { ...input.out1, rho: input.out1.rho + 1n },
+      }),
+    ).toThrow(/derived from the input nullifier/);
   });
 });
