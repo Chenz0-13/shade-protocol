@@ -17,4 +17,4 @@ thiserror = "2"
 [dev-dependencies]
 # Native tests compare the slim hasher to light-poseidon. It is not linked
 # into the NEAR wasm: its full-width parameter table does not fit the tx limit.
-light-poseidon = "=0.4.1"
+light-poseidon = "=0.5.0"
