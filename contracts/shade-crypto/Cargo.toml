@@ -6,7 +6,7 @@ description = "Poseidon Merkle tree and Groth16 verification shared by the NEAR 
 license = "MIT"
 
 [dependencies]
-ark-bn254 = "0.5.0"
+ark-bn254 = "0.6.0"
 ark-ff = "0.5.0"
 ark-groth16 = "0.5.0"
 ark-serialize = "0.5.0"
