@@ -1,0 +1,9 @@
+node_modules
+dist
+.git
+website
+circuits/build
+contracts/evm/out
+contracts/evm/cache
+**/*.zkey
+**/*.ptau

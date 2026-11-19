@@ -51,6 +51,7 @@ import {
   type PoolView,
 } from "./chain.js";
 import { finishCharge, mountBolts, setWizardCharging } from "./bolt.js";
+import { fetchRelayerQuote, submitRelay, waitForRelay } from "./relayerClient.js";
 import { paintChains, paintPool, paintPulse, probeChains, readPoolCard, readPulse, rememberHeight } from "./dashboard.js";
 import { connectEvm, connectSolana, listEvmProviders, listSolanaProviders, signEvm, signSolana, type Eip1193, type SolanaProvider } from "./wallets.js";
 
@@ -97,6 +98,7 @@ const $ = <T extends HTMLElement>(id: string) => {
 };
 
 const onboardKey = "shader.onboarded.v1";
+let relayerChoice: boolean | null = null;
 
 function init(): void {
   const portrait = document.querySelector<HTMLImageElement>(".wizard-frame img");
@@ -118,7 +120,29 @@ function init(): void {
     renderVault();
     void refreshPool(false);
     void refreshDashboard();
+    void refreshRelayerQuote();
   });
+  const urlField = $<HTMLInputElement>("relayer-url");
+  try {
+    const savedUrl = localStorage.getItem("shader.relayerUrl");
+    if (savedUrl) urlField.value = savedUrl;
+    else if (import.meta.env.VITE_RELAYER_URL) urlField.value = import.meta.env.VITE_RELAYER_URL;
+  } catch {
+    if (import.meta.env.VITE_RELAYER_URL) urlField.value = import.meta.env.VITE_RELAYER_URL;
+  }
+  urlField.addEventListener("change", () => {
+    try {
+      localStorage.setItem("shader.relayerUrl", urlField.value.trim());
+    } catch {
+      /* The browser blocked storage. The URL still works for this visit. */
+    }
+    void refreshRelayerQuote();
+  });
+  $<HTMLInputElement>("use-relayer").addEventListener("change", () => {
+    relayerChoice = $<HTMLInputElement>("use-relayer").checked;
+    void refreshRelayerQuote();
+  });
+  void refreshRelayerQuote();
   void refreshDashboard();
   void refreshProbes();
   window.setInterval(() => void refreshDashboard(), 20_000);
@@ -225,6 +249,7 @@ function renderChains(): void {
       renderVault();
       void refreshPool(false);
       void refreshDashboard();
+      void refreshRelayerQuote();
     });
     const faucet = document.createElement("a");
     faucet.href = chain.faucetUrl;
@@ -467,13 +492,18 @@ async function transfer(mode: "send" | "withdraw"): Promise<void> {
   const value = BigInt(note.value);
   if (amount > value) throw new Error("That amount is larger than the note.");
   const wallet = requireWallet(chain);
-  const change = value - amount;
+  const useRelayer = chain.kind === "evm" && $<HTMLInputElement>("use-relayer").checked;
+  const quote = useRelayer ? await fetchRelayerQuote(chain.chainId ?? 0) : null;
+  const relayerFee = quote?.fee ?? 0n;
+  const relayerAddress = quote?.relayer ?? wallet.address;
+  if (amount + relayerFee > value) throw new Error("That amount plus the relayer fee is larger than the note.");
+  const change = value - amount - relayerFee;
   let ext: ExtDataLimbs;
   let recipientAccount = wallet.address;
   let giftTo: ReturnType<typeof parseShieldedAddress> | null = null;
   if (mode === "send") {
     giftTo = parseShieldedAddress($<HTMLTextAreaElement>("send-address").value);
-    ext = externalData(chain, wallet.address, wallet.address);
+    ext = externalData(chain, wallet.address, relayerAddress);
   } else {
     recipientAccount = $<HTMLInputElement>("withdraw-address").value.trim();
     if (chain.kind === "solana") {
@@ -485,7 +515,7 @@ async function transfer(mode: "send" | "withdraw"): Promise<void> {
     } else if (!isEvmAddress(recipientAccount)) {
       throw new Error("Enter an EVM address that starts with 0x.");
     }
-    ext = externalData(chain, recipientAccount, wallet.address);
+    ext = externalData(chain, recipientAccount, relayerAddress);
   }
   const ownerOut = mode === "send" && giftTo ? giftTo.ownerPub : keys.ownerPub;
   const spend = planSpend({
@@ -501,13 +531,60 @@ async function transfer(mode: "send" | "withdraw"): Promise<void> {
     },
     leaves: state.pool.leaves,
     withdrawAmount: mode === "withdraw" ? amount : 0n,
-    relayerFee: 0n,
+    relayerFee,
     out1: { value: mode === "send" ? amount : change, ownerPub: ownerOut },
     out2: { value: mode === "send" ? change : 0n, ownerPub: keys.ownerPub },
     ext,
   });
   showProgress("Creating a proof on this device", 20, true);
   const proved = await prove(spend, state.artifacts);
+  if (quote) {
+    showProgress("The relayer is sending the transaction", 92, true);
+    const posted = await submitRelay({
+      url: quote.url,
+      chainId: chain.chainId ?? 0,
+      recipient: recipientAccount,
+      proof: proved.proof,
+      publicSignals: proved.publicSignals,
+    });
+    const watched = await waitForRelay(quote.url, posted.id, (status) => {
+      $("progress-detail").textContent = `Relayer status: ${status}.`;
+    });
+    if (watched.status === "failed") throw new Error("The relayer's transaction failed. The note was not spent.");
+    const sent = { hash: watched.txHash, confirmed: watched.status === "confirmed" };
+    if (sent.confirmed) {
+      note.spent = true;
+      rememberOutput(unlocked, chain, spend.outputs[1], sent.hash, keys.ownerPub);
+      if (mode === "withdraw") rememberOutput(unlocked, chain, spend.outputs[0], sent.hash, keys.ownerPub);
+      await persist();
+      await refreshPool(true);
+    }
+    if (mode === "send" && giftTo && spend.outputs[0].value > 0n) {
+      const gift = await sealNoteGift(giftTo.viewPublicKey, {
+        v: 1,
+        chainKey: chain.id,
+        commitment: spend.outputs[0].commitment.toString(),
+        value: spend.outputs[0].value.toString(),
+        blinding: spend.outputs[0].blinding.toString(),
+        rho: spend.outputs[0].rho.toString(),
+        assetId: spend.outputs[0].assetId.toString(),
+        chainHome: spend.outputs[0].chainHome.toString(),
+        ownerPub: spend.outputs[0].ownerPub.toString(),
+        memo: "Private send",
+      });
+      $<HTMLTextAreaElement>("gift-text").value = gift;
+      $<HTMLDivElement>("gift-box").hidden = false;
+    }
+    setStatus(
+      sent.confirmed
+        ? mode === "send"
+          ? "The private send was accepted. Copy the encrypted note and give it to the recipient."
+          : "Withdrawal accepted. The public address can see the coins."
+        : "The relayer sent the transaction, but it is not confirmed yet. Check the explorer before trying again.",
+    );
+    setResult(chain, sent.hash);
+    return;
+  }
   showProgress("Waiting for the wallet", 92, false);
   const sent =
     wallet.kind === "solana"
@@ -950,6 +1027,30 @@ function hideProgress(): void {
   $("proof-caption").textContent = "Proof engine idle";
   if (wasCharging) finishCharge();
   else setWizardCharging(false);
+}
+
+async function refreshRelayerQuote(): Promise<void> {
+  const box = $<HTMLInputElement>("use-relayer");
+  const fee = $("relayer-fee");
+  const chain = getDeployment(state.chainId);
+  if (chain.kind !== "evm") {
+    box.checked = false;
+    box.disabled = true;
+    fee.textContent = "The relayer is for the EVM testnets. This chain still uses your wallet for gas.";
+    return;
+  }
+  box.disabled = false;
+  box.checked = relayerChoice ?? true;
+  if (!box.checked) {
+    fee.textContent = "Your wallet will submit the transaction and pay the gas.";
+    return;
+  }
+  try {
+    const quote = await fetchRelayerQuote(chain.chainId ?? 0);
+    fee.textContent = `Relayer fee ${formatAmount(quote.fee, chain.nativeDecimals)} ${chain.nativeSymbol}, paid from the shielded amount. Relayer ${short(quote.relayer)}.`;
+  } catch (error) {
+    fee.textContent = explain(error);
+  }
 }
 
 async function refreshDashboard(): Promise<void> {

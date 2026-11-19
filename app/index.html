@@ -83,6 +83,14 @@
       <button class="act bolt-source" id="act-send" type="button">Private Send</button>
       <button class="act bolt-source" id="act-withdraw" type="button">Withdraw</button>
     </div>
+    <label class="toggle">
+      <input id="use-relayer" type="checkbox" checked>
+      Use relayer (recommended)
+    </label>
+    <p class="hint" id="relayer-fee">The relayer submits a private send or withdrawal and takes its fee from the shielded amount.</p>
+    <label>Relayer URL
+      <input id="relayer-url" type="url" inputmode="url" autocomplete="off" spellcheck="false" placeholder="http://127.0.0.1:8787">
+    </label>
     <section class="panel" id="panel-shield" role="tabpanel">
       <p class="hint">This moves test coins from your wallet into the pool. You get a private note that lives in this browser.</p>
       <form id="shield-form">
