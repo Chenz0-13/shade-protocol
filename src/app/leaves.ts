@@ -64,6 +64,14 @@ export interface EvmPoolLog {
   logIndex: number;
 }
 
+/** How many commitments one pool log inserts. Unknown topics insert nothing. */
+export function insertionsInLog(topic0: string): number {
+  const topic = strip0x(topic0).toLowerCase();
+  if (topic === DEPOSIT_TOPIC) return 1;
+  if (topic === SPENT_TOPIC) return 2;
+  return 0;
+}
+
 /** Commitments inserted by deposit and spend logs, oldest first. */
 export function leavesFromEvmLogs(logs: readonly EvmPoolLog[]): bigint[] {
   const ordered = [...logs].sort(
