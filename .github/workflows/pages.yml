@@ -25,6 +25,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # TODO: upload the Nov 5 development setup before this workflow can go green.
+      # Create a GitHub Release whose tag is circuits-pinned-v1 and whose asset
+      # is named circuits-pinned-v1. The asset is a gzip tar. At the archive
+      # root, with these exact names and sha256 hashes:
+      #   shielded_transfer.wasm
+      #     5050db03853b2bb7c98535401e97bc29cf215fe7d1f0c167dfe7a50130e692e8
+      #   shielded_transfer_final.zkey
+      #     94935977f7314feaddf835dd1881cdf6cc35390a83237eae1488181591c366c6
+      #   verification_key.json
+      #     599752024e675e4081013b1f22711b03ec248d4beae42ca522a1d4e932eace43
+      # Do not run npm run circuit:setup here. A fresh setup will not verify
+      # on the pools that were deployed from these files.
+      - name: Download the pinned proof files
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/pinned app/public/artifacts
+          url="https://github.com/Chenz0-13/shade-protocol/releases/download/circuits-pinned-v1/circuits-pinned-v1"
+          curl -fsSL -L "$url" -o /tmp/circuits-pinned-v1
+          tar -xzf /tmp/circuits-pinned-v1 -C /tmp/pinned
+          wasm="$(find /tmp/pinned -name shielded_transfer.wasm -print -quit)"
+          zkey="$(find /tmp/pinned -name shielded_transfer_final.zkey -print -quit)"
+          vkey="$(find /tmp/pinned -name verification_key.json -print -quit)"
+          test -n "$wasm" && test -n "$zkey" && test -n "$vkey"
+          cat > /tmp/pinned/checksums.txt <<EOF
+          5050db03853b2bb7c98535401e97bc29cf215fe7d1f0c167dfe7a50130e692e8  $wasm
+          94935977f7314feaddf835dd1881cdf6cc35390a83237eae1488181591c366c6  $zkey
+          599752024e675e4081013b1f22711b03ec248d4beae42ca522a1d4e932eace43  $vkey
+          EOF
+          sed -i 's/^[[:space:]]*//' /tmp/pinned/checksums.txt
+          sha256sum -c /tmp/pinned/checksums.txt
+          cp "$wasm" "$zkey" "$vkey" "$GITHUB_WORKSPACE/app/public/artifacts/"
+
+      - name: Build the testnet app
+        run: npm run build:app
+
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5
 

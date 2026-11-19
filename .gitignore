@@ -7,6 +7,7 @@ coverage/
 .DS_Store
 npm-debug.log*
 circuits/build/
+website/app/
 *.ptau
 *.zkey
 *.wtns

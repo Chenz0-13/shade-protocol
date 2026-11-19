@@ -19,9 +19,15 @@ src/core/pool         operator dark pool
 src/core/compliance   credential store, issuer signatures, sanctions hook
 src/core/chain        Solana, NEAR, and Robinhood devnet adapters; Canton attestation only
 src/sdk               ShadeClient
+src/app               testnet app config, note vault, and flow builders
+app/                  browser app source, built to website/app
 circuits/             shielded transfer circuit
 tests/                unit and adversarial tests
 ```
+
+## Testnet app
+
+`app/` is the Shader testnet app: shield, private send, and withdraw. It is static and is published with the website. `npm run dev:app` serves it locally. `npm run build:app` writes `website/app/`. The Pages workflow also runs the dev-only circuit setup and copies the wasm and zkey into that build. Those keys are not a ceremony. A pool accepts a browser proof only when it was deployed from the same setup.
 
 ## Cryptography
 

@@ -65,6 +65,11 @@
   .skip:focus{left:12px}
 
   /* ---------- nav ---------- */
+  .testnet-banner{
+    margin:0;background:var(--lime);color:#0a0b0c;text-align:center;
+    font:600 12px/1.2 var(--sans);letter-spacing:.16em;text-transform:uppercase;
+    padding:8px 12px;
+  }
   .nav{
     position:sticky;top:0;z-index:60;
     background:linear-gradient(180deg,rgba(0,0,0,.72),rgba(0,0,0,.35));
@@ -343,12 +348,14 @@
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header class="nav" id="top">
+  <p class="testnet-banner">Testnet only, unaudited</p>
   <div class="shell nav-in">
     <a class="brand" href="#top" aria-label="Shader Protocol, top of page">
       <svg width="28" height="25" viewBox="0 0 40 36" aria-hidden="true"><defs><linearGradient id="lg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#E6FF7A"/><stop offset="1" stop-color="#7FA61A"/></linearGradient></defs><path d="M20 1 L39 35 H1 Z" fill="url(#lg)"/></svg>
       <span>Shader Protocol</span>
     </a>
     <nav class="nav-links" aria-label="Sections">
+      <a href="app/">App</a>
       <a href="#about">Premise</a>
       <a href="#tech">Architecture</a>
       <a href="#roadmap">Roadmap</a>
@@ -359,6 +366,7 @@
   </div>
   <div class="menu" id="menu" hidden>
     <div class="shell">
+      <a href="app/">App</a>
       <a href="#about">Premise</a>
       <a href="#tech">Architecture</a>
       <a href="#roadmap">Roadmap</a>
@@ -379,7 +387,8 @@
         <h1 id="hero-title"><span>Private</span> <span>by <em>default.</em></span> <span>Verifiable</span> <span>by design.</span></h1>
         <p class="lede">A shielded pool for private transfers and dark-pool experiments: Groth16 proofs for validity. Selective disclosure is in development, not a feature you can rely on today.</p>
         <div class="actions">
-          <a class="btn" href="https://github.com/Chenz0-13/shade-protocol" target="_blank" rel="noopener noreferrer">View source</a>
+          <a class="btn" href="app/">Open the testnet app</a>
+          <a class="btn line" href="https://github.com/Chenz0-13/shade-protocol" target="_blank" rel="noopener noreferrer">View source</a>
           <a class="btn line" href="docs/litepaper.html">Read the litepaper</a>
           <button class="link" id="copyPitch" type="button">Copy 1-liner</button>
         </div>
@@ -434,7 +443,7 @@
         <article>
           <span class="code">C-4</span>
           <h3>Chain-agnostic core</h3>
-          <p>Adapters for Solana devnet, Robinhood Chain testnet, Elysium testnet, NEAR testnet, and Canton attestation are in development and not yet deployed.</p>
+          <p>A Solana devnet pool is deployed. Robinhood Chain testnet, Base Sepolia, HyperEVM testnet, Elysium testnet, NEAR testnet, and Canton attestation are not deployed from this site.</p>
         </article>
       </div>
     </div>
@@ -490,7 +499,7 @@
         </div>
       </div>
       <figure class="diagram">
-        <div class="scroller" tabindex="0" role="region" aria-label="Architecture diagram, scroll sideways on small screens"><img src="assets/litepaper-diagram-1.svg" alt="Architecture sketch: a user device with the ShadeClient SDK, keys, a local prover, and a note scanner talks to the Shader core (Poseidon notes, a Merkle tree, an operator dark-pool matcher). Chain targets in development, not deployed: Solana devnet, Robinhood Chain testnet, Elysium testnet, NEAR testnet, and Canton 2-of-N attestation." decoding="async"></div>
+        <div class="scroller" tabindex="0" role="region" aria-label="Architecture diagram, scroll sideways on small screens"><img src="assets/litepaper-diagram-1.svg" alt="Architecture sketch: a user device with the ShadeClient SDK, keys, a local prover, and a note scanner talks to the Shader core (Poseidon notes, a Merkle tree, an operator dark-pool matcher). Solana devnet has a deployed pool. Robinhood Chain testnet, Elysium testnet, NEAR testnet, and Canton 2-of-N attestation are not deployed." decoding="async"></div>
         <figcaption>Figure 1 is a sketch. Pools in development keep roots, nullifiers, and a root history. Canton records attestor signatures and does not check the proof. Nothing in the diagram is deployed.</figcaption>
       </figure>
     </div>
@@ -502,7 +511,7 @@
       <h2>Ship <em>primitives,</em> not buzzwords.</h2>
       <p class="deck">No dates are promised. A later phase starts only when the previous one is actually finished.</p>
       <ol class="sec-body rail">
-        <li class="now"><span class="q">Phase 0 · Now</span><h3>In development</h3><p>In development, not yet deployed. Groth16 shielded pool, SDK, and tests. Single-party development setup only. Expect breaking changes.</p></li>
+        <li class="now"><span class="q">Phase 0 · Now</span><h3>In development</h3><p>Groth16 shielded pool, SDK, and a testnet app. A Solana devnet pool is deployed. Other chains are not. Single-party development setup only. Expect breaking changes.</p></li>
         <li><span class="q">Phase 1</span><h3>Next build</h3><p>HyperEVM testnet, Base Sepolia, a v2 note format, private cross-chain teleport (two transports must agree, per-epoch caps), disclosure receipts, agent allowance notes, private payroll, and a CI security toolchain.</p></li>
         <li><span class="q">Phase 2</span><h3>Ceremony</h3><p>Multi-party trusted setup. Not started. Today's keys are a single-party development setup.</p></li>
         <li><span class="q">Phase 3</span><h3>Independent audit</h3><p>Not started. The code is not audited today.</p></li>
@@ -518,7 +527,7 @@
       <h2>Start building. Read the <em>threat model.</em></h2>
       <p class="deck">The litepaper is the short version. The HTML notes cover the pool, the chains, and what is not built yet.</p>
       <div class="sec-body">
-        <div class="callout"><strong>Read this first.</strong> Shader Protocol is not audited. It is experimental software for devnet and testnet only, and it is not deployed. The proving keys are a single-party development setup and are not safe for real value. Use throwaway keys.</div>
+        <div class="callout"><strong>Read this first.</strong> Shader Protocol is not audited. It is experimental software for devnet and testnet only. A Solana devnet pool is deployed. The proving keys are a single-party development setup and are not safe for real value. Use throwaway keys.</div>
         <div class="docs">
           <div class="panel">
             <span class="code">Quickstart · Solana devnet</span>
@@ -604,7 +613,7 @@
         <a href="#about">About</a>
       </nav>
     </div>
-    <p class="disc">Disclaimer: This site is informational and not financial, legal, or tax advice. Shader Protocol is experimental software for devnet and testnet only. It is not audited, it is not deployed, and it may lose test funds or privacy. No token exists and none is offered. No regulator has reviewed Shader Protocol. Chains named on this site are engineering targets only. Shader Protocol has no partnership with them.</p>
+    <p class="disc">Disclaimer: This site is informational and not financial, legal, or tax advice. Shader Protocol is experimental software for devnet and testnet only. It is not audited. A Solana devnet pool is deployed; other chains in the app are not. It may lose test funds or privacy. No token exists and none is offered. No regulator has reviewed Shader Protocol. Chains named on this site are engineering targets only. Shader Protocol has no partnership with them.</p>
   </div>
 </footer>
 
@@ -654,7 +663,7 @@
     pool:     { tag: "Core", name: "Dark pool", text: "The devnet matcher is an operator. Orders are sealed to that operator, who can open them to build payment and change proofs. Buys match sells. This is not a custody design, and it does not claim that a public mempool cannot front-run." },
     comply:   { tag: "Core", name: "Disclosure tools", text: "Zero-knowledge KYC proofs are not implemented. Treat them as planned at most. Regulator keys are scoped secp256k1 keys. Disclosure receipts are in development. None of this is a legal status." },
     proofs:   { tag: "Core", name: "ZK proofs", text: "The circuit checks membership, the Poseidon opening, the nullifier, and value conservation including the fee. extDataHash binds recipient, relayer, fee, chain, and pool. Keys are a single-party development setup." },
-    adapters: { tag: "Chains", name: "Thin chain adapters", text: "In development, not yet deployed: Solana devnet, Robinhood Chain testnet (46630), Kinetiq Elysium testnet (99801), and NEAR testnet. Canton records a 2-of-N attestation and does not verify the proof." }
+    adapters: { tag: "Chains", name: "Thin chain adapters", text: "Solana devnet has a deployed pool. Robinhood Chain testnet (46630), Base Sepolia (84532), HyperEVM testnet (998), Kinetiq Elysium testnet (99801), and NEAR testnet are not deployed. Canton records a 2-of-N attestation and does not verify the proof." }
   };
   var layers = document.querySelectorAll(".layer");
   function show(k) {

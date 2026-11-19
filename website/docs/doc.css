@@ -2,6 +2,7 @@
 @font-face{font-family:"Oswald";font-style:normal;font-weight:500 600;font-display:swap;src:url(../assets/fonts/Oswald.woff2) format("woff2")}
 @font-face{font-family:"JetBrains Mono";font-style:normal;font-weight:400 500;font-display:swap;src:url(../assets/fonts/JetBrainsMono.woff2) format("woff2")}
 :root{
+  --banner-h:36px;
   --bg:#07080a;--ink:#E9ECEF;--head:#F2F4F6;--muted:#9AA1AA;--dim:#80878f;
   --line:#262a30;--line-hi:#3a3f46;--lime:#C6F432;
   --display:"Oswald","Arial Narrow","Roboto Condensed",Impact,sans-serif;
@@ -25,8 +26,14 @@ em{font-style:normal;color:var(--lime)}
 strong{color:var(--ink);font-weight:600}
 :focus-visible{outline:2px solid var(--lime);outline-offset:3px}
 ::selection{background:var(--lime);color:var(--bg)}
+.testnet-banner{
+  position:sticky;top:0;z-index:6;margin:0;min-height:var(--banner-h);
+  background:#C6F432;color:#0a0b0c;text-align:center;
+  font:600 12px/1.2 var(--sans);letter-spacing:.16em;text-transform:uppercase;
+  padding:9px 12px;
+}
 .top{
-  position:sticky;top:0;z-index:5;
+  position:sticky;top:var(--banner-h);z-index:5;
   display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
   padding:16px max(20px, env(safe-area-inset-left)) 16px max(20px, env(safe-area-inset-right));
   background:linear-gradient(180deg,rgba(0,0,0,.78),rgba(0,0,0,.35));
