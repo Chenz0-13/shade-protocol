@@ -1,5 +1,6 @@
 import "./polyfill.js";
 import { PublicKey } from "@solana/web3.js";
+import wizardUrl from "../../website/assets/wizard.png";
 import { EXT_DOMAIN } from "../../src/core/constants.js";
 import { generatePrivacyKeys } from "../../src/core/crypto/keys.js";
 import { noteNullifier } from "../../src/core/crypto/note.js";
@@ -49,6 +50,8 @@ import {
   syncSolanaPool,
   type PoolView,
 } from "./chain.js";
+import { finishCharge, mountBolts, setWizardCharging } from "./bolt.js";
+import { paintChains, paintPool, paintPulse, probeChains, readPoolCard, readPulse, rememberHeight } from "./dashboard.js";
 import { connectEvm, connectSolana, listEvmProviders, listSolanaProviders, signEvm, signSolana, type Eip1193, type SolanaProvider } from "./wallets.js";
 
 interface Unlocked {
@@ -96,11 +99,30 @@ const $ = <T extends HTMLElement>(id: string) => {
 const onboardKey = "shader.onboarded.v1";
 
 function init(): void {
+  const portrait = document.querySelector<HTMLImageElement>(".wizard-frame img");
+  if (portrait) portrait.src = wizardUrl;
   renderChains();
   bindTabs();
   bindForms();
   renderWallet();
   renderVault();
+  mountBolts($("wizard"));
+  $("chain-pill").addEventListener("click", () => $("multichain").scrollIntoView({ block: "start" }));
+  $("chain-probes").addEventListener("click", (event) => {
+    const button = (event.target as Element).closest<HTMLButtonElement>("[data-chain]");
+    if (!button?.dataset.chain) return;
+    state.chainId = button.dataset.chain;
+    state.pool = null;
+    state.poolError = null;
+    renderChains();
+    renderVault();
+    void refreshPool(false);
+    void refreshDashboard();
+  });
+  void refreshDashboard();
+  void refreshProbes();
+  window.setInterval(() => void refreshDashboard(), 20_000);
+  window.setInterval(() => void refreshProbes(), 30_000);
   const seen = storageGet(onboardKey);
   if (seen !== "1") $<HTMLDivElement>("onboarding").hidden = false;
   $("onboard-ok").addEventListener("click", () => {
@@ -130,15 +152,22 @@ function init(): void {
 }
 
 function bindTabs(): void {
-  const tabs = ["shield", "send", "withdraw", "notes"] as const;
-  for (const name of tabs) {
-    $(`tab-${name}`).addEventListener("click", () => {
-      for (const other of tabs) {
-        $(`tab-${other}`).setAttribute("aria-selected", other === name ? "true" : "false");
-        $<HTMLElement>(`panel-${other}`).hidden = other !== name;
-      }
-    });
+  const tabs = ["home", "shield", "send", "withdraw", "notes"] as const;
+  const show = (name: (typeof tabs)[number]) => {
+    for (const other of tabs) {
+      $(`tab-${other}`).setAttribute("aria-selected", other === name ? "true" : "false");
+      if (other === "home") continue;
+      $<HTMLElement>(`panel-${other}`).hidden = other !== name;
+    }
+    for (const act of ["shield", "send", "withdraw"] as const) {
+      $(`act-${act}`).setAttribute("aria-pressed", act === name ? "true" : "false");
+    }
+  };
+  for (const name of tabs) $(`tab-${name}`).addEventListener("click", () => show(name));
+  for (const act of ["shield", "send", "withdraw"] as const) {
+    $(`act-${act}`).addEventListener("click", () => show(act));
   }
+  show("shield");
 }
 
 function bindForms(): void {
@@ -185,7 +214,9 @@ function renderChains(): void {
     const badge = document.createElement("span");
     badge.className = "badge";
     badge.textContent = statusLabel(status);
+    button.classList.add("bolt-source");
     button.append(title, detail, badge);
+    $("chain-pill").textContent = getDeployment(state.chainId).name;
     button.addEventListener("click", () => {
       state.chainId = chain.id;
       state.pool = null;
@@ -193,6 +224,7 @@ function renderChains(): void {
       renderChains();
       renderVault();
       void refreshPool(false);
+      void refreshDashboard();
     });
     const faucet = document.createElement("a");
     faucet.href = chain.faucetUrl;
@@ -212,6 +244,8 @@ function renderWallet(): void {
   if (state.evm) parts.push(`${state.evm.name} ${short(state.evm.address)}`);
   if (state.solana) parts.push(`${state.solana.name} ${short(state.solana.address)}`);
   $("wallet-status").textContent = parts.length > 0 ? parts.join(" · ") : "No wallet connected.";
+  const pill = $("wallet-pill");
+  pill.textContent = state.evm ? short(state.evm.address) : state.solana ? short(state.solana.address) : "No wallet";
 }
 
 function renderVault(): void {
@@ -897,10 +931,12 @@ function showProgress(label: string, percent: number, busy: boolean): void {
   const box = $<HTMLDivElement>("progress");
   box.hidden = false;
   $("progress-label").textContent = label;
+  $("proof-caption").textContent = label;
   $("progress-detail").textContent = "";
   const bar = $("progress-bar");
   bar.classList.toggle("busy", busy);
   setBar(percent);
+  if (busy) setWizardCharging(true);
 }
 
 function setBar(percent: number): void {
@@ -908,8 +944,37 @@ function setBar(percent: number): void {
 }
 
 function hideProgress(): void {
+  const wasCharging = document.querySelector(".wizard")?.classList.contains("charging") === true;
   $<HTMLDivElement>("progress").hidden = true;
   $("progress-bar").classList.remove("busy");
+  $("proof-caption").textContent = "Proof engine idle";
+  if (wasCharging) finishCharge();
+  else setWizardCharging(false);
+}
+
+async function refreshDashboard(): Promise<void> {
+  const chain = getDeployment(state.chainId);
+  $("chain-pill").textContent = chain.name;
+  try {
+    const pulse = await readPulse(chain);
+    rememberHeight(pulse.height);
+    paintPulse(pulse);
+  } catch {
+    paintPulse(null);
+  }
+  try {
+    paintPool(await readPoolCard(chain), chain.nativeDecimals, chain.nativeSymbol);
+  } catch {
+    paintPool(null, chain.nativeDecimals, chain.nativeSymbol);
+  }
+}
+
+async function refreshProbes(): Promise<void> {
+  try {
+    paintChains(await probeChains(), state.chainId);
+  } catch {
+    paintChains([], state.chainId);
+  }
 }
 
 function setStatus(message: string): void {

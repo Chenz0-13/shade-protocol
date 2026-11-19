@@ -100,7 +100,7 @@ function strip0x(value: string): string {
   return value.startsWith("0x") || value.startsWith("0X") ? value.slice(2) : value;
 }
 
-function hexWords(data: string): bigint[] {
+export function hexWords(data: string): bigint[] {
   const hex = strip0x(data);
   if (hex.length % 64 !== 0) throw new Error("A pool log was the wrong size.");
   const words: bigint[] = [];

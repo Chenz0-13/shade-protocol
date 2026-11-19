@@ -217,6 +217,17 @@ async function readUint(chain: ChainDeployment, data: string): Promise<bigint> {
 /** Robinhood's public RPC rejects eth_getLogs ranges wider than 100000 blocks. */
 const LOG_WINDOW = 90_000n;
 
+export function fetchEvmPoolLogs(chain: ChainDeployment, nextIndex: bigint): Promise<EvmPoolLog[]> {
+  return getLogs(chain, nextIndex);
+}
+
+export async function readSolanaPoolHeader(rpcUrl: string, poolAddress: string): Promise<{ nextIndex: bigint; root: bigint }> {
+  const connection = devnetConnection(rpcUrl);
+  const info = await connection.getAccountInfo(new PublicKey(poolAddress), "confirmed");
+  if (!info) throw new Error("The Solana devnet pool account was not found.");
+  return readPoolHeader(info.data);
+}
+
 async function getLogs(chain: ChainDeployment, nextIndex: bigint): Promise<EvmPoolLog[]> {
   if (nextIndex === 0n) return [];
   const tip = BigInt(await rpc<string>(chain.rpcUrl, "eth_blockNumber", []));
