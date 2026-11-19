@@ -12,7 +12,7 @@ import { MerkleTree } from "../../src/core/merkle/MerkleTree.js";
 import { FORBIDDEN_CHAIN_IDS, type ChainDeployment } from "../../src/app/deployments.js";
 import { encodeNullifierQuery, viewCall } from "../../src/app/evmCall.js";
 import { solanaNullifierAccount, WITHDRAW_COMPUTE_UNITS } from "../../src/app/instruction.js";
-import { leavesFromEvmLogs, leavesFromInstruction, readPoolHeader, DEPOSIT_TOPIC, SPENT_TOPIC, type EvmPoolLog } from "../../src/app/leaves.js";
+import { insertionsInLog, leavesFromEvmLogs, leavesFromInstruction, readPoolHeader, DEPOSIT_TOPIC, SPENT_TOPIC, type EvmPoolLog } from "../../src/app/leaves.js";
 import type { Eip1193, SolanaProvider } from "./wallets.js";
 
 export interface PoolView {
@@ -136,7 +136,7 @@ export async function syncEvmPool(chain: ChainDeployment): Promise<PoolView> {
   if (!chain.poolAddress) throw new Error("This chain does not have a pool yet.");
   const root = await readUint(chain, viewCall("currentRoot()"));
   const nextIndex = await readUint(chain, viewCall("nextIndex()"));
-  const logs = await getLogs(chain);
+  const logs = await getLogs(chain, nextIndex);
   const leaves = leavesFromEvmLogs(logs);
   return checkPool({ nextIndex, root }, leaves);
 }
@@ -214,25 +214,54 @@ async function readUint(chain: ChainDeployment, data: string): Promise<bigint> {
   return BigInt(result);
 }
 
-async function getLogs(chain: ChainDeployment): Promise<EvmPoolLog[]> {
-  const logs = await rpc<
-    { topics: string[]; data: string; blockNumber: string; transactionIndex: string; logIndex: string }[]
-  >(chain.rpcUrl, "eth_getLogs", [
-    {
-      address: chain.poolAddress,
-      fromBlock: "0x0",
-      toBlock: "latest",
-      topics: [[`0x${DEPOSIT_TOPIC}`, `0x${SPENT_TOPIC}`]],
-    },
-  ]);
-  return logs.map((log) => ({
-    topic0: log.topics[0] ?? "",
-    topic1: log.topics[1] ?? "",
-    data: log.data,
-    blockNumber: Number(log.blockNumber),
-    transactionIndex: Number(log.transactionIndex),
-    logIndex: Number(log.logIndex),
-  }));
+/** Robinhood's public RPC rejects eth_getLogs ranges wider than 100000 blocks. */
+const LOG_WINDOW = 90_000n;
+
+export function fetchEvmPoolLogs(chain: ChainDeployment, nextIndex: bigint): Promise<EvmPoolLog[]> {
+  return getLogs(chain, nextIndex);
+}
+
+export async function readSolanaPoolHeader(rpcUrl: string, poolAddress: string): Promise<{ nextIndex: bigint; root: bigint }> {
+  const connection = devnetConnection(rpcUrl);
+  const info = await connection.getAccountInfo(new PublicKey(poolAddress), "confirmed");
+  if (!info) throw new Error("The Solana devnet pool account was not found.");
+  return readPoolHeader(info.data);
+}
+
+async function getLogs(chain: ChainDeployment, nextIndex: bigint): Promise<EvmPoolLog[]> {
+  if (nextIndex === 0n) return [];
+  const tip = BigInt(await rpc<string>(chain.rpcUrl, "eth_blockNumber", []));
+  const collected: EvmPoolLog[] = [];
+  let seen = 0n;
+  let end = tip;
+  while (seen < nextIndex) {
+    const start = end >= LOG_WINDOW ? end - LOG_WINDOW + 1n : 0n;
+    const batch = await rpc<
+      { topics: string[]; data: string; blockNumber: string; transactionIndex: string; logIndex: string }[]
+    >(chain.rpcUrl, "eth_getLogs", [
+      {
+        address: chain.poolAddress,
+        fromBlock: `0x${start.toString(16)}`,
+        toBlock: `0x${end.toString(16)}`,
+        topics: [[`0x${DEPOSIT_TOPIC}`, `0x${SPENT_TOPIC}`]],
+      },
+    ]);
+    for (const log of batch) {
+      const mapped = {
+        topic0: log.topics[0] ?? "",
+        topic1: log.topics[1] ?? "",
+        data: log.data,
+        blockNumber: Number(log.blockNumber),
+        transactionIndex: Number(log.transactionIndex),
+        logIndex: Number(log.logIndex),
+      };
+      collected.push(mapped);
+      seen += BigInt(insertionsInLog(mapped.topic0));
+    }
+    if (start === 0n) break;
+    end = start - 1n;
+  }
+  return collected;
 }
 
 function checkPool(header: { nextIndex: bigint; root: bigint }, leaves: bigint[]): PoolView {

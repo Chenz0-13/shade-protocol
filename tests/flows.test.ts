@@ -26,7 +26,7 @@ import {
   solanaPoolAccounts,
   WITHDRAW_COMPUTE_UNITS as APP_COMPUTE_UNITS,
 } from "../src/app/instruction.js";
-import { leavesFromEvmLogs, leavesFromInstruction, readPoolHeader, DEPOSIT_TOPIC, SPENT_TOPIC } from "../src/app/leaves.js";
+import { insertionsInLog, leavesFromEvmLogs, leavesFromInstruction, readPoolHeader, DEPOSIT_TOPIC, SPENT_TOPIC } from "../src/app/leaves.js";
 import { hexToBytes } from "../src/core/crypto/field.js";
 import { MerkleTree } from "../src/core/merkle/MerkleTree.js";
 import { keccak256, toBytes } from "viem";
@@ -191,6 +191,9 @@ describe("app flows", () => {
 
     expect(`0x${DEPOSIT_TOPIC}`).toBe(keccak256(toBytes("Deposited(uint256,uint256,uint256,uint256)")));
     expect(`0x${SPENT_TOPIC}`).toBe(keccak256(toBytes("Spent(uint256,uint256,uint256,uint256,uint256,uint256)")));
+    expect(insertionsInLog(`0x${DEPOSIT_TOPIC}`)).toBe(1);
+    expect(insertionsInLog(SPENT_TOPIC)).toBe(2);
+    expect(insertionsInLog("0xabcd")).toBe(0);
     const out1 = 5n;
     const out2 = 6n;
     const leaves = leavesFromEvmLogs([

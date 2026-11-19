@@ -3,11 +3,11 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#07080a">
+<meta name="theme-color" content="#050807">
 <meta name="referrer" content="no-referrer">
 <meta name="description" content="Shader Protocol testnet app. Shield, privately send, and withdraw play money. Not audited. No mainnet. No token.">
 <title>Shader Protocol testnet app</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%23C6F432'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 40 36'%3E%3Cpath d='M20 1 L39 35 H1 Z' fill='%233DFFA8'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="./src/styles.css">
 </head>
 <body>
@@ -15,137 +15,164 @@
 <p class="banner">Testnet only, unaudited</p>
 <header class="top">
   <a class="brand" href="../index.html">
-    <svg width="22" height="20" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#C6F432"/></svg>
-    <span>Shader</span>
+    <svg width="22" height="20" viewBox="0 0 40 36" aria-hidden="true"><path d="M20 1 L39 35 H1 Z" fill="#3DFFA8"/></svg>
+    <span>Shader Protocol</span>
   </a>
-  <nav>
-    <button class="text" id="help" type="button">What is shielding?</button>
-    <a href="https://github.com/Chenz0-13/shade-protocol">GitHub</a>
+  <nav class="tabs" role="tablist" aria-label="Actions">
+    <button class="tab bolt-source" id="tab-home" type="button" role="tab" aria-selected="false">Home</button>
+    <button class="tab bolt-source" id="tab-shield" type="button" role="tab" aria-selected="true" aria-controls="panel-shield">Shield</button>
+    <button class="tab bolt-source" id="tab-send" type="button" role="tab" aria-selected="false" aria-controls="panel-send">Send</button>
+    <button class="tab bolt-source" id="tab-withdraw" type="button" role="tab" aria-selected="false" aria-controls="panel-withdraw">Withdraw</button>
+    <button class="tab bolt-source" id="tab-notes" type="button" role="tab" aria-selected="false" aria-controls="panel-notes">Vault</button>
   </nav>
+  <div class="top-tools">
+    <button class="pill bolt-source" id="chain-pill" type="button">Chain</button>
+    <button class="pill bolt-source" id="connect-evm" type="button">Connect</button>
+    <span class="pill quiet" id="wallet-pill">No wallet</span>
+    <span class="testnet-pill">Testnet</span>
+  </div>
 </header>
 <main id="main">
-  <section class="intro">
-    <p class="eyebrow">Testnet app</p>
-    <h1>Hide a test coin. Send it. Take it back.</h1>
-    <p>Shielding moves play money into a shared pool and gives you a private note. A private send hands that note to someone else's shielded address. Withdraw puts the play money back in a normal wallet. This page never asks for a seed phrase.</p>
+  <section class="card wizard" id="wizard">
+    <h2>Shader Wizard</h2>
+    <div class="wizard-frame">
+      <img src="../../website/assets/wizard.png" alt="The Shader wizard, pointing forward" width="706" height="1016">
+      <span class="wizard-tip" aria-hidden="true"></span>
+    </div>
+    <p id="proof-caption">Proof engine idle</p>
+    <div id="progress" class="progress" hidden>
+      <p id="progress-label">Working</p>
+      <div class="track" aria-hidden="true"><span id="progress-bar"></span></div>
+      <p id="progress-detail"></p>
+    </div>
   </section>
 
-  <section class="panel" aria-labelledby="wallet-title">
-    <h2 id="wallet-title">Wallet</h2>
-    <p class="hint">Use MetaMask, Rabby, or Phantom for an EVM testnet. Use Phantom or Solflare, set to Devnet, for Solana. The wallet only signs what you approve.</p>
+  <section class="card">
+    <h2>Network Pulse</h2>
+    <p id="pulse-height" class="figure">—</p>
+    <p id="pulse-meta" class="hint">Last block — · Gas —</p>
+    <svg id="pulse-chart" viewBox="0 0 240 64" aria-hidden="true"><polyline fill="none" stroke="#3DFFA8" stroke-width="2"></polyline></svg>
+  </section>
+
+  <section class="card pool-card">
+    <h2>Pool Stats</h2>
+    <div class="ring-wrap">
+      <svg viewBox="0 0 140 140" aria-hidden="true">
+        <circle cx="70" cy="70" r="52" class="ring-track"></circle>
+        <circle id="pool-ring" cx="70" cy="70" r="52" class="ring-value"></circle>
+      </svg>
+      <div>
+        <p class="kicker">Anonymity set</p>
+        <p id="pool-notes" class="figure">—</p>
+      </div>
+    </div>
+    <p class="hint">Notes in the pool. TVL <span id="pool-tvl">—</span></p>
+    <p id="pool-status" class="status">Choose a chain.</p>
+  </section>
+
+  <section class="card balance-card">
+    <div class="balance-head">
+      <div>
+        <h2>Shielded Balance</h2>
+        <p id="balance" class="figure">Unlock notes to see it.</p>
+      </div>
+      <button class="icon bolt-source" id="help" type="button" aria-label="What is shielding?">?</button>
+    </div>
+    <div class="acts">
+      <button class="act bolt-source" id="act-shield" type="button">Shield</button>
+      <button class="act bolt-source" id="act-send" type="button">Private Send</button>
+      <button class="act bolt-source" id="act-withdraw" type="button">Withdraw</button>
+    </div>
+    <section class="panel" id="panel-shield" role="tabpanel">
+      <p class="hint">This moves test coins from your wallet into the pool. You get a private note that lives in this browser.</p>
+      <form id="shield-form">
+        <label>Amount <input id="shield-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
+        <button class="btn bolt-source" id="shield-submit" type="submit">Shield</button>
+      </form>
+    </section>
+    <section class="panel" id="panel-send" role="tabpanel" hidden>
+      <p class="hint">Send part of a note to a shielded address. The amount and recipient stay off the public record. Building the proof happens on this device.</p>
+      <p class="hint" id="proof-note"></p>
+      <form id="send-form">
+        <label>Note to spend <select id="send-note"></select></label>
+        <label>Their shielded address <textarea id="send-address" rows="3" placeholder="shader:…" required></textarea></label>
+        <label>Amount <input id="send-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
+        <button class="btn bolt-source" id="send-submit" type="submit">Send privately</button>
+      </form>
+      <div id="gift-box" class="gift" hidden>
+        <p>Send this encrypted note through a private chat. The chain does not carry it.</p>
+        <textarea id="gift-text" readonly rows="3"></textarea>
+        <button class="btn line bolt-source" id="copy-gift" type="button">Copy encrypted note</button>
+      </div>
+    </section>
+    <section class="panel" id="panel-withdraw" role="tabpanel" hidden>
+      <p class="hint">Turn a private note back into test coins at a normal address. That address and the amount become public.</p>
+      <form id="withdraw-form">
+        <label>Note to spend <select id="withdraw-note"></select></label>
+        <label>Public address <input id="withdraw-address" autocomplete="off" placeholder="Wallet address" required></label>
+        <label>Amount <input id="withdraw-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
+        <button class="btn bolt-source" id="withdraw-submit" type="submit">Withdraw</button>
+      </form>
+    </section>
+    <p id="status" class="status" role="status"></p>
+    <p id="result" class="status"></p>
+  </section>
+
+  <section class="card">
+    <h2>Activity</h2>
+    <div id="activity-list" class="activity"></div>
+  </section>
+
+  <section class="card score-card">
+    <h2>Privacy Score</h2>
+    <p id="privacy-score" class="figure">—</p>
+    <p id="privacy-note" class="hint">Estimate. Waiting for the pool note count.</p>
+  </section>
+
+  <section class="card" id="multichain">
+    <h2>Multichain</h2>
+    <div id="chain-probes" class="probes"></div>
+    <div class="chains" id="chains"></div>
+  </section>
+
+  <section class="card" id="panel-notes" role="tabpanel" hidden>
+    <h2>Vault</h2>
+    <p class="hint" id="vault-meta">Notes are encrypted in this browser. Unlock them with a wallet signature.</p>
     <div class="row">
-      <button class="btn" id="connect-evm" type="button">Connect EVM wallet</button>
-      <button class="btn line" id="connect-solana" type="button">Connect Solana wallet</button>
-      <button class="btn line" id="unlock" type="button">Unlock notes</button>
+      <button class="btn line bolt-source" id="connect-solana" type="button">Connect Solana</button>
+      <button class="btn line bolt-source" id="unlock" type="button">Unlock notes</button>
+      <button class="btn line bolt-source" id="export-notes" type="button">Export</button>
+      <label class="btn line file bolt-source">Import <input id="import-file" type="file" accept="application/json,.json"></label>
     </div>
     <label class="picker" id="evm-picker" hidden>Choose a wallet
       <select id="evm-choice"></select>
     </label>
     <p id="wallet-status" class="status">No wallet connected.</p>
-  </section>
-
-  <section aria-labelledby="chain-title">
-    <h2 id="chain-title">Chain</h2>
-    <div class="chains" id="chains"></div>
-  </section>
-
-  <section class="summary">
-    <div>
-      <p class="kicker">Private balance</p>
-      <p id="balance" class="balance">Unlock notes to see it.</p>
-    </div>
-    <div>
-      <p class="kicker">Pool</p>
-      <p id="pool-status" class="status">Choose a chain.</p>
-    </div>
-  </section>
-
-  <div class="tabs" role="tablist" aria-label="Actions">
-    <button class="tab" id="tab-shield" type="button" role="tab" aria-selected="true" aria-controls="panel-shield">Shield</button>
-    <button class="tab" id="tab-send" type="button" role="tab" aria-selected="false" aria-controls="panel-send">Private send</button>
-    <button class="tab" id="tab-withdraw" type="button" role="tab" aria-selected="false" aria-controls="panel-withdraw">Withdraw</button>
-    <button class="tab" id="tab-notes" type="button" role="tab" aria-selected="false" aria-controls="panel-notes">Notes</button>
-  </div>
-
-  <section class="panel" id="panel-shield" role="tabpanel">
-    <h2>Shield</h2>
-    <p class="hint">This moves test coins from your wallet into the pool. You get a private note that lives in this browser. People can see that you deposited. They cannot see the note afterwards.</p>
-    <form id="shield-form">
-      <label>Amount <input id="shield-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
-      <button class="btn" id="shield-submit" type="submit">Shield</button>
-    </form>
-  </section>
-
-  <section class="panel" id="panel-send" role="tabpanel" hidden>
-    <h2>Private send</h2>
-    <p class="hint">Send part of a note to a shielded address. The chain shows that a transfer happened, not the amount or who received it. You keep the rest as a new note. Building the proof happens on this device and can take a minute, longer on a phone.</p>
-    <p class="hint" id="proof-note"></p>
-    <form id="send-form">
-      <label>Note to spend <select id="send-note"></select></label>
-      <label>Their shielded address <textarea id="send-address" rows="3" placeholder="shader:…" required></textarea></label>
-      <label>Amount <input id="send-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
-      <button class="btn" id="send-submit" type="submit">Send privately</button>
-    </form>
-    <div id="gift-box" class="gift" hidden>
-      <p>Send this encrypted note to the recipient through a private chat. The chain does not carry it. It is not a wallet address.</p>
-      <textarea id="gift-text" readonly rows="4"></textarea>
-      <button class="btn line" id="copy-gift" type="button">Copy encrypted note</button>
-    </div>
-  </section>
-
-  <section class="panel" id="panel-withdraw" role="tabpanel" hidden>
-    <h2>Withdraw</h2>
-    <p class="hint">Turn a private note back into test coins at a normal wallet address. That address and the amount become public. Anything you do not withdraw stays in a new private note.</p>
-    <form id="withdraw-form">
-      <label>Note to spend <select id="withdraw-note"></select></label>
-      <label>Public address to receive the coins <input id="withdraw-address" autocomplete="off" placeholder="Wallet address" required></label>
-      <label>Amount <input id="withdraw-amount" inputmode="decimal" autocomplete="off" placeholder="0.01" required></label>
-      <button class="btn" id="withdraw-submit" type="submit">Withdraw</button>
-    </form>
-  </section>
-
-  <section class="panel" id="panel-notes" role="tabpanel" hidden>
-    <h2>Notes</h2>
-    <p class="hint">Notes are encrypted in this browser. The key comes from a wallet signature, not from a file you can read. Export a backup. A different wallet cannot open it.</p>
     <label>Your shielded address <textarea id="my-address" readonly rows="3" placeholder="Unlock notes to create one"></textarea></label>
-    <div class="row">
-      <button class="btn line" id="copy-address" type="button">Copy shielded address</button>
-      <button class="btn line" id="export-notes" type="button">Export backup</button>
-      <label class="btn line file">Import backup <input id="import-file" type="file" accept="application/json,.json"></label>
-    </div>
-    <h3>Saved notes</h3>
+    <button class="btn line bolt-source" id="copy-address" type="button">Copy shielded address</button>
     <div id="note-list" class="notes"></div>
-    <h3>Add a note someone sent you</h3>
     <form id="gift-form">
-      <label>Encrypted note <textarea id="gift-in" rows="3" placeholder="gift1…"></textarea></label>
-      <button class="btn line" type="submit">Add note</button>
+      <label>Encrypted note someone sent you <textarea id="gift-in" rows="3" placeholder="gift1…"></textarea></label>
+      <button class="btn line bolt-source" type="submit">Add note</button>
     </form>
   </section>
-
-  <div id="progress" class="progress" hidden>
-    <p id="progress-label">Working</p>
-    <div class="track" aria-hidden="true"><span id="progress-bar"></span></div>
-    <p id="progress-detail"></p>
-  </div>
-  <p id="status" class="status" role="status"></p>
-  <p id="result" class="status"></p>
 </main>
 <footer>
-  <p>Testnet only, unaudited. Play money. No token is offered. Shader Protocol is not a partner of any chain named here. Proofs use a single-party development setup, which is not a ceremony. A pool accepts a proof only when it was deployed with the same setup, so a live program may reject it.</p>
+  <p>Testnet only, unaudited. Play money. No token is offered. Shader Protocol is not a partner of any chain named here. Proofs use a single-party development setup. A pool accepts a proof only when it was deployed with that same setup.</p>
 </footer>
 <div id="onboarding" class="modal" hidden>
-  <div class="card" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
+  <div class="card dialog" role="dialog" aria-modal="true" aria-labelledby="onboard-title">
     <p class="banner tight">Testnet only, unaudited</p>
     <h2 id="onboard-title">What shielding means</h2>
     <ol>
       <li>A normal wallet is a glass box. Anyone can see the balance and every payment.</li>
-      <li>Shielding puts test coins into a shared pool. You receive a private note, like a sealed envelope that says the amount is yours. The pool records the seal, not the amount.</li>
-      <li>A private send gives that envelope to someone else's shielded address. Outsiders can see that a transfer happened. They do not see the amount or the recipient.</li>
-      <li>Withdraw opens the envelope and sends the test coins to a normal address. That part is public again.</li>
-      <li>Your notes stay in this browser, locked by a signature from your wallet. Export a backup. Clearing the browser deletes them.</li>
+      <li>Shielding puts test coins into a shared pool. You receive a private note. The pool records the seal, not the amount.</li>
+      <li>A private send gives that note to someone else's shielded address.</li>
+      <li>Withdraw sends the test coins to a normal address. That part is public again.</li>
+      <li>Notes stay in this browser, locked by a wallet signature. Export a backup.</li>
     </ol>
-    <p>The coins are play money. The cryptography has not been audited. Do not use a wallet that holds funds you care about.</p>
-    <button class="btn" id="onboard-ok" type="button">I understand. This is testnet only.</button>
+    <p>The coins are play money. The cryptography has not been audited.</p>
+    <button class="btn bolt-source" id="onboard-ok" type="button">I understand. This is testnet only.</button>
   </div>
 </div>
 <script type="module" src="./src/main.ts"></script>
