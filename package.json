@@ -23,7 +23,7 @@
   "dependencies": {
     "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.4.0",
-    "@solana/web3.js": "^1.99.0",
+    "@solana/web3.js": "^3.2.1",
     "bs58": "^4.0.1",
     "buffer": "^6.0.3",
     "circomlib": "^2.0.5",
